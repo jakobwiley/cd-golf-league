@@ -17,9 +17,17 @@ export async function GET() {
   try {
     const teams = await prisma.team.findMany({
       include: {
-        players: true,
+        players: {
+          orderBy: {
+            name: 'asc',
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
       },
     })
+
     return NextResponse.json(teams)
   } catch (error) {
     console.error('Error fetching teams:', error)
@@ -33,14 +41,18 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const validatedData = TeamSchema.parse(body)
+    const { name } = body
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Team name is required' },
+        { status: 400 }
+      )
+    }
 
     const team = await prisma.team.create({
       data: {
-        name: validatedData.name,
-        players: {
-          create: validatedData.players,
-        },
+        name,
       },
       include: {
         players: true,
@@ -49,12 +61,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(team)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors },
-        { status: 400 }
-      )
-    }
     console.error('Error creating team:', error)
     return NextResponse.json(
       { error: 'Failed to create team' },

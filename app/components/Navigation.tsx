@@ -1,58 +1,63 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 
 export default function Navigation() {
-  const pathname = usePathname()
-
-  const isActive = (path: string) => {
-    return pathname === path ? 'nav-link-active' : ''
-  }
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
-    <nav className="nav-container">
-      <div className="nav-content">
-        <div className="nav-items">
-          <div className="nav-logo">
-            <Link href="/" className="nav-logo-text">
-              Country Drive Golf League
+    <nav className="bg-[#030f0f] border-b border-[#00df82]/10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          <div className="flex items-center">
+            <Link 
+              href="/" 
+              className="flex items-center gap-2"
+            >
+              <span className="text-white text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-[#00df82]">CD Golf League</span>
+              <span role="img" aria-label="golf flag" className="text-xl">⛳</span>
             </Link>
+            <div className="hidden md:block">
+              <div className="ml-10 flex items-baseline space-x-4">
+                <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Schedule</Link>
+                <Link href="/teams" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Teams</Link>
+                <Link href="/matches" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Matches</Link>
+                <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Scoring</Link>
+                <Link href="/standings" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Standings</Link>
+              </div>
+            </div>
           </div>
-          <div className="nav-menu">
-            <Link 
-              href="/matches" 
-              className={`nav-link ${isActive('/matches')}`}
+          
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button
+              type="button"
+              className="relative inline-flex items-center justify-center rounded-md bg-[#00df82]/10 p-2 text-[#00df82] hover:bg-[#00df82]/20 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#030f0f] transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              Matches
-            </Link>
-            <Link 
-              href="/teams" 
-              className={`nav-link ${isActive('/teams')}`}
-            >
-              Teams
-            </Link>
-            <Link 
-              href="/schedule" 
-              className={`nav-link ${isActive('/schedule')}`}
-            >
-              Schedule
-            </Link>
-            <Link 
-              href="/standings" 
-              className={`nav-link ${isActive('/standings')}`}
-            >
-              Standings
-            </Link>
-            <Link 
-              href="/scoring" 
-              className={`nav-link ${isActive('/scoring')}`}
-            >
-              Scoring
-            </Link>
+              <span className="absolute -inset-0.5"></span>
+              <span className="sr-only">Open main menu</span>
+              <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden" id="mobile-menu">
+          <div className="space-y-1 px-2 pb-3 pt-2">
+            <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Schedule</Link>
+            <Link href="/teams" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Teams</Link>
+            <Link href="/matches" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Matches</Link>
+            <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Scoring</Link>
+            <Link href="/standings" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Standings</Link>
+          </div>
+        </div>
+      )}
     </nav>
   )
 } 

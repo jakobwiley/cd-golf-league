@@ -1,66 +1,25 @@
-'use client'
-
-import { useState } from 'react'
-import MatchScoreCard from '../components/MatchScoreCard'
-
-// Temporary mock data until we integrate with the database
-const MOCK_DATA = {
-  homeTeam: {
-    id: '1',
-    name: 'Team Eagles',
-    players: [
-      { id: '1', name: 'John Doe', ghinNumber: '1234567' },
-      { id: '2', name: 'Jane Smith', ghinNumber: '7654321' },
-    ],
-  },
-  awayTeam: {
-    id: '2',
-    name: 'Team Birdies',
-    players: [
-      { id: '3', name: 'Bob Johnson', ghinNumber: '2345678' },
-      { id: '4', name: 'Alice Brown', ghinNumber: '8765432' },
-    ],
-  },
-}
+import { Suspense } from 'react'
+import MatchesPageClient from '../components/MatchesPageClient'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 export default function MatchesPage() {
-  const [scores, setScores] = useState<Record<string, number[]>>({})
-
-  const handleScoreChange = (playerId: string, hole: number, score: number) => {
-    setScores((prev) => {
-      const playerScores = [...(prev[playerId] || Array(9).fill(0))]
-      playerScores[hole - 1] = score
-      return { ...prev, [playerId]: playerScores }
-    })
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-masters-text sm:truncate sm:text-3xl sm:tracking-tight">
-            Current Match
-          </h2>
+    <div className="min-h-screen bg-[#030f0f]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#92E3A9] to-[#4CAF50] mb-8">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent"></div>
+          <div className="relative px-8 py-6">
+            <h1 className="text-4xl font-bold text-white mb-2 font-grifter">Matches</h1>
+            <p className="text-white/90 font-grifter">View and play scheduled matches</p>
+          </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-1/4 -translate-y-1/4"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
         </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => console.log('Saving match...', scores)}
-          >
-            Save Match
-          </button>
-        </div>
-      </div>
 
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <MatchScoreCard
-            homeTeam={MOCK_DATA.homeTeam}
-            awayTeam={MOCK_DATA.awayTeam}
-            onScoreChange={handleScoreChange}
-            scores={scores}
-          />
+        <div className="mt-8">
+          <Suspense fallback={<LoadingSpinner />}>
+            <MatchesPageClient />
+          </Suspense>
         </div>
       </div>
     </div>

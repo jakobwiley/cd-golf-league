@@ -1,3 +1,10 @@
 {
-  "/ghin-test/page": "app/ghin-test/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/schedule/page": "app/schedule/page.js",
+  "/teams/page": "app/teams/page.js",
+  "/scoring/page": "app/scoring/page.js",
+  "/matches/page": "app/matches/page.js",
+  "/standings/page": "app/standings/page.js",
+  "/api/standings/route": "app/api/standings/route.js"
 }

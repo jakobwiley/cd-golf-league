@@ -17,6 +17,7 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-montserrat)'],
         display: ['var(--font-playfair-display)'],
+        grifter: ['Grifter', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

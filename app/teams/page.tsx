@@ -1,69 +1,34 @@
-'use client'
+import { prisma } from '../../lib/prisma'
+import TeamsList from '../components/TeamsList'
 
-import { useState } from 'react'
-import TeamList from '../components/TeamList'
-import TeamForm from '../components/TeamForm'
-
-// Temporary mock data until we integrate with the database
-const MOCK_TEAMS = [
-  {
-    id: '1',
-    name: 'Team Eagles',
-    players: [
-      { id: '1', name: 'John Doe', ghinNumber: '1234567' },
-      { id: '2', name: 'Jane Smith', ghinNumber: '7654321' },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Team Birdies',
-    players: [
-      { id: '3', name: 'Bob Johnson', ghinNumber: '2345678' },
-      { id: '4', name: 'Alice Brown', ghinNumber: '8765432' },
-    ],
-  },
-]
-
-export default function TeamsPage() {
-  const [teams, setTeams] = useState(MOCK_TEAMS)
-  const [isAddingTeam, setIsAddingTeam] = useState(false)
-
-  const handleAddTeam = (team: any) => {
-    setTeams((prev) => [...prev, { ...team, id: String(prev.length + 1) }])
-    setIsAddingTeam(false)
-  }
+export default async function TeamsPage() {
+  const teams = await prisma.team.findMany({
+    include: {
+      players: {
+        orderBy: {
+          name: 'asc'
+        }
+      }
+    },
+    orderBy: {
+      name: 'asc'
+    }
+  })
 
   return (
-    <div className="space-y-6">
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-masters-text sm:truncate sm:text-3xl sm:tracking-tight">
-            Teams
-          </h2>
-        </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setIsAddingTeam(true)}
-          >
-            Add Team
-          </button>
-        </div>
-      </div>
-
-      {isAddingTeam ? (
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <TeamForm onSubmit={handleAddTeam} onCancel={() => setIsAddingTeam(false)} />
+    <div className="min-h-screen bg-[#030f0f]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#92E3A9] to-[#4CAF50] mb-8">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent"></div>
+          <div className="relative px-8 py-6">
+            <h1 className="text-4xl font-bold text-white mb-2 font-grifter">Teams</h1>
+            <p className="text-white/90 font-grifter">Manage your teams and players</p>
           </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-1/4 -translate-y-1/4"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
         </div>
-      ) : null}
 
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <TeamList teams={teams} />
-        </div>
+        <TeamsList teams={teams} />
       </div>
     </div>
   )
