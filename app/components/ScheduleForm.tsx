@@ -1,308 +1,197 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { format } from 'date-fns'
 
 interface Team {
   id: string
   name: string
 }
 
-interface Match {
-  homeTeamId: string
-  awayTeamId: string
-  startTime: string
-}
-
 interface ScheduleFormProps {
-  onSubmit: (data: { date: string; matches: Match[] }) => void
-  onCancel: () => void
-  weekNumber: number
+  teams?: Team[]
+  onSubmit: () => void
   initialData?: {
-    date: string
-    matches: Match[]
+    id?: string
+    date: Date
+    weekNumber: number
+    homeTeamId: string
+    awayTeamId: string
+    startingHole: number
+    status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'
   }
 }
 
-interface ValidationError {
-  field: string
-  message: string
-}
-
-export default function ScheduleForm({
-  onSubmit,
-  onCancel,
-  weekNumber,
-  initialData,
-}: ScheduleFormProps) {
+export default function ScheduleForm({ teams = [], onSubmit, initialData }: ScheduleFormProps) {
   const [formData, setFormData] = useState({
-    date: initialData?.date || '',
-    matches: initialData?.matches || [
-      { homeTeamId: '', awayTeamId: '', startTime: '17:30' },
-      { homeTeamId: '', awayTeamId: '', startTime: '17:40' },
-      { homeTeamId: '', awayTeamId: '', startTime: '17:50' },
-      { homeTeamId: '', awayTeamId: '', startTime: '18:00' },
-      { homeTeamId: '', awayTeamId: '', startTime: '18:10' },
-    ],
+    id: initialData?.id || undefined,
+    date: initialData?.date ? format(new Date(initialData.date), 'yyyy-MM-dd') : '',
+    weekNumber: initialData?.weekNumber || 1,
+    homeTeamId: initialData?.homeTeamId || '',
+    awayTeamId: initialData?.awayTeamId || '',
+    startingHole: initialData?.startingHole || 1,
+    status: initialData?.status || 'SCHEDULED'
   })
-  const [teams, setTeams] = useState<Team[]>([])
-  const [errors, setErrors] = useState<ValidationError[]>([])
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    fetchTeams()
-  }, [])
-
-  const fetchTeams = async () => {
-    try {
-      const response = await fetch('/api/teams')
-      if (!response.ok) throw new Error('Failed to fetch teams')
-      const data = await response.json()
-      setTeams(data)
-    } catch (error) {
-      console.error('Error fetching teams:', error)
-      // Fallback to mock data if API fails
-      setTeams([
-        { id: '1', name: 'Team Eagles' },
-        { id: '2', name: 'Team Birdies' },
-        { id: '3', name: 'Team Pars' },
-        { id: '4', name: 'Team Bogeys' },
-        { id: '5', name: 'Team Albatross' },
-      ])
-    }
-  }
-
-  const validateForm = (): boolean => {
-    const newErrors: ValidationError[] = []
-
-    // Check date
-    if (!formData.date) {
-      newErrors.push({ field: 'date', message: 'Date is required' })
-    }
-
-    // Check matches
-    const usedTeams = new Set<string>()
-    const usedTimes = new Set<string>()
-
-    formData.matches.forEach((match, index) => {
-      // Check if teams are selected
-      if (!match.homeTeamId) {
-        newErrors.push({ field: `match-${index}-home`, message: 'Home team is required' })
-      }
-      if (!match.awayTeamId) {
-        newErrors.push({ field: `match-${index}-away`, message: 'Away team is required' })
-      }
-
-      // Check for duplicate teams in the same week
-      if (match.homeTeamId) {
-        if (usedTeams.has(match.homeTeamId)) {
-          newErrors.push({ field: `match-${index}-home`, message: 'Team is already playing in this week' })
-        }
-        usedTeams.add(match.homeTeamId)
-      }
-      if (match.awayTeamId) {
-        if (usedTeams.has(match.awayTeamId)) {
-          newErrors.push({ field: `match-${index}-away`, message: 'Team is already playing in this week' })
-        }
-        usedTeams.add(match.awayTeamId)
-      }
-
-      // Check for same team playing against itself
-      if (match.homeTeamId && match.homeTeamId === match.awayTeamId) {
-        newErrors.push({ field: `match-${index}`, message: 'Team cannot play against itself' })
-      }
-
-      // Check for duplicate time slots
-      if (match.startTime) {
-        if (usedTimes.has(match.startTime)) {
-          newErrors.push({ field: `match-${index}-time`, message: 'Time slot is already taken' })
-        }
-        usedTimes.add(match.startTime)
-      }
-    })
-
-    setErrors(newErrors)
-    return newErrors.length === 0
-  }
-
-  const handleMatchChange = (index: number, field: keyof Match, value: string) => {
-    const newMatches = [...formData.matches]
-    newMatches[index] = { ...newMatches[index], [field]: value }
-    setFormData({ ...formData, matches: newMatches })
-
-    // Clear errors for the changed field
-    setErrors(errors.filter(error => !error.field.includes(`match-${index}`)))
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'weekNumber' || name === 'startingHole' ? parseInt(value) : value
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!validateForm()) {
-      return
-    }
-
+    setError('')
     setLoading(true)
+
     try {
       const response = await fetch('/api/schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          date: formData.date,
-          weekNumber,
-          matches: formData.matches,
-        }),
+        body: JSON.stringify(formData),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to create schedule')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create schedule')
       }
 
-      onSubmit(formData)
-    } catch (error) {
-      console.error('Error saving schedule:', error)
-      setErrors([{ field: 'submit', message: 'Failed to save schedule' }])
+      onSubmit()
+    } catch (err) {
+      console.error('Error saving schedule:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save schedule')
     } finally {
       setLoading(false)
     }
   }
 
-  const getFieldError = (field: string) => {
-    return errors.find(error => error.field === field)?.message
+  if (teams.length === 0) {
+    return (
+      <div className="text-center p-8 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl shadow-xl">
+        <p className="text-white text-lg font-medium">No teams available. Create your squad first! 🏌️‍♂️</p>
+      </div>
+    )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium text-masters-green mb-4">
-          Schedule Week {weekNumber}
-        </h3>
-        <div className="grid grid-cols-1 gap-6">
-          <div>
-            <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-              Date
-            </label>
-            <input
-              type="date"
-              id="date"
-              value={formData.date}
-              onChange={(e) => {
-                setFormData({ ...formData, date: e.target.value })
-                setErrors(errors.filter(error => error.field !== 'date'))
-              }}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                getFieldError('date')
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-masters-green focus:ring-masters-green'
-              }`}
-              required
-            />
-            {getFieldError('date') && (
-              <p className="mt-1 text-sm text-red-600">{getFieldError('date')}</p>
-            )}
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+          <p className="text-red-700 font-medium">{error}</p>
+        </div>
+      )}
+      
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <label htmlFor="date" className="block text-lg font-semibold text-gray-800">
+            Match Date 📅
+          </label>
+          <input
+            type="date"
+            id="date"
+            name="date"
+            value={formData.date}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
+          />
+        </div>
 
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium text-gray-700">Matches</h4>
-            {formData.matches.map((match, index) => (
-              <div key={index} className="grid grid-cols-3 gap-4 items-end border rounded-lg p-4 bg-gray-50">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Home Team
-                  </label>
-                  <select
-                    value={match.homeTeamId}
-                    onChange={(e) => handleMatchChange(index, 'homeTeamId', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                      getFieldError(`match-${index}-home`)
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                        : 'border-gray-300 focus:border-masters-green focus:ring-masters-green'
-                    }`}
-                    required
-                  >
-                    <option value="">Select Team</option>
-                    {teams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                  {getFieldError(`match-${index}-home`) && (
-                    <p className="mt-1 text-sm text-red-600">{getFieldError(`match-${index}-home`)}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Away Team
-                  </label>
-                  <select
-                    value={match.awayTeamId}
-                    onChange={(e) => handleMatchChange(index, 'awayTeamId', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                      getFieldError(`match-${index}-away`)
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                        : 'border-gray-300 focus:border-masters-green focus:ring-masters-green'
-                    }`}
-                    required
-                  >
-                    <option value="">Select Team</option>
-                    {teams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                  {getFieldError(`match-${index}-away`) && (
-                    <p className="mt-1 text-sm text-red-600">{getFieldError(`match-${index}-away`)}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Start Time
-                  </label>
-                  <input
-                    type="time"
-                    value={match.startTime}
-                    onChange={(e) => handleMatchChange(index, 'startTime', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                      getFieldError(`match-${index}-time`)
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                        : 'border-gray-300 focus:border-masters-green focus:ring-masters-green'
-                    }`}
-                    required
-                  />
-                  {getFieldError(`match-${index}-time`) && (
-                    <p className="mt-1 text-sm text-red-600">{getFieldError(`match-${index}-time`)}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="space-y-2">
+          <label htmlFor="weekNumber" className="block text-lg font-semibold text-gray-800">
+            Week # 🎯
+          </label>
+          <input
+            type="number"
+            id="weekNumber"
+            name="weekNumber"
+            min="1"
+            value={formData.weekNumber}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
+          />
         </div>
       </div>
 
-      {getFieldError('submit') && (
-        <p className="text-sm text-red-600">{getFieldError('submit')}</p>
-      )}
+      <div className="grid md:grid-cols-2 gap-6 mt-6">
+        <div className="space-y-2">
+          <label htmlFor="homeTeamId" className="block text-lg font-semibold text-gray-800">
+            Home Squad 🏠
+          </label>
+          <select
+            id="homeTeamId"
+            name="homeTeamId"
+            value={formData.homeTeamId}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
+          >
+            <option value="">Pick Home Team</option>
+            {teams.map(team => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="flex justify-end space-x-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-masters-green"
-          disabled={loading}
-        >
-          Cancel
-        </button>
+        <div className="space-y-2">
+          <label htmlFor="awayTeamId" className="block text-lg font-semibold text-gray-800">
+            Away Squad 🛫
+          </label>
+          <select
+            id="awayTeamId"
+            name="awayTeamId"
+            value={formData.awayTeamId}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
+          >
+            <option value="">Pick Away Team</option>
+            {teams.map(team => (
+              <option 
+                key={team.id} 
+                value={team.id}
+                disabled={team.id === formData.homeTeamId}
+              >
+                {team.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <label htmlFor="startingHole" className="block text-lg font-semibold text-gray-800">
+          Starting Hole ⛳
+        </label>
+        <input
+          type="number"
+          id="startingHole"
+          name="startingHole"
+          min="1"
+          max="9"
+          value={formData.startingHole}
+          onChange={handleChange}
+          required
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
+        />
+      </div>
+
+      <div className="mt-8">
         <button
           type="submit"
-          className="btn-primary"
           disabled={loading}
+          className="w-full bg-gradient-to-r from-emerald-500 to-emerald-700 text-white py-4 px-6 rounded-xl font-bold text-lg hover:from-emerald-600 hover:to-emerald-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-1"
         >
-          {loading ? 'Saving...' : 'Save Schedule'}
+          {loading ? '⏳ Setting Up Match...' : '🏌️‍♂️ Schedule Match'}
         </button>
       </div>
     </form>

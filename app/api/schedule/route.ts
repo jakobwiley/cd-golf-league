@@ -1,47 +1,31 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/app/lib/prisma'
+import { prisma } from '../../../lib/prisma'
 import { z } from 'zod'
 
-// Validation schemas
-const MatchSchema = z.object({
+// Validation schema for schedule data
+const scheduleSchema = z.object({
+  id: z.string().optional(),
+  date: z.string(),
+  weekNumber: z.number().int().positive(),
   homeTeamId: z.string(),
   awayTeamId: z.string(),
-  startTime: z.string(),
-}).refine(data => data.homeTeamId !== data.awayTeamId, {
-  message: "Team cannot play against itself"
+  startingHole: z.number().int().min(1).max(9).default(1),
+  status: z.enum(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']).default('SCHEDULED')
 })
 
-const ScheduleSchema = z.object({
-  date: z.string(),
-  weekNumber: z.number(),
-  matches: z.array(MatchSchema)
-}).refine(async (data) => {
-  // Check if any team is playing multiple times in the same week
-  const teamIds = data.matches.flatMap(match => [match.homeTeamId, match.awayTeamId])
-  const duplicates = teamIds.filter((id, index) => teamIds.indexOf(id) !== index)
-  return duplicates.length === 0
-}, {
-  message: "Teams cannot play multiple times in the same week"
-})
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const weekNumber = searchParams.get('weekNumber')
-
+export async function GET() {
   try {
-    const schedule = await prisma.match.findMany({
-      where: weekNumber ? { weekNumber: parseInt(weekNumber) } : undefined,
+    const matches = await prisma.match.findMany({
       include: {
         homeTeam: true,
         awayTeam: true,
       },
       orderBy: [
         { weekNumber: 'asc' },
-        { startTime: 'asc' },
-      ],
+        { date: 'asc' }
+      ]
     })
-
-    return NextResponse.json(schedule)
+    return NextResponse.json(matches)
   } catch (error) {
     console.error('Error fetching schedule:', error)
     return NextResponse.json(
@@ -54,103 +38,115 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    
-    // Validate request body
-    const validatedData = await ScheduleSchema.parseAsync(body)
+    const validatedData = scheduleSchema.parse(body)
 
-    // Check for time slot conflicts
-    const existingMatches = await prisma.match.findMany({
+    // Check if teams exist
+    const [homeTeam, awayTeam] = await Promise.all([
+      prisma.team.findUnique({ where: { id: validatedData.homeTeamId } }),
+      prisma.team.findUnique({ where: { id: validatedData.awayTeamId } })
+    ])
+
+    if (!homeTeam || !awayTeam) {
+      return NextResponse.json(
+        { error: 'One or both teams not found' },
+        { status: 400 }
+      )
+    }
+
+    // Check for existing match on same date with same teams
+    const existingMatch = await prisma.match.findFirst({
       where: {
         date: new Date(validatedData.date),
-      },
+        OR: [
+          {
+            AND: [
+              { homeTeamId: validatedData.homeTeamId },
+              { awayTeamId: validatedData.awayTeamId }
+            ]
+          },
+          {
+            AND: [
+              { homeTeamId: validatedData.awayTeamId },
+              { awayTeamId: validatedData.homeTeamId }
+            ]
+          }
+        ]
+      }
     })
 
-    const timeSlots = new Set(existingMatches.map(match => match.startTime))
-    const hasTimeConflict = validatedData.matches.some(match => 
-      timeSlots.has(match.startTime)
-    )
-
-    if (hasTimeConflict) {
+    if (existingMatch && !validatedData.id) {
       return NextResponse.json(
-        { error: 'Time slot conflicts detected' },
+        { error: 'A match between these teams already exists on this date' },
         { status: 400 }
       )
     }
 
-    // Create all matches for the week
-    const createdMatches = await prisma.$transaction(
-      validatedData.matches.map(match => 
-        prisma.match.create({
-          data: {
-            date: new Date(validatedData.date),
-            weekNumber: validatedData.weekNumber,
-            startTime: match.startTime,
-            homeTeamId: match.homeTeamId,
-            awayTeamId: match.awayTeamId,
-            status: 'SCHEDULED',
-          },
-        })
-      )
-    )
+    let match
+    if (validatedData.id) {
+      // Update existing match
+      match = await prisma.match.update({
+        where: { id: validatedData.id },
+        data: {
+          date: new Date(validatedData.date),
+          weekNumber: validatedData.weekNumber,
+          homeTeamId: validatedData.homeTeamId,
+          awayTeamId: validatedData.awayTeamId,
+          startingHole: validatedData.startingHole,
+          status: validatedData.status
+        },
+        include: {
+          homeTeam: true,
+          awayTeam: true
+        }
+      })
+    } else {
+      // Create new match
+      match = await prisma.match.create({
+        data: {
+          date: new Date(validatedData.date),
+          weekNumber: validatedData.weekNumber,
+          homeTeamId: validatedData.homeTeamId,
+          awayTeamId: validatedData.awayTeamId,
+          startingHole: validatedData.startingHole,
+          status: validatedData.status
+        },
+        include: {
+          homeTeam: true,
+          awayTeam: true
+        }
+      })
+    }
 
-    return NextResponse.json(createdMatches)
+    return NextResponse.json(match)
   } catch (error) {
+    console.error('Error saving schedule:', error)
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.errors },
+        { error: 'Invalid schedule data', details: error.errors },
         { status: 400 }
       )
     }
-
-    console.error('Error creating schedule:', error)
     return NextResponse.json(
-      { error: 'Failed to create schedule' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    const body = await request.json()
-    const { id, ...updateData } = body
-
-    // Validate update data
-    const validatedData = await ScheduleSchema.parseAsync(updateData)
-
-    const updatedMatch = await prisma.match.update({
-      where: { id },
-      data: {
-        date: new Date(validatedData.date),
-        weekNumber: validatedData.weekNumber,
-        ...validatedData.matches[0], // Assuming single match update
-      },
-    })
-
-    return NextResponse.json(updatedMatch)
-  } catch (error) {
-    console.error('Error updating schedule:', error)
-    return NextResponse.json(
-      { error: 'Failed to update schedule' },
+      { error: 'Failed to save schedule' },
       { status: 500 }
     )
   }
 }
 
 export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
-
-  if (!id) {
-    return NextResponse.json(
-      { error: 'Match ID is required' },
-      { status: 400 }
-    )
-  }
-
   try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Match ID is required' },
+        { status: 400 }
+      )
+    }
+
     await prisma.match.delete({
-      where: { id },
+      where: { id }
     })
 
     return NextResponse.json({ success: true })

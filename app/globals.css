@@ -2,23 +2,168 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --masters-green: #006747;
+  --augusta-gold: #FEDB00;
+  --masters-cream: #FFF4E4;
+}
+
 @layer base {
-  :root {
-    --masters-green: 0 103 71;
-    --augusta-gold: 255 205 0;
+  body {
+    @apply bg-masters-cream text-gray-900;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-masters-green text-white px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors;
+  .nav-link {
+    @apply text-gray-900 hover:text-masters-green px-3 py-2 text-sm font-medium;
   }
-  
+
+  .nav-link-active {
+    @apply text-masters-green;
+  }
+
+  .btn-primary {
+    @apply inline-flex justify-center rounded-md bg-masters-green px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-masters-green/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-masters-green;
+  }
+
   .btn-secondary {
-    @apply bg-augusta-gold text-masters-text px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors;
+    @apply bg-augusta-gold text-masters-text px-4 py-2 rounded-md 
+           hover:bg-augusta-gold-dark transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-augusta-gold focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transform hover:scale-105 active:scale-100 transition-transform;
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-md p-6;
+    @apply bg-white p-6 rounded-lg shadow-sm ring-1 ring-gray-900/5 hover:shadow-md transition-shadow duration-200;
+  }
+
+  .card-link {
+    @apply block no-underline;
+  }
+
+  .card-title {
+    @apply text-xl font-semibold text-masters-green mb-2;
+  }
+
+  .card-description {
+    @apply text-gray-600;
+  }
+
+  .input-field {
+    @apply block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-masters-green sm:text-sm sm:leading-6;
+  }
+
+  .table-container {
+    @apply bg-white shadow-masters rounded-lg overflow-hidden
+           hover:shadow-masters-lg transition-shadow duration-200;
+  }
+
+  .table-header {
+    @apply bg-masters-green bg-opacity-5 text-masters-green
+           font-medium text-sm uppercase tracking-wider;
+  }
+
+  .table-cell {
+    @apply px-6 py-4 whitespace-nowrap text-sm
+           transition-colors duration-200;
+  }
+
+  .hover-highlight {
+    @apply hover:bg-masters-green hover:bg-opacity-5
+           transition-colors duration-200;
+  }
+
+  .stats-card {
+    @apply bg-white rounded-lg p-6 shadow-masters
+           hover:shadow-masters-lg transition-all duration-200
+           transform hover:-translate-y-1;
+  }
+
+  /* Loading animation */
+  .loading-dots::after {
+    content: '.';
+    animation: dots 1.5s steps(5, end) infinite;
+  }
+
+  @keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60% { content: '...'; }
+    80%, 100% { content: ''; }
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-masters-green bg-opacity-50 rounded-full
+         hover:bg-opacity-70 transition-colors duration-200;
+}
+
+/* Navigation styles */
+.nav-container {
+  @apply bg-white shadow-sm;
+}
+
+.nav-content {
+  @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+.nav-items {
+  @apply flex h-16 justify-between;
+}
+
+.nav-logo {
+  @apply flex items-center;
+}
+
+.nav-logo-text {
+  @apply text-xl font-bold text-masters-green;
+}
+
+.nav-menu {
+  @apply flex items-center space-x-4;
+}
+
+/* Page header styles */
+.page-header {
+  @apply bg-white shadow;
+}
+
+.page-header-content {
+  @apply mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
+}
+
+.page-title {
+  @apply text-3xl font-bold tracking-tight text-masters-green;
+}
+
+/* Animation */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 } 

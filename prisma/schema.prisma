@@ -19,29 +19,31 @@ model Team {
 }
 
 model Player {
-  id         String       @id @default(cuid())
-  name       String
-  ghinNumber String      @unique
-  team       Team        @relation(fields: [teamId], references: [id])
-  teamId     String
-  scores     MatchScore[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id            String       @id @default(cuid())
+  name          String
+  ghinNumber    String      @unique
+  handicapIndex Float       @default(0)
+  team          Team        @relation(fields: [teamId], references: [id])
+  teamId        String
+  scores        MatchScore[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model Match {
-  id          String        @id @default(cuid())
-  date        DateTime
-  weekNumber  Int
-  homeTeam    Team         @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  homeTeamId  String
-  awayTeam    Team         @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  awayTeamId  String
-  scores      MatchScore[]
-  points      MatchPoints[]
-  completed   Boolean      @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            String        @id @default(cuid())
+  date          DateTime
+  weekNumber    Int
+  homeTeam      Team         @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  homeTeamId    String
+  awayTeam      Team         @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  awayTeamId    String
+  scores        MatchScore[]
+  points        MatchPoints[]
+  status        String       @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  startingHole  Int         @default(1) @db.SmallInt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model MatchScore {

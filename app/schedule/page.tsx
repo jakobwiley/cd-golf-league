@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import WeeklySchedule from '../components/WeeklySchedule'
 import ScheduleForm from '../components/ScheduleForm'
+import { prisma } from '../../lib/prisma'
 
 // Temporary mock data until we integrate with the database
 const MOCK_SCHEDULE = [
@@ -47,62 +48,28 @@ const MOCK_SCHEDULE = [
   },
 ]
 
-export default function SchedulePage() {
-  const [schedule, setSchedule] = useState(MOCK_SCHEDULE)
-  const [isAddingWeek, setIsAddingWeek] = useState(false)
-
-  const handleAddWeek = (weekData: any) => {
-    setSchedule((prev) => [...prev, {
-      id: String(prev.length + 1),
-      weekNumber: prev.length + 1,
-      ...weekData,
-    }])
-    setIsAddingWeek(false)
-  }
+export default async function SchedulePage() {
+  const teams = await prisma.team.findMany({
+    orderBy: {
+      name: 'asc'
+    }
+  })
 
   return (
-    <div className="space-y-6">
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-masters-text sm:truncate sm:text-3xl sm:tracking-tight">
-            League Schedule
-          </h2>
-        </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setIsAddingWeek(true)}
-          >
-            Add Week
-          </button>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 py-12">
+        <div className="container mx-auto px-4">
+          <h1 className="text-4xl font-bold text-white mb-2">Match Schedule 🏌️‍♂️</h1>
+          <p className="text-emerald-100 text-lg">Set up your next epic golf showdown!</p>
         </div>
       </div>
-
-      {isAddingWeek ? (
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <ScheduleForm
-              onSubmit={handleAddWeek}
-              onCancel={() => setIsAddingWeek(false)}
-              weekNumber={schedule.length + 1}
-            />
+      
+      <div className="container mx-auto px-4 py-8 -mt-8">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100">
+          <div className="max-w-3xl mx-auto">
+            <ScheduleForm teams={teams} onSubmit={() => {}} />
           </div>
         </div>
-      ) : null}
-
-      <div className="space-y-4">
-        {schedule.map((week) => (
-          <div key={week.id} className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <WeeklySchedule
-                weekNumber={week.weekNumber}
-                date={format(new Date(week.date), 'MMMM d, yyyy')}
-                matches={week.matches}
-              />
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   )

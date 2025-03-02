@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import clsx from 'clsx'
 
@@ -18,9 +20,16 @@ interface MatchScoreCardProps {
   awayTeam: Team
   onScoreChange: (playerId: string, hole: number, score: number) => void
   scores: Record<string, number[]>
+  startingHole: number
 }
 
-export default function MatchScoreCard({ homeTeam, awayTeam, onScoreChange, scores }: MatchScoreCardProps) {
+export default function MatchScoreCard({ 
+  homeTeam, 
+  awayTeam, 
+  onScoreChange, 
+  scores,
+  startingHole,
+}: MatchScoreCardProps) {
   const holes = Array.from({ length: 9 }, (_, i) => i + 1)
 
   const calculateTotal = (playerId: string) => {
@@ -29,6 +38,7 @@ export default function MatchScoreCard({ homeTeam, awayTeam, onScoreChange, scor
 
   const renderScoreInput = (playerId: string, hole: number) => {
     const currentScore = scores[playerId]?.[hole - 1] || ''
+    const isStartingHole = hole === startingHole
     
     return (
       <input
@@ -37,7 +47,10 @@ export default function MatchScoreCard({ homeTeam, awayTeam, onScoreChange, scor
         max="12"
         value={currentScore}
         onChange={(e) => onScoreChange(playerId, hole, parseInt(e.target.value) || 0)}
-        className="w-12 h-12 text-center border rounded focus:ring-masters-green focus:border-masters-green"
+        className={clsx(
+          "w-12 h-12 text-center border rounded focus:ring-masters-green focus:border-masters-green",
+          isStartingHole && "bg-masters-green bg-opacity-10"
+        )}
       />
     )
   }
@@ -53,7 +66,12 @@ export default function MatchScoreCard({ homeTeam, awayTeam, onScoreChange, scor
             {holes.map((hole) => (
               <th
                 key={hole}
-                className="px-6 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className={clsx(
+                  "px-6 py-3 text-center text-xs font-medium uppercase tracking-wider",
+                  hole === startingHole 
+                    ? "bg-masters-green bg-opacity-10 text-masters-green"
+                    : "bg-gray-50 text-gray-500"
+                )}
               >
                 {hole}
               </th>
