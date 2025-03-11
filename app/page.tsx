@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import QRCodeShare from './components/QRCodeShare'
 
 export default function Home() {
   return (
@@ -77,6 +78,17 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 mt-8">
+        <Link href="/standings" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors">
+          Leaderboard
+        </Link>
+        <Link href="/schedule" className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors">
+          Schedule
+        </Link>
+      </div>
+      
+      <QRCodeShare />
     </div>
   )
 } 
