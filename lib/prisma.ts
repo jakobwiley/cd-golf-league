@@ -15,6 +15,27 @@ const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsW
 
 // Create a mock client for development with placeholder credentials
 const mockPrismaClient = {
+  $transaction: async (callback) => {
+    console.log('Using mock transaction');
+    // Create a transaction proxy that mimics the real transaction
+    const txClient = {
+      player: {
+        deleteMany: async (data) => {
+          console.log('Mock deleting players:', data);
+          return { count: 1 };
+        }
+      },
+      team: {
+        delete: async (data) => {
+          console.log('Mock deleting team:', data);
+          return { id: data.where.id, name: 'Deleted Team' };
+        }
+      }
+    };
+    
+    // Execute the callback with our transaction proxy
+    return await callback(txClient);
+  },
   team: {
     findMany: async (options?: any) => {
       console.log('Using mock team data');
@@ -63,19 +84,39 @@ const mockPrismaClient = {
       
       return teams;
     },
-    findUnique: async () => ({ 
-      id: 'team1', 
-      name: 'Team Alpha',
-      players: [
-        { id: 'player1', name: 'John Doe', handicapIndex: 12.5 },
-        { id: 'player2', name: 'Jane Smith', handicapIndex: 14.2 }
-      ],
-      homeMatches: [],
-      awayMatches: []
-    }),
+    findUnique: async (options?: any) => {
+      console.log('Mock finding unique team:', options);
+      if (options?.where?.id === 'team1') {
+        return { 
+          id: 'team1', 
+          name: 'Team Alpha',
+          players: [
+            { id: 'player1', name: 'John Doe', handicapIndex: 12.5 },
+            { id: 'player2', name: 'Jane Smith', handicapIndex: 14.2 }
+          ],
+          homeMatches: [],
+          awayMatches: []
+        };
+      } else if (options?.where?.id === 'team2') {
+        return { 
+          id: 'team2', 
+          name: 'Team Beta',
+          players: [
+            { id: 'player3', name: 'Bob Johnson', handicapIndex: 10.8 },
+            { id: 'player4', name: 'Alice Williams', handicapIndex: 15.3 }
+          ],
+          homeMatches: [],
+          awayMatches: []
+        };
+      }
+      return null;
+    },
     create: async (data: any) => data.data,
     update: async (data: any) => data.data,
-    delete: async () => ({ id: 'deleted' })
+    delete: async (data: any) => {
+      console.log('Mock deleting team:', data);
+      return { id: data.where.id, name: 'Deleted Team' };
+    }
   },
   player: {
     findMany: async () => [
@@ -87,7 +128,11 @@ const mockPrismaClient = {
     findUnique: async () => ({ id: 'player1', name: 'John Doe', handicapIndex: 12.5, teamId: 'team1' }),
     create: async (data: any) => data.data,
     update: async (data: any) => data.data,
-    delete: async () => ({ id: 'deleted' })
+    delete: async () => ({ id: 'deleted' }),
+    deleteMany: async (data: any) => {
+      console.log('Mock deleting players:', data);
+      return { count: data?.where?.teamId ? 2 : 1 };
+    }
   },
   match: {
     findMany: async () => {
@@ -125,7 +170,11 @@ const mockPrismaClient = {
     }),
     create: async (data: any) => data.data,
     update: async (data: any) => data.data,
-    delete: async () => ({ id: 'deleted' })
+    delete: async () => ({ id: 'deleted' }),
+    deleteMany: async (data: any) => {
+      console.log('Mock deleting matches:', data);
+      return { count: 1 };
+    }
   },
   matchScore: {
     findMany: async () => [],

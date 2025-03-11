@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import QRCodeDisplay from './components/QRCodeDisplay'
 
 export default function Home() {
   return (
@@ -48,7 +47,7 @@ export default function Home() {
           </div>
 
           {/* Updated Navigation buttons - only matches and standings */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Matches Button */}
             <Link href="/matches" 
                   className="group relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50 p-8 transition-all duration-300 hover:scale-105 hover:bg-[#030f0f]/70 hover:border-[#00df82]/50">
@@ -98,29 +97,6 @@ export default function Home() {
                 </svg>
               </div>
             </Link>
-          </div>
-
-          {/* QR Code section - updated design */}
-          <div className="relative overflow-hidden rounded-2xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 p-8">
-            <div className="absolute inset-0 bg-gradient-to-b from-[#00df82]/5 to-transparent"></div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#00df82]/5 rounded-full blur-3xl"></div>
-            
-            <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="md:w-1/2">
-                <h2 className="text-2xl font-audiowide text-white mb-4">Mobile Access</h2>
-                <p className="text-white/70 mb-4">
-                  Scan this QR code to access the Country Drive Golf League app on your mobile device.
-                </p>
-                <p className="text-white/50 text-sm">
-                  Get real-time updates, view scores, and track standings on the go.
-                </p>
-              </div>
-              <div className="md:w-1/2 flex justify-center">
-                <div className="p-2 bg-white/10 backdrop-blur-md rounded-xl">
-                  <QRCodeDisplay />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
