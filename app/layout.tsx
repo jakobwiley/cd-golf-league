@@ -3,7 +3,6 @@ import Link from 'next/link'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import Navigation from './components/Navigation'
-import AddToHomeScreen from './components/AddToHomeScreen'
 // import './styles/fonts.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -48,7 +47,6 @@ export default function RootLayout({
         <main className="min-h-screen">
           {children}
         </main>
-        <AddToHomeScreen />
       </body>
     </html>
   )

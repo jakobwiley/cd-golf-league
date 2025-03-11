@@ -1,5 +1,8 @@
 {
   "/schedule/page": "app/schedule/page.js",
+  "/matches/page": "app/matches/page.js",
   "/teams/page": "app/teams/page.js",
+  "/api/matches/route": "app/api/matches/route.js",
+  "/scoring/page": "app/scoring/page.js",
   "/page": "app/page.js"
 }

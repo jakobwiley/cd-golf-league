@@ -71,24 +71,8 @@ export async function GET(request: Request) {
     return NextResponse.json(matches)
   } catch (error) {
     console.error('Error fetching matches:', error)
-    
-    // Handle specific Prisma errors
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      return NextResponse.json(
-        { error: 'Database error', code: error.code },
-        { status: 500 }
-      )
-    }
-    
-    if (error instanceof Prisma.PrismaClientInitializationError) {
-      return NextResponse.json(
-        { error: 'Failed to connect to database' },
-        { status: 500 }
-      )
-    }
-
     return NextResponse.json(
-      { error: 'Failed to fetch matches' },
+      { error: 'Failed to fetch matches', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
