@@ -1,6 +1,6 @@
 import './globals.css'
 import Link from 'next/link'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import Navigation from './components/Navigation'
 import AddToHomeScreen from './components/AddToHomeScreen'
@@ -8,12 +8,18 @@ import AddToHomeScreen from './components/AddToHomeScreen'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const viewport: Viewport = {
+  themeColor: '#4CAF50',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 export const metadata: Metadata = {
   title: 'Country Drive Golf League',
   description: 'Country Drive Golf League scoring and management app',
   manifest: '/manifest.json',
-  themeColor: '#4CAF50',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

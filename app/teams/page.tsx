@@ -2,18 +2,25 @@ import { prisma } from '../../lib/prisma'
 import TeamsList from '../components/TeamsList'
 
 export default async function TeamsPage() {
-  const teams = await prisma.team.findMany({
-    include: {
-      players: {
-        orderBy: {
-          name: 'asc'
+  let teams = [];
+  
+  try {
+    teams = await prisma.team.findMany({
+      include: {
+        players: {
+          orderBy: {
+            name: 'asc'
+          }
         }
+      },
+      orderBy: {
+        name: 'asc'
       }
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  })
+    });
+  } catch (error) {
+    console.error('Error fetching teams:', error);
+    // Return empty array if there's an error
+  }
 
   return (
     <div className="min-h-screen bg-[#030f0f]">
