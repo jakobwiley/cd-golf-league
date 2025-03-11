@@ -16,6 +16,15 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif;
   }
+  
+  /* Custom font classes */
+  .font-orbitron {
+    font-family: var(--font-orbitron);
+  }
+  
+  .font-audiowide {
+    font-family: var(--font-audiowide);
+  }
 }
 
 @layer components {

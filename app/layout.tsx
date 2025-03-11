@@ -1,11 +1,13 @@
 import './globals.css'
 import Link from 'next/link'
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Orbitron, Audiowide } from 'next/font/google'
 import Navigation from './components/Navigation'
 // import './styles/fonts.css'
 
 const inter = Inter({ subsets: ['latin'] })
+const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron' })
+const audiowide = Audiowide({ subsets: ['latin'], weight: '400', variable: '--font-audiowide' })
 
 export const viewport: Viewport = {
   themeColor: '#4CAF50',
@@ -35,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${orbitron.variable} ${audiowide.variable}`}>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -18,6 +18,8 @@ module.exports = {
         sans: ['var(--font-montserrat)'],
         display: ['var(--font-playfair-display)'],
         grifter: ['Grifter', 'sans-serif'],
+        orbitron: ['var(--font-orbitron)', 'sans-serif'],
+        audiowide: ['var(--font-audiowide)', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
