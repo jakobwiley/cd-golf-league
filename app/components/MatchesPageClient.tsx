@@ -91,8 +91,10 @@ export default function MatchesPageClient() {
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border-l-4 border-red-500 p-4 rounded-lg">
-        <p className="text-red-500">{error}</p>
+      <div className="relative overflow-hidden rounded-2xl border border-red-500/30 backdrop-blur-sm bg-[#030f0f]/50 p-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent"></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl"></div>
+        <p className="text-red-500 relative font-orbitron">{error}</p>
       </div>
     )
   }
@@ -100,51 +102,57 @@ export default function MatchesPageClient() {
   return (
     <div className="space-y-6">
       {Object.entries(matchesByWeek).map(([weekNumber, weekMatches]) => (
-        <div key={weekNumber} className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
+        <div key={weekNumber} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
           <button
             onClick={() => toggleWeek(parseInt(weekNumber))}
-            className="w-full px-6 py-4 flex items-center justify-between text-white hover:bg-white/5 transition-colors"
+            className="w-full px-6 py-4 flex items-center justify-between text-white hover:bg-white/5 transition-colors relative z-10"
           >
             <div className="flex items-center space-x-4">
-              <span className="text-lg font-grifter">Week {weekNumber}</span>
-              <span className="text-sm text-white/60">
+              <span className="text-lg font-audiowide">Week {weekNumber}</span>
+              <span className="text-sm text-white/60 font-orbitron">
                 {weekMatches.length} {weekMatches.length === 1 ? 'match' : 'matches'}
               </span>
             </div>
             {expandedWeeks.includes(parseInt(weekNumber)) ? (
-              <ChevronUpIcon className="h-5 w-5" />
+              <ChevronUpIcon className="h-5 w-5 text-[#00df82]" />
             ) : (
-              <ChevronDownIcon className="h-5 w-5" />
+              <ChevronDownIcon className="h-5 w-5 text-[#00df82]" />
             )}
           </button>
           
           {expandedWeeks.includes(parseInt(weekNumber)) && (
-            <div className="px-6 pb-4 space-y-4">
+            <div className="px-6 pb-4 space-y-4 relative z-10">
               {weekMatches.map((match) => (
-                <div key={match.id} className="bg-white/5 rounded-xl overflow-hidden">
-                  <div className="px-6 py-4">
+                <div key={match.id} className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                  <div className="px-6 py-4 relative">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 text-white">
-                          <span className="font-grifter">{match.homeTeam.name}</span>
+                          <span className="font-audiowide">{match.homeTeam.name}</span>
                           <span className="text-white/60">vs</span>
-                          <span className="font-grifter">{match.awayTeam.name}</span>
+                          <span className="font-audiowide">{match.awayTeam.name}</span>
                         </div>
-                        <div className="mt-1 text-sm text-white/60">
+                        <div className="mt-1 text-sm text-white/60 font-orbitron">
                           {format(new Date(match.date), 'MMMM d, yyyy')} • Starting Hole: {match.startingHole}
                         </div>
                       </div>
                       <button
                         onClick={() => toggleMatch(match.id)}
-                        className="px-4 py-2 bg-[#00df82] text-black rounded-lg font-bold text-sm hover:bg-[#00df82]/90 transition-colors"
+                        className="group relative overflow-hidden px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
                       >
-                        {expandedMatches.includes(match.id) ? 'Hide Scorecard' : 'Play Match'}
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                        <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
+                        <span className="relative font-audiowide text-sm">
+                          {expandedMatches.includes(match.id) ? 'Hide Scorecard' : 'Play Match'}
+                        </span>
                       </button>
                     </div>
                   </div>
                   
                   {expandedMatches.includes(match.id) && (
-                    <div className="border-t border-white/10 px-6 py-4">
+                    <div className="border-t border-white/10 px-6 py-4 relative">
                       <MatchScoring match={match} />
                     </div>
                   )}
@@ -156,8 +164,10 @@ export default function MatchesPageClient() {
       ))}
       
       {Object.keys(matchesByWeek).length === 0 && (
-        <div className="text-center py-12 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10">
-          <p className="text-white/60 text-lg">No scheduled matches available</p>
+        <div className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50 p-12 text-center">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
+          <p className="text-white/60 text-lg font-orbitron relative">No scheduled matches available</p>
         </div>
       )}
     </div>

@@ -1,11 +1,17 @@
 {
   "version": 2,
+  "public": true,
   "builds": [
     {
       "src": "package.json",
       "use": "@vercel/next"
     }
   ],
+  "env": {
+    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+    "NODE_ENV": "production"
+  },
+  "buildCommand": "npm run build",
   "routes": [
     {
       "src": "/manifest.json",

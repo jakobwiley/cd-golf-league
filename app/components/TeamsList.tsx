@@ -245,393 +245,309 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
     <>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         {teams.map((team) => (
-          <div key={team.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6">
+          <div key={team.id} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
+            <div className="p-6 relative">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">{team.name}</h2>
-                <div className="flex items-center gap-2">
+                <h3 className="text-xl font-audiowide text-white">{team.name}</h3>
+                <div className="flex space-x-2">
                   <button
                     onClick={() => {
                       setSelectedTeam(team)
                       setNewTeamName(team.name)
                       setIsEditingTeam(true)
                     }}
-                    className="p-1 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
-                    aria-label="Edit team"
+                    className="p-2 text-[#00df82]/60 hover:text-[#00df82] hover:bg-white/10 rounded-lg transition-colors"
                   >
-                    <PencilIcon className="w-4 h-4" />
+                    <PencilIcon className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => handleDeleteTeam(team.id)}
-                    className="p-1 text-red-500 hover:text-red-600 transition-colors"
-                    aria-label="Delete team"
+                    className="p-2 text-red-400/60 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
                   >
-                    <TrashIcon className="w-4 h-4" />
+                    <TrashIcon className="h-5 w-5" />
                   </button>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-gray-500 mb-2">Primary Players</h3>
-                  <ul className="space-y-2">
-                    {team.players
-                      .filter(player => player.playerType === 'PRIMARY')
-                      .map(player => (
-                        <li 
-                          key={player.id}
-                          className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+              <div className="space-y-3 mb-6">
+                {team.players.map((player) => (
+                  <div key={player.id} className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 p-3">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                    <div className="flex items-center justify-between relative">
+                      <div>
+                        <div className="text-white font-orbitron">{player.name}</div>
+                        <div className="text-sm text-[#00df82]/80 font-audiowide space-x-2">
+                          <span>HCP: {player.handicapIndex}</span>
+                          <span>•</span>
+                          <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => {
+                            setSelectedPlayer(player)
+                            setPlayerFormData({
+                              name: player.name,
+                              handicapIndex: player.handicapIndex.toString(),
+                              playerType: player.playerType as 'PRIMARY' | 'SUB'
+                            })
+                            setIsEditingPlayer(true)
+                          }}
+                          className="p-1.5 text-[#00df82]/60 hover:text-[#00df82] hover:bg-white/10 rounded-lg transition-colors"
                         >
-                          <div className="flex-1">
-                            <span className="text-gray-900 font-bold">{player.name}</span>
-                            {renderPlayerHandicaps(player)}
-                          </div>
-                          <div className="flex items-center gap-2 ml-4">
-                            <button
-                              onClick={() => {
-                                setSelectedPlayer(player)
-                                setSelectedTeam(team)
-                                setPlayerFormData({
-                                  name: player.name,
-                                  handicapIndex: player.handicapIndex.toString(),
-                                  playerType: player.playerType as 'PRIMARY' | 'SUB'
-                                })
-                                setIsEditingPlayer(true)
-                              }}
-                              className="p-1 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
-                              aria-label="Edit player"
-                            >
-                              <PencilIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePlayer(player.id, team.id)}
-                              className="p-1 text-red-500 hover:text-red-600 transition-colors"
-                              aria-label="Remove player"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-bold text-gray-500 mb-2">Substitute Players</h3>
-                  <ul className="space-y-2">
-                    {team.players
-                      .filter(player => player.playerType === 'SUB')
-                      .map(player => (
-                        <li 
-                          key={player.id}
-                          className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlayer(player.id, team.id)}
+                          className="p-1.5 text-red-400/60 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
                         >
-                          <div className="flex-1">
-                            <span className="text-gray-900 font-bold">{player.name}</span>
-                            {renderPlayerHandicaps(player)}
-                          </div>
-                          <div className="flex items-center gap-2 ml-4">
-                            <button
-                              onClick={() => {
-                                setSelectedPlayer(player)
-                                setSelectedTeam(team)
-                                setPlayerFormData({
-                                  name: player.name,
-                                  handicapIndex: player.handicapIndex.toString(),
-                                  playerType: player.playerType as 'PRIMARY' | 'SUB'
-                                })
-                                setIsEditingPlayer(true)
-                              }}
-                              className="p-1 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
-                              aria-label="Edit player"
-                            >
-                              <PencilIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePlayer(player.id, team.id)}
-                              className="p-1 text-red-500 hover:text-red-600 transition-colors"
-                              aria-label="Remove player"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </li>
-                    ))}
-                  </ul>
-                </div>
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {team.players.length === 0 && (
+                  <div className="text-white/50 text-center py-4 font-orbitron">No players added yet</div>
+                )}
               </div>
-
-              <div className="mt-6">
-                <button
-                  onClick={() => {
-                    setSelectedTeam(team)
-                    setIsAddingPlayer(true)
-                  }}
-                  className="w-full px-4 py-2 text-sm font-bold text-[#00df82] bg-white border border-[#00df82] rounded-lg hover:bg-[#00df82] hover:text-white transition-colors duration-200"
-                >
-                  Add Player
-                </button>
-              </div>
+              
+              <button
+                onClick={() => {
+                  setSelectedTeam(team)
+                  setIsAddingPlayer(true)
+                  setPlayerFormData({
+                    name: '',
+                    handicapIndex: '',
+                    playerType: 'PRIMARY'
+                  })
+                }}
+                className="group relative overflow-hidden w-full px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
+                <span className="relative font-audiowide text-sm">Add Player</span>
+              </button>
             </div>
           </div>
         ))}
-
-        {/* Add New Team Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Team</h2>
-          {isCreating ? (
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={newTeamName}
-                onChange={(e) => setNewTeamName(e.target.value)}
-                placeholder="Enter team name"
-                className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCreateTeam}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-white bg-[#00df82] rounded-lg hover:bg-[#00df82]/80 transition-colors duration-200"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setIsCreating(false)
-                    setNewTeamName('')
-                    setError('')
-                  }}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-              </div>
+        
+        {/* Create Team Button */}
+        <div 
+          onClick={() => {
+            setIsCreating(true)
+            setNewTeamName('')
+          }}
+          className="group relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50 p-6 flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
+          <div className="text-center relative">
+            <div className="w-12 h-12 bg-[#00df82]/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#00df82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
             </div>
-          ) : (
-            <button
-              onClick={() => setIsCreating(true)}
-              className="w-full px-4 py-2 text-sm font-bold text-white bg-[#00df82] rounded-lg hover:bg-[#00df82]/80 transition-colors duration-200"
-            >
-              Create Team
-            </button>
-          )}
+            <h3 className="text-xl font-audiowide text-white mb-1">Create Team</h3>
+            <p className="text-white/60 text-sm font-orbitron">Add a new team to the league</p>
+          </div>
         </div>
       </div>
-
-      {/* Edit Team Modal */}
-      {isEditingTeam && selectedTeam && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Team</h2>
-            
-            {error && (
-              <div className="mb-4 p-2 bg-red-50 text-red-600 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="teamName" className="block text-sm font-bold text-gray-700 mb-1">
-                  Team Name
-                </label>
+      
+      {/* Error Message */}
+      {error && (
+        <div className="relative overflow-hidden rounded-2xl border border-red-500/30 backdrop-blur-sm bg-[#030f0f]/50 p-6 mt-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent"></div>
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl"></div>
+          <p className="text-red-500 relative font-orbitron">{error}</p>
+        </div>
+      )}
+      
+      {/* Create Team Modal */}
+      {isCreating && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="relative overflow-hidden bg-[#030f0f] p-6 rounded-xl shadow-xl w-full max-w-md mx-auto border border-[#00df82]/30">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
+            <div className="relative">
+              <h2 className="text-2xl font-audiowide text-white mb-6">Create New Team</h2>
+              
+              <div className="mb-6">
+                <label htmlFor="teamName" className="block text-white/70 mb-2 font-orbitron">Team Name</label>
                 <input
-                  id="teamName"
                   type="text"
+                  id="teamName"
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
+                  className="w-full px-4 py-2 bg-[#030f0f]/70 text-white border border-[#00df82]/30 rounded-lg focus:outline-none focus:border-[#00df82]/60 backdrop-blur-sm"
                   placeholder="Enter team name"
                 />
               </div>
-
-              <div className="flex gap-2 pt-4">
+              
+              <div className="flex justify-end space-x-4">
                 <button
-                  onClick={() => handleEditTeam(selectedTeam.id, newTeamName)}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-white bg-[#00df82] rounded-lg hover:bg-[#00df82]/80 transition-colors duration-200"
-                >
-                  Save Changes
-                </button>
-                <button
-                  onClick={() => {
-                    setIsEditingTeam(false)
-                    setSelectedTeam(null)
-                    setNewTeamName('')
-                    setError('')
-                  }}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                  onClick={() => setIsCreating(false)}
+                  className="px-4 py-2 text-white/70 hover:text-white transition-colors font-orbitron"
                 >
                   Cancel
+                </button>
+                <button
+                  onClick={handleCreateTeam}
+                  disabled={!newTeamName.trim()}
+                  className="group relative overflow-hidden px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                  <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
+                  <span className="relative font-audiowide">Create Team</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Edit Player Modal */}
-      {isEditingPlayer && selectedPlayer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Player</h2>
-            
-            {error && (
-              <div className="mb-4 p-2 bg-red-50 text-red-600 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="playerName" className="block text-sm font-bold text-gray-700 mb-1">
-                  Player Name
-                </label>
+      
+      {/* Edit Team Modal */}
+      {isEditingTeam && selectedTeam && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="relative overflow-hidden bg-[#030f0f] p-6 rounded-xl shadow-xl w-full max-w-md mx-auto border border-[#00df82]/30">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
+            <div className="relative">
+              <h2 className="text-2xl font-audiowide text-white mb-6">Edit Team</h2>
+              
+              <div className="mb-6">
+                <label htmlFor="editTeamName" className="block text-white/70 mb-2 font-orbitron">Team Name</label>
                 <input
-                  id="playerName"
                   type="text"
-                  value={playerFormData.name}
-                  onChange={(e) => setPlayerFormData({ ...playerFormData, name: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
-                  placeholder="Enter player name"
+                  id="editTeamName"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  className="w-full px-4 py-2 bg-[#030f0f]/70 text-white border border-[#00df82]/30 rounded-lg focus:outline-none focus:border-[#00df82]/60 backdrop-blur-sm"
                 />
               </div>
-
-              <div>
-                <label htmlFor="handicapIndex" className="block text-sm font-bold text-gray-700 mb-1">
-                  Handicap Index
-                </label>
-                <input
-                  id="handicapIndex"
-                  type="number"
-                  step="0.1"
-                  value={playerFormData.handicapIndex}
-                  onChange={(e) => setPlayerFormData({ ...playerFormData, handicapIndex: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
-                  placeholder="Enter handicap index"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="playerType" className="block text-sm font-bold text-gray-700 mb-1">
-                  Player Type
-                </label>
-                <select
-                  id="playerType"
-                  value={playerFormData.playerType}
-                  onChange={(e) => setPlayerFormData({ ...playerFormData, playerType: e.target.value as 'PRIMARY' | 'SUB' })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
-                >
-                  <option value="PRIMARY">Primary</option>
-                  <option value="SUB">Substitute</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <button
-                  onClick={() => handleEditPlayer(selectedPlayer.id)}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-white bg-[#00df82] rounded-lg hover:bg-[#00df82]/80 transition-colors duration-200"
-                >
-                  Save Changes
-                </button>
+              
+              <div className="flex justify-end space-x-4">
                 <button
                   onClick={() => {
+                    setIsEditingTeam(false)
+                    setSelectedTeam(null)
+                  }}
+                  className="px-4 py-2 text-white/70 hover:text-white transition-colors font-orbitron"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleEditTeam(selectedTeam.id, newTeamName)}
+                  disabled={!newTeamName.trim()}
+                  className="group relative overflow-hidden px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                  <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
+                  <span className="relative font-audiowide">Save Changes</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Add/Edit Player Modal */}
+      {(isAddingPlayer || isEditingPlayer) && selectedTeam && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="relative overflow-hidden bg-[#030f0f] p-6 rounded-xl shadow-xl w-full max-w-md mx-auto border border-[#00df82]/30">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
+            <div className="relative">
+              <h2 className="text-2xl font-audiowide text-white mb-6">
+                {isAddingPlayer ? `Add Player to ${selectedTeam.name}` : 'Edit Player'}
+              </h2>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label htmlFor="playerName" className="block text-white/70 mb-2 font-orbitron">Player Name</label>
+                  <input
+                    type="text"
+                    id="playerName"
+                    value={playerFormData.name}
+                    onChange={(e) => setPlayerFormData({...playerFormData, name: e.target.value})}
+                    className="w-full px-4 py-2 bg-[#030f0f]/70 text-white border border-[#00df82]/30 rounded-lg focus:outline-none focus:border-[#00df82]/60 backdrop-blur-sm"
+                    placeholder="Enter player name"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="handicapIndex" className="block text-white/70 mb-2 font-orbitron">Handicap Index</label>
+                  <input
+                    type="number"
+                    id="handicapIndex"
+                    value={playerFormData.handicapIndex}
+                    onChange={(e) => setPlayerFormData({...playerFormData, handicapIndex: e.target.value})}
+                    step="0.1"
+                    min="0"
+                    className="w-full px-4 py-2 bg-[#030f0f]/70 text-white border border-[#00df82]/30 rounded-lg focus:outline-none focus:border-[#00df82]/60 backdrop-blur-sm"
+                    placeholder="Enter handicap index"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-white/70 mb-2 font-orbitron">Player Type</label>
+                  <div className="flex space-x-4">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={playerFormData.playerType === 'PRIMARY'}
+                        onChange={() => setPlayerFormData({...playerFormData, playerType: 'PRIMARY'})}
+                        className="form-radio text-[#00df82] focus:ring-[#00df82]"
+                      />
+                      <span className="text-white">Primary</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={playerFormData.playerType === 'SUB'}
+                        onChange={() => setPlayerFormData({...playerFormData, playerType: 'SUB'})}
+                        className="form-radio text-[#00df82] focus:ring-[#00df82]"
+                      />
+                      <span className="text-white">Substitute</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => {
+                    setIsAddingPlayer(false)
                     setIsEditingPlayer(false)
+                    setSelectedTeam(null)
                     setSelectedPlayer(null)
                     setPlayerFormData({
                       name: '',
                       handicapIndex: '',
                       playerType: 'PRIMARY'
                     })
-                    setError('')
                   }}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                  className="px-4 py-2 text-white/70 hover:text-white transition-colors font-orbitron"
                 >
                   Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Player Modal */}
-      {isAddingPlayer && selectedTeam && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Add Player to {selectedTeam.name}</h2>
-            
-            {error && (
-              <div className="mb-4 p-2 bg-red-50 text-red-600 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="playerName" className="block text-sm font-bold text-gray-700 mb-1">
-                  Player Name
-                </label>
-                <input
-                  id="playerName"
-                  type="text"
-                  value={playerFormData.name}
-                  onChange={(e) => setPlayerFormData({ ...playerFormData, name: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
-                  placeholder="Enter player name"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="handicapIndex" className="block text-sm font-bold text-gray-700 mb-1">
-                  Handicap Index
-                </label>
-                <input
-                  id="handicapIndex"
-                  type="number"
-                  step="0.1"
-                  value={playerFormData.handicapIndex}
-                  onChange={(e) => setPlayerFormData({ ...playerFormData, handicapIndex: e.target.value })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
-                  placeholder="Enter handicap index"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="playerType" className="block text-sm font-bold text-gray-700 mb-1">
-                  Player Type
-                </label>
-                <select
-                  id="playerType"
-                  value={playerFormData.playerType}
-                  onChange={(e) => setPlayerFormData({ ...playerFormData, playerType: e.target.value as 'PRIMARY' | 'SUB' })}
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00df82] focus:border-transparent"
-                >
-                  <option value="PRIMARY">Primary</option>
-                  <option value="SUB">Substitute</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <button
-                  onClick={() => handleAddPlayer(selectedTeam.id)}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-white bg-[#00df82] rounded-lg hover:bg-[#00df82]/80 transition-colors duration-200"
-                >
-                  Add Player
                 </button>
                 <button
                   onClick={() => {
-                    setIsAddingPlayer(false)
-                    setSelectedTeam(null)
-                    setPlayerFormData({
-                      name: '',
-                      handicapIndex: '',
-                      playerType: 'PRIMARY'
-                    })
-                    setError('')
+                    if (isAddingPlayer) {
+                      handleAddPlayer(selectedTeam.id)
+                    } else if (isEditingPlayer && selectedPlayer) {
+                      handleEditPlayer(selectedPlayer.id)
+                    }
                   }}
-                  className="flex-1 px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                  disabled={!playerFormData.name.trim() || !playerFormData.handicapIndex.trim()}
+                  className="group relative overflow-hidden px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Cancel
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                  <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
+                  <span className="relative font-audiowide">{isAddingPlayer ? 'Add Player' : 'Save Changes'}</span>
                 </button>
               </div>
             </div>

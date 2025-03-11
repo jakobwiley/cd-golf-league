@@ -2,11 +2,10 @@ import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
-// Check if we're in a build environment or using placeholder credentials
-const isDevelopmentWithPlaceholders = 
+// Check if we're using placeholder credentials
+const isUsingPlaceholders = 
   !process.env.DATABASE_URL || 
-  process.env.DATABASE_URL.includes('placeholder') || 
-  process.env.NODE_ENV === 'development';
+  process.env.DATABASE_URL.includes('placeholder');
 
 // Ensure DATABASE_URL has the correct format
 const databaseUrl = process.env.DATABASE_URL || "postgresql://placeholder:placeholder@localhost:5432/placeholder";
@@ -109,8 +108,8 @@ const mockPrismaClient = {
 let prismaClient: PrismaClient;
 
 try {
-  // Always use the mock client in development
-  if (isDevelopmentWithPlaceholders) {
+  // Always use the mock client when using placeholder credentials
+  if (isUsingPlaceholders) {
     console.log('Using mock Prisma client for development');
     prismaClient = mockPrismaClient;
   } else {
@@ -130,5 +129,5 @@ try {
   prismaClient = mockPrismaClient;
 }
 
-// Always use the mock client during development
-export const prisma = isDevelopmentWithPlaceholders ? mockPrismaClient : prismaClient; 
+// Always use the mock client when using placeholder credentials
+export const prisma = isUsingPlaceholders ? mockPrismaClient : prismaClient; 
