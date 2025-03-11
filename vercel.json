@@ -1,33 +1,35 @@
 {
   "version": 2,
   "public": true,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "framework": "nextjs",
   "env": {
-    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+    "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/postgres",
     "NODE_ENV": "production"
   },
-  "buildCommand": "npm run build",
   "routes": [
     {
       "src": "/manifest.json",
       "headers": {
-        "Cache-Control": "public, max-age=3600, s-maxage=3600"
+        "Cache-Control": "public, max-age=3600, s-maxage=3600",
+        "Access-Control-Allow-Origin": "*"
       }
     },
     {
       "src": "/icons/(.*)",
       "headers": {
-        "Cache-Control": "public, max-age=86400, s-maxage=86400"
+        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        "Access-Control-Allow-Origin": "*"
       }
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/$1",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
     }
   ]
 } 

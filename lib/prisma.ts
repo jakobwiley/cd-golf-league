@@ -5,24 +5,44 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient }
 // Check if we're using placeholder credentials
 const isUsingPlaceholders = 
   !process.env.DATABASE_URL || 
-  process.env.DATABASE_URL.includes('placeholder');
+  process.env.DATABASE_URL.includes('placeholder') ||
+  !process.env.DATABASE_URL.startsWith('postgresql://');
 
 // Ensure DATABASE_URL has the correct format
-const databaseUrl = process.env.DATABASE_URL || "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgresql://') 
+  ? process.env.DATABASE_URL 
+  : "postgresql://placeholder:placeholder@localhost:5432/placeholder";
 
 // Create a mock client for development with placeholder credentials
 const mockPrismaClient = {
   team: {
-    findMany: async () => {
+    findMany: async (options?: any) => {
       console.log('Using mock team data');
-      return [
+      
+      // Create mock match data
+      const mockMatch = {
+        id: 'match1',
+        date: new Date(),
+        weekNumber: 1,
+        homeTeamId: 'team1',
+        awayTeamId: 'team2',
+        status: 'COMPLETED',
+        points: [
+          { teamId: 'team1', points: 2 },
+          { teamId: 'team2', points: 1 }
+        ]
+      };
+      
+      const teams = [
         {
           id: 'team1',
           name: 'Team Alpha',
           players: [
             { id: 'player1', name: 'John Doe', handicapIndex: 12.5 },
             { id: 'player2', name: 'Jane Smith', handicapIndex: 14.2 }
-          ]
+          ],
+          homeMatches: [mockMatch],
+          awayMatches: []
         },
         {
           id: 'team2',
@@ -30,9 +50,18 @@ const mockPrismaClient = {
           players: [
             { id: 'player3', name: 'Bob Johnson', handicapIndex: 10.8 },
             { id: 'player4', name: 'Alice Williams', handicapIndex: 15.3 }
-          ]
+          ],
+          homeMatches: [],
+          awayMatches: [mockMatch]
         }
       ];
+      
+      // If include is specified, handle it
+      if (options?.include) {
+        // Already included above
+      }
+      
+      return teams;
     },
     findUnique: async () => ({ 
       id: 'team1', 
@@ -40,7 +69,9 @@ const mockPrismaClient = {
       players: [
         { id: 'player1', name: 'John Doe', handicapIndex: 12.5 },
         { id: 'player2', name: 'Jane Smith', handicapIndex: 14.2 }
-      ]
+      ],
+      homeMatches: [],
+      awayMatches: []
     }),
     create: async (data: any) => data.data,
     update: async (data: any) => data.data,
@@ -70,7 +101,11 @@ const mockPrismaClient = {
           awayTeamId: 'team2',
           homeTeam: { id: 'team1', name: 'Team Alpha' },
           awayTeam: { id: 'team2', name: 'Team Beta' },
-          status: 'SCHEDULED'
+          status: 'SCHEDULED',
+          points: [
+            { teamId: 'team1', points: 2 },
+            { teamId: 'team2', points: 1 }
+          ]
         }
       ];
     },
@@ -82,7 +117,11 @@ const mockPrismaClient = {
       awayTeamId: 'team2',
       homeTeam: { id: 'team1', name: 'Team Alpha' },
       awayTeam: { id: 'team2', name: 'Team Beta' },
-      status: 'SCHEDULED'
+      status: 'SCHEDULED',
+      points: [
+        { teamId: 'team1', points: 2 },
+        { teamId: 'team2', points: 1 }
+      ]
     }),
     create: async (data: any) => data.data,
     update: async (data: any) => data.data,
