@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
+import { parseISO } from 'date-fns'
+import { zonedTimeToUtc } from 'date-fns-tz'
 import { z } from 'zod'
+import { formatDateForAPI } from '../../lib/date-utils'
+
+// Central Time Zone
+const CT_TIMEZONE = 'America/Chicago'
 
 // Validation schema for schedule data
 const scheduleSchema = z.object({
@@ -37,97 +43,34 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const validatedData = scheduleSchema.parse(body)
-
-    // Check if teams exist
-    const [homeTeam, awayTeam] = await Promise.all([
-      prisma.team.findUnique({ where: { id: validatedData.homeTeamId } }),
-      prisma.team.findUnique({ where: { id: validatedData.awayTeamId } })
-    ])
-
-    if (!homeTeam || !awayTeam) {
-      return NextResponse.json(
-        { error: 'One or both teams not found' },
-        { status: 400 }
-      )
-    }
-
-    // Check for existing match on same date with same teams
-    const existingMatch = await prisma.match.findFirst({
-      where: {
-        date: new Date(validatedData.date),
-        OR: [
-          {
-            AND: [
-              { homeTeamId: validatedData.homeTeamId },
-              { awayTeamId: validatedData.awayTeamId }
-            ]
-          },
-          {
-            AND: [
-              { homeTeamId: validatedData.awayTeamId },
-              { awayTeamId: validatedData.homeTeamId }
-            ]
-          }
-        ]
+    const data = await request.json()
+    
+    // Log the incoming date
+    console.log('Received date from client:', data.date)
+    
+    // Create the match with the date as provided
+    const match = await prisma.match.create({
+      data: {
+        date: data.date,
+        weekNumber: data.weekNumber,
+        homeTeamId: data.homeTeamId,
+        awayTeamId: data.awayTeamId,
+        startingHole: data.startingHole,
+        status: data.status || 'SCHEDULED',
+      },
+      include: {
+        homeTeam: true,
+        awayTeam: true
       }
     })
 
-    if (existingMatch && !validatedData.id) {
-      return NextResponse.json(
-        { error: 'A match between these teams already exists on this date' },
-        { status: 400 }
-      )
-    }
-
-    let match
-    if (validatedData.id) {
-      // Update existing match
-      match = await prisma.match.update({
-        where: { id: validatedData.id },
-        data: {
-          date: new Date(validatedData.date),
-          weekNumber: validatedData.weekNumber,
-          homeTeamId: validatedData.homeTeamId,
-          awayTeamId: validatedData.awayTeamId,
-          startingHole: validatedData.startingHole,
-          status: validatedData.status
-        },
-        include: {
-          homeTeam: true,
-          awayTeam: true
-        }
-      })
-    } else {
-      // Create new match
-      match = await prisma.match.create({
-        data: {
-          date: new Date(validatedData.date),
-          weekNumber: validatedData.weekNumber,
-          homeTeamId: validatedData.homeTeamId,
-          awayTeamId: validatedData.awayTeamId,
-          startingHole: validatedData.startingHole,
-          status: validatedData.status
-        },
-        include: {
-          homeTeam: true,
-          awayTeam: true
-        }
-      })
-    }
-
+    console.log('Created match with date:', match.date)
+    
     return NextResponse.json(match)
   } catch (error) {
-    console.error('Error saving schedule:', error)
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid schedule data', details: error.errors },
-        { status: 400 }
-      )
-    }
+    console.error('Error creating match:', error)
     return NextResponse.json(
-      { error: 'Failed to save schedule' },
+      { error: 'Failed to create match' },
       { status: 500 }
     )
   }
@@ -154,6 +97,38 @@ export async function DELETE(request: Request) {
     console.error('Error deleting match:', error)
     return NextResponse.json(
       { error: 'Failed to delete match' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH() {
+  try {
+    // Update April 14 matches to April 15
+    await prisma.match.updateMany({
+      where: {
+        date: new Date('2024-04-14')
+      },
+      data: {
+        date: new Date('2024-04-15')
+      }
+    })
+
+    // Update April 21 matches to April 22
+    await prisma.match.updateMany({
+      where: {
+        date: new Date('2024-04-21')
+      },
+      data: {
+        date: new Date('2024-04-22')
+      }
+    })
+
+    return NextResponse.json({ message: 'Dates updated successfully' })
+  } catch (error) {
+    console.error('Error updating match dates:', error)
+    return NextResponse.json(
+      { error: 'Failed to update match dates' },
       { status: 500 }
     )
   }

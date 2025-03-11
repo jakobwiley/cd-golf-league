@@ -1,188 +1,218 @@
 'use client'
 
 import { useState } from 'react'
+import { Match, Team } from '@prisma/client'
 import { format } from 'date-fns'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import ScheduleForm from './ScheduleForm'
-
-interface Team {
-  id: string
-  name: string
-}
-
-interface Match {
-  id: string
-  homeTeam: Team
-  awayTeam: Team
-  startTime: string
-}
+import { formatDateForForm, formatDisplayDate } from '../lib/date-utils'
 
 interface WeeklyScheduleProps {
-  weekNumber: number
-  date: string
-  matches: Match[]
-  onUpdate?: (weekNumber: number, data: any) => void
+  matches: (Match & {
+    homeTeam: Team
+    awayTeam: Team
+  })[]
 }
 
-export default function WeeklySchedule({
-  weekNumber,
-  date,
-  matches,
-  onUpdate,
-}: WeeklyScheduleProps) {
-  const [isEditing, setIsEditing] = useState(false)
+interface GroupedMatches {
+  [key: number]: (Match & {
+    homeTeam: Team
+    awayTeam: Team
+  })[]
+}
+
+export default function WeeklySchedule({ matches }: WeeklyScheduleProps) {
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleUpdate = async (data: any) => {
-    setLoading(true)
+  // Group matches by week number
+  const groupedMatches = matches.reduce((acc: GroupedMatches, match) => {
+    if (!acc[match.weekNumber]) {
+      acc[match.weekNumber] = []
+    }
+    acc[match.weekNumber].push(match)
+    return acc
+  }, {})
+
+  const handleEdit = (match: Match & { homeTeam: Team; awayTeam: Team }) => {
+    console.log('Editing match:', match);
+    setEditingMatch(match);
+  }
+
+  const handleEditSubmit = async (data: any) => {
     try {
-      const response = await fetch('/api/schedule', {
+      console.log('Submitting edit with data:', data);
+      
+      const response = await fetch(`/api/schedule/${editingMatch?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          weekNumber,
-          ...data,
-        }),
-      })
+        body: JSON.stringify(data),
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to update schedule')
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error('Failed to update match');
       }
 
-      onUpdate?.(weekNumber, data)
-      setIsEditing(false)
+      // Refresh the page to show updated data
+      window.location.reload();
     } catch (error) {
-      console.error('Error updating schedule:', error)
-      // Handle error (could add error state and display message)
+      console.error('Error updating match:', error);
     } finally {
-      setLoading(false)
+      setEditingMatch(null);
     }
   }
 
-  const handleDelete = async (matchId: string) => {
-    if (!confirm('Are you sure you want to delete this match?')) {
+  const handleClearAll = async () => {
+    if (!confirm('Are you sure you want to delete all matches? This cannot be undone.')) {
       return
     }
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/schedule?id=${matchId}`, {
+      const response = await fetch('/api/schedule/clear', {
         method: 'DELETE',
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete match')
+        throw new Error('Failed to delete matches')
       }
 
-      // Refresh the schedule (you'll need to implement this)
-      onUpdate?.(weekNumber, { matches: matches.filter(m => m.id !== matchId) })
+      // Refresh the page to show updated data
+      window.location.reload()
     } catch (error) {
-      console.error('Error deleting match:', error)
-      // Handle error
+      console.error('Error deleting matches:', error)
+      alert('Failed to delete matches')
     } finally {
       setLoading(false)
     }
   }
 
-  if (isEditing) {
-    return (
-      <ScheduleForm
-        weekNumber={weekNumber}
-        initialData={{
-          date,
-          matches: matches.map(match => ({
-            homeTeamId: match.homeTeam.id,
-            awayTeamId: match.awayTeam.id,
-            startTime: match.startTime,
-          })),
-        }}
-        onSubmit={handleUpdate}
-        onCancel={() => setIsEditing(false)}
-      />
-    )
-  }
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-medium text-masters-green">
-            Week {weekNumber}
-          </h3>
-          <p className="text-sm text-gray-500">{date}</p>
+    <div className="space-y-6">
+      {matches.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleClearAll}
+            disabled={loading}
+            className="flex items-center px-4 py-2 text-red-600 hover:text-white bg-red-100 hover:bg-red-600 rounded-lg transition-colors"
+          >
+            <TrashIcon className="w-5 h-5 mr-2" />
+            {loading ? 'Deleting...' : 'Clear All Matches'}
+          </button>
         </div>
-        <button
-          type="button"
-          className="text-sm text-masters-green hover:text-masters-green-dark"
-          onClick={() => setIsEditing(true)}
-          disabled={loading}
-        >
-          Edit Week
-        </button>
-      </div>
+      )}
 
-      <div className="border rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Time
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Home Team
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                vs
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Away Team
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {matches.map((match) => (
-              <tr key={match.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {match.startTime}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {match.homeTeam.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                  vs
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {match.awayTeam.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      className="text-masters-green hover:text-masters-green-dark"
-                      onClick={() => window.location.href = `/matches/${match.id}`}
-                      disabled={loading}
-                    >
-                      View Match
-                    </button>
-                    <button
-                      type="button"
-                      className="text-red-600 hover:text-red-800"
-                      onClick={() => handleDelete(match.id)}
-                      disabled={loading}
-                    >
-                      Delete
-                    </button>
+      {matches.length === 0 && (
+        <div className="bg-gray-900 rounded-xl p-8 text-center">
+          <p className="text-gray-400 text-lg">No matches scheduled yet. Create your first match above.</p>
+        </div>
+      )}
+
+      {editingMatch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-xl max-w-2xl w-full mx-4">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">Edit Match</h2>
+            <ScheduleForm 
+              teams={matches.map(m => m.homeTeam).filter((team, index, self) => 
+                index === self.findIndex(t => t.id === team.id)
+              )}
+              onSubmit={handleEditSubmit}
+              initialData={{
+                id: editingMatch.id,
+                date: editingMatch.date,
+                weekNumber: editingMatch.weekNumber,
+                homeTeamId: editingMatch.homeTeamId,
+                awayTeamId: editingMatch.awayTeamId,
+                startingHole: editingMatch.startingHole,
+                status: editingMatch.status as 'SCHEDULED' | 'CANCELED' | 'COMPLETED'
+              }}
+              onCancel={() => setEditingMatch(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {Object.entries(groupedMatches).map(([weekNumber, weekMatches]) => (
+        <div key={weekNumber} className="bg-gray-900 rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-gray-800">
+            <h2 className="text-xl font-bold text-white">
+              Week {weekNumber}
+              <span className="ml-2 text-sm font-normal text-gray-400">
+                {weekMatches.length} matches
+              </span>
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-800">
+            {weekMatches.map((match) => (
+              <div key={match.id} className="p-4 flex items-center justify-between hover:bg-gray-800/50">
+                <div className="grid grid-cols-5 gap-4 flex-1">
+                  <div className="text-gray-400">
+                    {formatDisplayDate(match.date, 'EEEE, MMMM d, yyyy')}
                   </div>
-                </td>
-              </tr>
+                  <div className="text-white">
+                    {match.homeTeam.name}
+                  </div>
+                  <div className="text-white">
+                    {match.awayTeam.name}
+                  </div>
+                  <div className="text-gray-400">
+                    {match.startingHole}
+                  </div>
+                  <div className="text-gray-400">
+                    {match.status === 'SCHEDULED' ? 'Scheduled' : match.status}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleEdit(match)}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  aria-label="Edit match"
+                >
+                  <PencilIcon className="w-5 h-5" />
+                </button>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      ))}
+
+      {Object.entries(groupedMatches).map(([weekNumber, weekMatches]) => (
+        <div key={weekNumber} className="block sm:hidden space-y-4">
+          {weekMatches.map((match) => (
+            <div key={match.id} className="bg-white/5 rounded-xl p-5 space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="text-base text-white/80">
+                  {formatDisplayDate(match.date, 'EEEE, MMMM d, yyyy')}
+                </div>
+                <button
+                  onClick={() => handleEdit(match)}
+                  className="p-3 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  aria-label="Edit match"
+                >
+                  <PencilIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="font-medium text-white/80 text-base">Home:</div>
+                  <div className="text-white text-base">{match.homeTeam.name}</div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="font-medium text-white/80 text-base">Away:</div>
+                  <div className="text-white text-base">{match.awayTeam.name}</div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="font-medium text-white/80 text-base">Starting Hole:</div>
+                  <div className="text-white text-base">{match.startingHole}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   )
 } 

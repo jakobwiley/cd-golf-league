@@ -1,10 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
   "/schedule/page": "app/schedule/page.js",
+  "/page": "app/page.js",
   "/teams/page": "app/teams/page.js",
-  "/scoring/page": "app/scoring/page.js",
-  "/matches/page": "app/matches/page.js",
-  "/standings/page": "app/standings/page.js",
-  "/api/standings/route": "app/api/standings/route.js"
+  "/api/schedule/[id]/route": "app/api/schedule/[id]/route.js",
+  "/api/schedule/route": "app/api/schedule/route.js"
 }

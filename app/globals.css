@@ -166,4 +166,81 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Remove or comment out any @font-face declarations for Grifter fonts */
+/* For example:
+@font-face {
+  font-family: 'Grifter';
+  src: url('/fonts/grifter-bold.woff2') format('woff2'),
+       url('/fonts/grifter-bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+/* Add these mobile-friendly styles at the end of the file */
+
+/* Mobile-friendly form elements */
+@media (max-width: 768px) {
+  input, 
+  select, 
+  textarea,
+  button {
+    font-size: 16px !important; /* Prevent iOS zoom on focus */
+    min-height: 44px; /* Minimum touch target size */
+    padding: 10px 12px;
+  }
+
+  select {
+    background-size: 12px;
+    padding-right: 30px; /* Space for the dropdown arrow */
+  }
+
+  button {
+    padding: 12px 16px;
+    min-width: 120px;
+  }
+
+  /* Improve text readability on mobile */
+  h1 {
+    font-size: 1.75rem !important;
+  }
+  
+  h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  p, label, .text-sm {
+    font-size: 1rem !important;
+  }
+
+  /* Improve form layout on mobile */
+  .grid {
+    gap: 16px !important;
+  }
+
+  /* Ensure dropdowns are fully visible */
+  select option {
+    font-size: 16px;
+  }
+}
+
+/* Improve touch targets for all interactive elements */
+a, button, input[type="checkbox"], input[type="radio"], select {
+  touch-action: manipulation;
+}
+
+/* Ensure form elements have proper contrast */
+input, select, textarea {
+  color: #000;
+  background-color: #fff;
+  border: 1px solid #ccc;
+}
+
+/* Ensure dropdowns are visible on dark backgrounds */
+select option {
+  background-color: #fff;
+  color: #000;
 } 
