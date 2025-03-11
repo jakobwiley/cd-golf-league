@@ -81,7 +81,11 @@ export async function PUT(request: Request) {
         name: validatedData.name,
         players: {
           deleteMany: {}, // Remove existing players
-          create: validatedData.players, // Add new players
+          create: validatedData.players.map(player => ({
+            name: player.name,
+            ghinNumber: player.ghinNumber,
+            ...(player.id && { id: player.id })
+          })), // Add new players with required fields
         },
       },
       include: {

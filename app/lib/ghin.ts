@@ -1,4 +1,38 @@
-import { GHIN } from 'ghin'
+// Mock GHIN implementation
+class GHIN {
+  async getGolfer(ghinNumber: string) {
+    console.log(`Mock: Getting golfer with GHIN number ${ghinNumber}`)
+    // Return mock data
+    return {
+      FirstName: 'John',
+      LastName: 'Doe',
+      Email: 'john.doe@example.com',
+      Gender: 'M',
+      ClubName: 'Country Drive Golf Club',
+      HandicapIndex: '12.4',
+      RevisionDate: new Date().toISOString(),
+      Association: 'USGA',
+    }
+  }
+
+  async getHandicapHistory(ghinNumber: string) {
+    console.log(`Mock: Getting handicap history for GHIN number ${ghinNumber}`)
+    // Return mock data
+    return [
+      { date: new Date().toISOString(), handicapIndex: '12.4' },
+      { date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), handicapIndex: '12.8' },
+    ]
+  }
+
+  async getScoreHistory(ghinNumber: string) {
+    console.log(`Mock: Getting score history for GHIN number ${ghinNumber}`)
+    // Return mock data
+    return [
+      { date: new Date().toISOString(), score: 85, course: 'Country Drive GC' },
+      { date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), score: 82, course: 'Country Drive GC' },
+    ]
+  }
+}
 
 const ghin = new GHIN()
 

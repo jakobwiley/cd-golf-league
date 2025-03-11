@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Match } from '@prisma/client'
+import { Match, Team } from '@prisma/client'
 import ScheduleForm from './ScheduleForm'
 import WeeklySchedule from './WeeklySchedule'
 
@@ -51,10 +51,12 @@ const GolfSpinner = () => (
 
 export default function SchedulePageClient() {
   const [matches, setMatches] = useState<Match[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(false)
   
   useEffect(() => {
     fetchMatches()
+    fetchTeams()
   }, [])
 
   const fetchMatches = async () => {
@@ -69,6 +71,16 @@ export default function SchedulePageClient() {
       setMatches(formattedData)
     } catch (error) {
       console.error('Error fetching matches:', error)
+    }
+  }
+
+  const fetchTeams = async () => {
+    try {
+      const response = await fetch('/api/teams')
+      const data = await response.json()
+      setTeams(data)
+    } catch (error) {
+      console.error('Error fetching teams:', error)
     }
   }
 
@@ -104,9 +116,13 @@ export default function SchedulePageClient() {
 
   return (
     <div className="space-y-6">
-      <ScheduleForm onSubmit={handleScheduleMatch} />
+      <ScheduleForm 
+        teams={teams} 
+        onSubmit={handleScheduleMatch} 
+        onCancel={() => {}} 
+      />
       {loading && <GolfSpinner />}
-      <WeeklySchedule matches={matches} />
+      <WeeklySchedule matches={matches as any} />
     </div>
   )
 } 
