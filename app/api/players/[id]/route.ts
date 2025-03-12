@@ -39,32 +39,29 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log(`Fetching player with ID: ${params.id}`);
-    
+    const id = params.id
+    console.log(`Fetching player with ID: ${id}`)
+
     const player = await prisma.player.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { team: true }
-    });
-    
+    })
+
     if (!player) {
-      console.log(`Player with ID ${params.id} not found`);
+      console.log(`Player with ID ${id} not found`)
       return NextResponse.json(
         { error: 'Player not found' },
         { status: 404 }
-      );
+      )
     }
-    
-    console.log(`Found player: ${player.name}`);
-    
-    return NextResponse.json(player, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
-    });
+
+    return NextResponse.json(player)
   } catch (error) {
-    return handleError(error, 'Error fetching player');
+    console.error('Error fetching player:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch player' },
+      { status: 500 }
+    )
   }
 }
 
@@ -73,37 +70,43 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log(`Attempting to update player with ID: ${params.id}`);
-    
-    const body = await request.json()
-    const { name, teamId } = body
+    const id = params.id
+    const data = await request.json()
+    console.log(`Updating player with ID: ${id}`, data)
 
-    if (!name) {
+    // Check if player exists
+    const player = await prisma.player.findUnique({
+      where: { id }
+    })
+
+    if (!player) {
+      console.log(`Player with ID ${id} not found`)
       return NextResponse.json(
-        { error: 'Player name is required' },
-        { status: 400 }
+        { error: 'Player not found' },
+        { status: 404 }
       )
     }
 
-    const player = await prisma.player.update({
-      where: { id: params.id },
-      data: { 
-        name,
-        teamId
-      },
+    // If handicap is provided, update handicapIndex
+    if (data.handicap !== undefined) {
+      data.handicapIndex = data.handicap
+      delete data.handicap
+    }
+
+    // Update the player
+    const updatedPlayer = await prisma.player.update({
+      where: { id },
+      data,
+      include: { team: true }
     })
 
-    console.log(`Successfully updated player: ${player.name}`);
-    
-    return NextResponse.json(player, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
-    });
+    return NextResponse.json(updatedPlayer)
   } catch (error) {
-    return handleError(error, 'Error updating player');
+    console.error('Error updating player:', error)
+    return NextResponse.json(
+      { error: 'Failed to update player' },
+      { status: 500 }
+    )
   }
 }
 
@@ -112,51 +115,33 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log(`Attempting to delete player with ID: ${params.id}`);
-    
-    // First check if the player exists
+    const id = params.id
+    console.log(`Deleting player with ID: ${id}`)
+
+    // Check if player exists
     const player = await prisma.player.findUnique({
-      where: { id: params.id },
-      include: { team: true }
+      where: { id }
     })
 
     if (!player) {
-      console.log(`Player with ID ${params.id} not found`);
+      console.log(`Player with ID ${id} not found`)
       return NextResponse.json(
         { error: 'Player not found' },
         { status: 404 }
       )
     }
 
-    console.log(`Found player: ${player.name} from team ${player.team?.name || 'Unknown'}`);
-
     // Delete the player
-    const deletedPlayer = await prisma.player.delete({
-      where: { id: params.id }
+    await prisma.player.delete({
+      where: { id }
     })
 
-    console.log(`Successfully deleted player: ${deletedPlayer.name}`);
-    
-    return NextResponse.json(deletedPlayer, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
-    });
+    return NextResponse.json({ message: 'Player deleted successfully' })
   } catch (error) {
     console.error('Error deleting player:', error)
-    
-    // Handle specific Prisma errors
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return NextResponse.json(
-          { error: 'Player not found' },
-          { status: 404 }
-        )
-      }
-    }
-    
-    return handleError(error, 'Error deleting player');
+    return NextResponse.json(
+      { error: 'Failed to delete player' },
+      { status: 500 }
+    )
   }
 } 

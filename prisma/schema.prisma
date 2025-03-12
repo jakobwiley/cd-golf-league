@@ -23,6 +23,7 @@ model Player {
   name          String
   playerType    String   @default("PRIMARY") // Can be "PRIMARY" or "SUB"
   handicapIndex Float    @default(0)
+  handicap      Float?   // Added handicap field as optional Float
   team          Team?    @relation(fields: [teamId], references: [id])
   teamId        String?
   scores        MatchScore[]

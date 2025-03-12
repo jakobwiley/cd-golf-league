@@ -1,10 +1,8 @@
 {
-  "/page": "app/page.js",
-  "/schedule/page": "app/schedule/page.js",
   "/teams/page": "app/teams/page.js",
+  "/schedule/page": "app/schedule/page.js",
   "/api/direct-setup-schedule/route": "app/api/direct-setup-schedule/route.js",
-  "/standings/page": "app/standings/page.js",
-  "/api/standings/route": "app/api/standings/route.js",
-  "/matches/page": "app/matches/page.js",
-  "/api/matches/route": "app/api/matches/route.js"
+  "/api/matches/route": "app/api/matches/route.js",
+  "/page": "app/page.js",
+  "/matches/page": "app/matches/page.js"
 }
