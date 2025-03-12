@@ -1,5 +1,32 @@
+import React from 'react';
 import { prisma } from '../../lib/prisma'
-import SchedulePageClient from './SchedulePageClient'
+import Link from 'next/link';
+
+// Helper function to format date
+function formatDate(dateString: string) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+// Group matches by week
+function groupMatchesByWeek(matches: any[]) {
+  const grouped = {};
+  
+  matches.forEach(match => {
+    const weekNumber = match.weekNumber;
+    if (!grouped[weekNumber]) {
+      grouped[weekNumber] = [];
+    }
+    grouped[weekNumber].push(match);
+  });
+  
+  return grouped;
+}
 
 export default async function SchedulePage() {
   try {
@@ -10,17 +37,108 @@ export default async function SchedulePage() {
     })
 
     const matches = await prisma.match.findMany({
-      orderBy: [
-        { date: 'asc' },
-        { weekNumber: 'asc' }
-      ],
       include: {
         homeTeam: true,
         awayTeam: true
-      }
+      },
+      orderBy: [
+        { weekNumber: 'asc' },
+        { startingHole: 'asc' }
+      ]
     })
 
-    return <SchedulePageClient teams={teams} matches={matches} />
+    // Group matches by week
+    const matchesByWeek = groupMatchesByWeek(matches);
+    
+    // Get sorted week numbers
+    const weekNumbers = Object.keys(matchesByWeek).map(Number).sort((a, b) => a - b);
+
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">League Schedule</h1>
+          <Link href="/api/direct-setup-schedule" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Setup Schedule
+          </Link>
+        </div>
+        
+        {weekNumbers.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">No matches scheduled yet.</p>
+            <Link href="/api/direct-setup-schedule" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+              Setup Schedule
+            </Link>
+          </div>
+        ) : (
+          weekNumbers.map(weekNumber => (
+            <div key={weekNumber} className="mb-8">
+              <h2 className="text-2xl font-semibold mb-4">Week {weekNumber}</h2>
+              
+              {matchesByWeek[weekNumber].length > 0 && (
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Starting Hole
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Home Team
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Away Team
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {matchesByWeek[weekNumber].map((match) => (
+                          <tr key={match.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(match.date)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {match.startingHole}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {match.homeTeam?.name || 'Unknown Team'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {match.awayTeam?.name || 'Unknown Team'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                match.status === 'COMPLETED' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : match.status === 'IN_PROGRESS'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {match.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    )
   } catch (error) {
     console.error('Database error:', error)
     return (

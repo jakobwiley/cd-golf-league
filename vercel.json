@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "public": true,
   "builds": [
     {
@@ -8,8 +7,7 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production",
-    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+    "DATABASE_URL": "placeholder"
   },
   "headers": [
     {

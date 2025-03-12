@@ -24,112 +24,130 @@ export async function GET() {
     const matches = await prisma.match.findMany({
       include: {
         homeTeam: true,
-        awayTeam: true,
+        awayTeam: true
       },
       orderBy: [
         { weekNumber: 'asc' },
         { date: 'asc' }
       ]
-    })
-    return NextResponse.json(matches)
+    });
+    
+    return NextResponse.json(matches);
   } catch (error) {
-    console.error('Error fetching schedule:', error)
+    console.error('Error fetching matches:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch schedule' },
+      { error: 'Failed to fetch matches' },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json()
+    const data = await request.json();
+    console.log('Creating match with date:', data.date);
     
-    // Log the incoming date
-    console.log('Received date from client:', data.date)
-    
-    // Create the match with the date as provided
     const match = await prisma.match.create({
-      data: {
-        date: data.date,
-        weekNumber: data.weekNumber,
-        homeTeamId: data.homeTeamId,
-        awayTeamId: data.awayTeamId,
-        startingHole: data.startingHole,
-        status: data.status || 'SCHEDULED',
-      },
+      data,
       include: {
         homeTeam: true,
         awayTeam: true
       }
-    })
-
-    console.log('Created match with date:', match.date)
+    });
     
-    return NextResponse.json(match)
+    return NextResponse.json(match);
   } catch (error) {
-    console.error('Error creating match:', error)
+    console.error('Error creating match:', error);
     return NextResponse.json(
       { error: 'Failed to create match' },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-
+    const url = new URL(request.url);
+    const path = url.pathname;
+    
+    // If the path ends with /clear, delete all matches
+    if (path.endsWith('/clear')) {
+      console.log('Clearing all matches');
+      const result = await prisma.match.deleteMany({});
+      return NextResponse.json({ message: 'All matches cleared', count: result.count });
+    }
+    
+    // Otherwise, handle normal DELETE request for a specific match
+    const { searchParams } = url;
+    const id = searchParams.get('id');
+    
     if (!id) {
       return NextResponse.json(
         { error: 'Match ID is required' },
         { status: 400 }
-      )
+      );
     }
-
+    
     await prisma.match.delete({
       where: { id }
-    })
-
-    return NextResponse.json({ success: true })
+    });
+    
+    return NextResponse.json({ message: 'Match deleted successfully' });
   } catch (error) {
-    console.error('Error deleting match:', error)
+    console.error('Error deleting match:', error);
     return NextResponse.json(
       { error: 'Failed to delete match' },
       { status: 500 }
-    )
+    );
   }
 }
 
-export async function PATCH() {
+export async function PATCH(request: Request) {
   try {
-    // Update April 14 matches to April 15
-    await prisma.match.updateMany({
+    // This is a special endpoint to update match dates for specific dates
+    // April 14 -> April 15
+    // April 21 -> April 22
+    
+    // Update matches on April 14 to April 15
+    const april14Matches = await prisma.match.findMany({
       where: {
-        date: new Date('2024-04-14')
-      },
-      data: {
-        date: new Date('2024-04-15')
+        date: {
+          gte: new Date('2024-04-14T00:00:00Z'),
+          lt: new Date('2024-04-15T00:00:00Z')
+        }
       }
-    })
-
-    // Update April 21 matches to April 22
-    await prisma.match.updateMany({
+    });
+    
+    for (const match of april14Matches) {
+      await prisma.match.update({
+        where: { id: match.id },
+        data: { date: new Date('2024-04-15T18:00:00Z') }
+      });
+    }
+    
+    // Update matches on April 21 to April 22
+    const april21Matches = await prisma.match.findMany({
       where: {
-        date: new Date('2024-04-21')
-      },
-      data: {
-        date: new Date('2024-04-22')
+        date: {
+          gte: new Date('2024-04-21T00:00:00Z'),
+          lt: new Date('2024-04-22T00:00:00Z')
+        }
       }
-    })
-
-    return NextResponse.json({ message: 'Dates updated successfully' })
+    });
+    
+    for (const match of april21Matches) {
+      await prisma.match.update({
+        where: { id: match.id },
+        data: { date: new Date('2024-04-22T18:00:00Z') }
+      });
+    }
+    
+    return NextResponse.json({ message: 'Match dates updated successfully' });
   } catch (error) {
-    console.error('Error updating match dates:', error)
+    console.error('Error updating match dates:', error);
     return NextResponse.json(
       { error: 'Failed to update match dates' },
       { status: 500 }
-    )
+    );
   }
 } 
