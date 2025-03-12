@@ -2,10 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { toast } from 'sonner'
 
 interface PlayerFormProps {
   teamId: string
@@ -22,7 +18,6 @@ export function PlayerForm({ teamId }: PlayerFormProps) {
     setError(null)
     
     if (!name.trim()) {
-      toast.error('Player name is required')
       setError('Player name is required')
       return
     }
@@ -62,14 +57,14 @@ export function PlayerForm({ teamId }: PlayerFormProps) {
         throw new Error(errorMessage)
       }
       
-      toast.success('Player added successfully')
+      alert('Player added successfully')
       setName('')
       router.refresh()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.error('Error adding player:', error)
       setError(errorMessage)
-      toast.error(`Error adding player: ${errorMessage}`)
+      alert(`Error adding player: ${errorMessage}`)
     } finally {
       setIsLoading(false)
     }
@@ -78,9 +73,10 @@ export function PlayerForm({ teamId }: PlayerFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 mt-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Player Name</Label>
-        <Input
+        <label htmlFor="name" className="block text-sm font-medium">Player Name</label>
+        <input
           id="name"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter player name"
@@ -93,9 +89,13 @@ export function PlayerForm({ teamId }: PlayerFormProps) {
           Error: {error}
         </div>
       )}
-      <Button type="submit" disabled={isLoading} className="w-full">
+      <button 
+        type="submit" 
+        disabled={isLoading} 
+        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+      >
         {isLoading ? 'Adding Player...' : 'Add Player'}
-      </Button>
+      </button>
     </form>
   )
 } 

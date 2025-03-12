@@ -11,8 +11,41 @@ const playerSchema = z.object({
   teamId: z.string().optional()
 })
 
+// Helper function to handle errors
+function handleError(error: any, message: string) {
+  console.error(`${message}:`, error);
+  return NextResponse.json(
+    { 
+      error: message, 
+      details: String(error),
+      stack: error.stack
+    },
+    { 
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    }
+  );
+}
+
+// Handle OPTIONS requests for CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
 export async function GET() {
   try {
+    console.log('Fetching all players');
     const players = await prisma.player.findMany({
       orderBy: {
         name: 'asc'
@@ -20,45 +53,102 @@ export async function GET() {
       include: {
         team: true
       }
-    })
-    return NextResponse.json(players)
+    });
+    console.log(`Found ${players.length} players`);
+    
+    return NextResponse.json(players, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
   } catch (error) {
-    console.error('Error fetching players:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch players' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error fetching players');
   }
 }
 
 export async function POST(request: Request) {
+  console.log('POST /api/players - Starting player creation process');
+  
   try {
-    const body = await request.json()
-    const { name, handicapIndex, playerType, teamId } = body
-
-    if (!name || handicapIndex === undefined || !playerType || !teamId) {
+    // Parse the request body
+    let body;
+    try {
+      body = await request.json();
+      console.log('Request body:', JSON.stringify(body, null, 2));
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
       return NextResponse.json(
-        { error: 'Name, handicap index, player type, and team ID are required' },
+        { error: 'Invalid JSON in request body' },
         { status: 400 }
-      )
+      );
+    }
+    
+    const { name, teamId } = body;
+
+    // Validate required fields
+    if (!name) {
+      console.log('Player name is required');
+      return NextResponse.json(
+        { error: 'Player name is required' },
+        { status: 400 }
+      );
     }
 
-    const player = await prisma.player.create({
-      data: {
-        name,
-        handicapIndex,
-        playerType,
-        teamId
-      }
-    })
+    if (!teamId) {
+      console.log('Team ID is required');
+      return NextResponse.json(
+        { error: 'Team ID is required' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(player)
+    // Check if team exists
+    console.log(`Checking if team with ID ${teamId} exists`);
+    let team;
+    try {
+      team = await prisma.team.findUnique({
+        where: { id: teamId }
+      });
+    } catch (findError) {
+      return handleError(findError, 'Error finding team');
+    }
+
+    if (!team) {
+      console.log(`Team with ID ${teamId} not found`);
+      return NextResponse.json(
+        { error: `Team with ID ${teamId} not found` },
+        { status: 404 }
+      );
+    }
+
+    console.log(`Found team: ${team.name} (${team.id})`);
+    console.log(`Creating player ${name} for team ${team.name}`);
+    
+    try {
+      // Create the player with only the fields that are in the Prisma schema
+      const player = await prisma.player.create({
+        data: {
+          name,
+          teamId
+        }
+      });
+
+      console.log('Player created successfully:', JSON.stringify(player, null, 2));
+      
+      return NextResponse.json(player, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+      });
+    } catch (createError) {
+      return handleError(createError, 'Error creating player in database');
+    }
   } catch (error) {
-    console.error('Error creating player:', error)
-    return NextResponse.json(
-      { error: 'Failed to create player' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error creating player');
   }
 }
 

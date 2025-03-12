@@ -271,6 +271,13 @@ const mockPrismaClient = {
         });
       }
       
+      // Handle orderBy if specified
+      if (options?.orderBy?.name === 'asc') {
+        filteredPlayers.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (options?.orderBy?.name === 'desc') {
+        filteredPlayers.sort((a, b) => b.name.localeCompare(a.name));
+      }
+      
       console.log(`Returning ${filteredPlayers.length} mock players`);
       
       // Return a deep copy to prevent accidental modification
@@ -324,12 +331,11 @@ const mockPrismaClient = {
         // Generate a random ID if not provided
         const id = playerData.id || `player${Math.floor(Math.random() * 10000)}`;
         
-        // Create the player object
+        // Create the player object with only the fields that are in the Prisma schema
         const newPlayer = {
           id,
           name: playerData.name,
           teamId: playerData.teamId,
-          ghinNumber: playerData.ghinNumber || null,
           createdAt: new Date(),
           updatedAt: new Date()
         };
