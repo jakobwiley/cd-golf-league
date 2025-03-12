@@ -34,14 +34,24 @@ const playerData = [
   { name: 'Alli', handicap: 30.0, teamName: 'Ashley/Alli' } // Added default handicap
 ];
 
+// Direct access to the global mock data
+// This is a workaround to ensure data persistence
+const globalForPrisma = global as unknown as { 
+  mockTeams: any[],
+  mockPlayers: any[]
+}
+
 export async function GET() {
   try {
     console.log('Starting direct player addition...');
     
-    // First, clear existing players
+    // First, clear existing players from the global mock data
     console.log('Clearing existing players...');
-    const deleteResult = await prisma.player.deleteMany({});
-    console.log(`Deleted ${deleteResult.count} existing players`);
+    if (globalForPrisma.mockPlayers) {
+      globalForPrisma.mockPlayers.length = 0;
+    } else {
+      globalForPrisma.mockPlayers = [];
+    }
     
     // Get all teams
     console.log('Fetching existing teams...');
@@ -67,7 +77,7 @@ export async function GET() {
       }
       
       try {
-        // Use handicapIndex field instead of handicap
+        // Create player using Prisma
         const newPlayer = await prisma.player.create({
           data: {
             name: player.name,
@@ -78,6 +88,21 @@ export async function GET() {
             team: true
           }
         });
+        
+        // Also directly add to the global mock data to ensure persistence
+        if (globalForPrisma.mockPlayers) {
+          const mockPlayer = {
+            id: `player${globalForPrisma.mockPlayers.length + 1}`,
+            name: player.name,
+            playerType: 'PRIMARY',
+            handicapIndex: player.handicap || 0,
+            teamId: teamId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+          
+          globalForPrisma.mockPlayers.push(mockPlayer);
+        }
         
         console.log(`Created player: ${player.name} with handicap ${player.handicap || 'N/A'} for team ${player.teamName} (ID: ${teamId})`);
         createdPlayers.push(newPlayer);

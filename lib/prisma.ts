@@ -100,6 +100,52 @@ if (!globalForPrisma.mockTeams) {
 // Initialize global mock players if it doesn't exist
 if (!globalForPrisma.mockPlayers) {
   globalForPrisma.mockPlayers = [];
+  
+  // Pre-populate with players
+  const playerData = [
+    { name: 'AP', handicapIndex: 7.3, teamId: 'team8' },
+    { name: 'JohnP', handicapIndex: 21.4, teamId: 'team8' },
+    
+    { name: 'Brett', handicapIndex: 10.3, teamId: 'team10' },
+    { name: 'Tony', handicapIndex: 14.1, teamId: 'team10' },
+    
+    { name: 'Drew', handicapIndex: 10.6, teamId: 'team7' },
+    { name: 'Ryan', handicapIndex: 13.9, teamId: 'team7' },
+    
+    { name: 'Nick', handicapIndex: 11.3, teamId: 'team1' },
+    { name: 'Brent', handicapIndex: 12.0, teamId: 'team1' },
+    
+    { name: 'Huerter', handicapIndex: 11.8, teamId: 'team2' },
+    { name: 'Hot', handicapIndex: 17.2, teamId: 'team2' },
+    
+    { name: 'Sketch', handicapIndex: 11.9, teamId: 'team5' },
+    { name: 'Rob', handicapIndex: 18.1, teamId: 'team5' },
+    
+    { name: 'Clauss', handicapIndex: 12.5, teamId: 'team9' },
+    { name: 'Wade', handicapIndex: 15.0, teamId: 'team9' },
+    
+    { name: 'Murph', handicapIndex: 12.6, teamId: 'team6' },
+    { name: 'Trev', handicapIndex: 16.0, teamId: 'team6' },
+    
+    { name: 'Brew', handicapIndex: 13.4, teamId: 'team4' },
+    { name: 'Jake', handicapIndex: 16.7, teamId: 'team4' },
+    
+    { name: 'Ashley', handicapIndex: 40.6, teamId: 'team3' },
+    { name: 'Alli', handicapIndex: 30.0, teamId: 'team3' }
+  ];
+  
+  // Add players to the mock database
+  playerData.forEach((player, index) => {
+    globalForPrisma.mockPlayers.push({
+      id: `player${index + 1}`,
+      name: player.name,
+      playerType: 'PRIMARY',
+      handicapIndex: player.handicapIndex,
+      teamId: player.teamId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  });
 }
 
 // Initialize global mock matches if it doesn't exist
@@ -118,26 +164,30 @@ function deepClone(obj: any) {
 }
 
 // Define types for function parameters
+interface OrderBy {
+  [key: string]: 'asc' | 'desc';
+}
+
 interface FindManyParams {
-  include?: Record<string, boolean>;
-  orderBy?: Record<string, 'asc' | 'desc'>;
+  include?: Record<string, any>;
+  orderBy?: OrderBy | OrderBy[];
   where?: Record<string, any>;
 }
 
 interface FindUniqueParams {
   where: { id: string };
-  include?: Record<string, boolean>;
+  include?: Record<string, any>;
 }
 
 interface CreateParams {
   data: Record<string, any>;
-  include?: Record<string, boolean>;
+  include?: Record<string, any>;
 }
 
 interface UpdateParams {
   where: { id: string };
   data: Record<string, any>;
-  include?: Record<string, boolean>;
+  include?: Record<string, any>;
 }
 
 interface DeleteParams {
@@ -146,6 +196,11 @@ interface DeleteParams {
 
 interface DeleteManyParams {
   where?: Record<string, any>;
+}
+
+// Type guard to check if orderBy is a single object and not an array
+function isSingleOrderBy(orderBy: OrderBy | OrderBy[] | undefined): orderBy is OrderBy {
+  return orderBy !== undefined && !Array.isArray(orderBy);
 }
 
 // Create a mock Prisma client
@@ -193,7 +248,7 @@ const mockPrismaClient = {
   },
   team: {
     findMany: async (params: FindManyParams = {}) => {
-      console.log('Mock: Finding all teams');
+      console.log('Mock: Finding all teams', params);
       
       let teams = deepClone(mockTeams);
       
@@ -205,9 +260,9 @@ const mockPrismaClient = {
         });
       }
       
-      if (params.orderBy?.name) {
+      if (isSingleOrderBy(params.orderBy) && 'name' in params.orderBy) {
         teams.sort((a, b) => {
-          return params.orderBy?.name === 'asc' 
+          return params.orderBy.name === 'asc' 
             ? a.name.localeCompare(b.name)
             : b.name.localeCompare(a.name);
         });
@@ -217,7 +272,7 @@ const mockPrismaClient = {
     },
     
     findUnique: async (params: FindUniqueParams) => {
-      console.log(`Mock: Finding team with ID ${params.where.id}`);
+      console.log(`Mock: Finding team with ID ${params.where.id}`, params);
       
       const team = mockTeams.find(t => t.id === params.where.id);
       
@@ -295,7 +350,7 @@ const mockPrismaClient = {
   
   player: {
     findMany: async (params: FindManyParams = {}) => {
-      console.log('Mock: Finding all players', params.where);
+      console.log('Mock: Finding all players', params);
       
       let players = deepClone(mockPlayers);
       
@@ -306,12 +361,29 @@ const mockPrismaClient = {
         }
       }
       
-      if (params.orderBy?.name) {
-        players.sort((a, b) => {
-          return params.orderBy?.name === 'asc' 
-            ? a.name.localeCompare(b.name)
-            : b.name.localeCompare(a.name);
-        });
+      // Handle sorting
+      if (params.orderBy) {
+        if (Array.isArray(params.orderBy)) {
+          // Handle array of orderBy criteria
+          params.orderBy.forEach(criterion => {
+            const field = Object.keys(criterion)[0];
+            const direction = criterion[field];
+            
+            if (field === 'name') {
+              players.sort((a, b) => {
+                return direction === 'asc' 
+                  ? a.name.localeCompare(b.name)
+                  : b.name.localeCompare(a.name);
+              });
+            }
+          });
+        } else if ('name' in params.orderBy) {
+          players.sort((a, b) => {
+            return params.orderBy.name === 'asc' 
+              ? a.name.localeCompare(b.name)
+              : b.name.localeCompare(a.name);
+          });
+        }
       }
       
       if (params.include?.team) {
@@ -326,7 +398,7 @@ const mockPrismaClient = {
     },
     
     findUnique: async (params: FindUniqueParams) => {
-      console.log(`Mock: Finding player with ID ${params.where.id}`);
+      console.log(`Mock: Finding player with ID ${params.where.id}`, params);
       
       const player = mockPlayers.find(p => p.id === params.where.id);
       
@@ -350,6 +422,7 @@ const mockPrismaClient = {
       const newPlayer = {
         id: `player${mockPlayers.length + 1}`,
         name: params.data.name,
+        playerType: params.data.playerType || 'PRIMARY',
         handicapIndex: params.data.handicapIndex || 0,
         teamId: params.data.teamId,
         createdAt: new Date(),
@@ -437,7 +510,7 @@ const mockPrismaClient = {
   
   match: {
     findMany: async (params: FindManyParams = {}) => {
-      console.log('Mock: Finding all matches');
+      console.log('Mock: Finding all matches', params);
       
       let matches = deepClone(mockMatches);
       
@@ -457,27 +530,50 @@ const mockPrismaClient = {
         });
       }
       
+      // Handle sorting
       if (params.orderBy) {
-        if (params.orderBy.weekNumber) {
-          matches.sort((a, b) => {
-            return params.orderBy?.weekNumber === 'asc' 
-              ? a.weekNumber - b.weekNumber
-              : b.weekNumber - a.weekNumber;
+        if (Array.isArray(params.orderBy)) {
+          // Handle array of orderBy criteria
+          params.orderBy.forEach(criterion => {
+            const field = Object.keys(criterion)[0];
+            const direction = criterion[field];
+            
+            if (field === 'weekNumber') {
+              matches.sort((a, b) => {
+                return direction === 'asc' 
+                  ? a.weekNumber - b.weekNumber
+                  : b.weekNumber - a.weekNumber;
+              });
+            } else if (field === 'startingHole') {
+              matches.sort((a, b) => {
+                return direction === 'asc'
+                  ? a.startingHole - b.startingHole
+                  : b.startingHole - a.startingHole;
+              });
+            }
           });
-        } else if (params.orderBy.date) {
-          matches.sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            return params.orderBy?.date === 'asc' 
-              ? dateA.getTime() - dateB.getTime()
-              : dateB.getTime() - dateA.getTime();
-          });
-        } else if (params.orderBy.startingHole) {
-          matches.sort((a, b) => {
-            return params.orderBy?.startingHole === 'asc'
-              ? a.startingHole - b.startingHole
-              : b.startingHole - a.startingHole;
-          });
+        } else {
+          if ('weekNumber' in params.orderBy) {
+            matches.sort((a, b) => {
+              return params.orderBy.weekNumber === 'asc' 
+                ? a.weekNumber - b.weekNumber
+                : b.weekNumber - a.weekNumber;
+            });
+          } else if ('date' in params.orderBy) {
+            matches.sort((a, b) => {
+              const dateA = new Date(a.date);
+              const dateB = new Date(b.date);
+              return params.orderBy.date === 'asc' 
+                ? dateA.getTime() - dateB.getTime()
+                : dateB.getTime() - dateA.getTime();
+            });
+          } else if ('startingHole' in params.orderBy) {
+            matches.sort((a, b) => {
+              return params.orderBy.startingHole === 'asc'
+                ? a.startingHole - b.startingHole
+                : b.startingHole - a.startingHole;
+            });
+          }
         }
       }
       
