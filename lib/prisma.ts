@@ -13,6 +13,85 @@ const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsW
   ? process.env.DATABASE_URL 
   : "postgresql://placeholder:placeholder@localhost:5432/placeholder";
 
+// Store teams in memory so they persist between requests
+let mockTeams = [
+  {
+    id: 'team1',
+    name: 'Nick/Brent',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team2',
+    name: 'Hot/Huerter',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team3',
+    name: 'Ashley/Alli',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team4',
+    name: 'Brew/Jake',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team5',
+    name: 'Sketch/Rob',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team6',
+    name: 'Trev/Murph',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team7',
+    name: 'Ryan/Drew',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team8',
+    name: 'AP/JohnP',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team9',
+    name: 'Clauss/Wade',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'team10',
+    name: 'Brett/Tony',
+    players: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
+// Store players in memory so they persist between requests
+let mockPlayers = [
+  // Initial players can be added here if needed
+];
+
 // Create a mock client for development with placeholder credentials
 const mockPrismaClient = {
   $transaction: async (callback) => {
@@ -22,13 +101,26 @@ const mockPrismaClient = {
       player: {
         deleteMany: async (data) => {
           console.log('Mock deleting players:', data);
-          return { count: 1 };
+          const teamId = data.where.teamId;
+          const initialCount = mockPlayers.length;
+          mockPlayers = mockPlayers.filter(p => p.teamId !== teamId);
+          const deletedCount = initialCount - mockPlayers.length;
+          return { count: deletedCount };
         }
       },
       team: {
         delete: async (data) => {
-          console.log('Mock deleting team:', data);
-          return { id: data.where.id, name: 'Deleted Team' };
+          const teamId = data.where.id;
+          const teamIndex = mockTeams.findIndex(t => t.id === teamId);
+          
+          if (teamIndex !== -1) {
+            const deletedTeam = mockTeams[teamIndex];
+            mockTeams.splice(teamIndex, 1);
+            console.log('Mock deleted team in transaction:', deletedTeam);
+            return deletedTeam;
+          }
+          
+          throw new Error(`Team with ID ${teamId} not found`);
         }
       }
     };
@@ -40,129 +132,277 @@ const mockPrismaClient = {
     findMany: async (options?: any) => {
       console.log('Using mock team data');
       
-      // Create mock match data
-      const mockMatch = {
-        id: 'match1',
-        date: new Date(),
-        weekNumber: 1,
-        homeTeamId: 'team1',
-        awayTeamId: 'team2',
-        status: 'COMPLETED',
-        points: [
-          { teamId: 'team1', points: 2 },
-          { teamId: 'team2', points: 1 }
-        ]
-      };
-      
-      const teams = [
-        {
-          id: 'team1',
-          name: 'Team Alpha',
-          players: [
-            { id: 'player1', name: 'John Doe', handicapIndex: 12.5 },
-            { id: 'player2', name: 'Jane Smith', handicapIndex: 14.2 }
-          ],
-          homeMatches: [mockMatch],
-          awayMatches: []
-        },
-        {
-          id: 'team2',
-          name: 'Team Beta',
-          players: [
-            { id: 'player3', name: 'Bob Johnson', handicapIndex: 10.8 },
-            { id: 'player4', name: 'Alice Williams', handicapIndex: 15.3 }
-          ],
-          homeMatches: [],
-          awayMatches: [mockMatch]
-        }
-      ];
+      // Return a deep copy of the teams to prevent accidental modification
+      const teamsCopy = JSON.parse(JSON.stringify(mockTeams));
       
       // If include is specified, handle it
-      if (options?.include) {
-        // Already included above
+      if (options?.include?.players) {
+        // Add players to each team
+        for (const team of teamsCopy) {
+          team.players = mockPlayers
+            .filter(p => p.teamId === team.id)
+            .map(p => JSON.parse(JSON.stringify(p)));
+        }
       }
       
-      return teams;
+      // Handle orderBy if specified
+      if (options?.orderBy?.name === 'asc') {
+        teamsCopy.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (options?.orderBy?.name === 'desc') {
+        teamsCopy.sort((a, b) => b.name.localeCompare(a.name));
+      }
+      
+      return teamsCopy;
     },
     findUnique: async (options?: any) => {
       console.log('Mock finding unique team:', options);
-      if (options?.where?.id === 'team1') {
-        return { 
-          id: 'team1', 
-          name: 'Team Alpha',
-          players: [
-            { id: 'player1', name: 'John Doe', handicapIndex: 12.5 },
-            { id: 'player2', name: 'Jane Smith', handicapIndex: 14.2 }
-          ],
-          homeMatches: [],
-          awayMatches: []
-        };
-      } else if (options?.where?.id === 'team2') {
-        return { 
-          id: 'team2', 
-          name: 'Team Beta',
-          players: [
-            { id: 'player3', name: 'Bob Johnson', handicapIndex: 10.8 },
-            { id: 'player4', name: 'Alice Williams', handicapIndex: 15.3 }
-          ],
-          homeMatches: [],
-          awayMatches: []
-        };
+      
+      const teamId = options?.where?.id;
+      const team = mockTeams.find(t => t.id === teamId);
+      
+      if (team) {
+        // Create a deep copy
+        const teamCopy = JSON.parse(JSON.stringify(team));
+        
+        // If include is specified, handle it
+        if (options?.include?.players) {
+          teamCopy.players = mockPlayers
+            .filter(p => p.teamId === teamId)
+            .map(p => JSON.parse(JSON.stringify(p)));
+        }
+        
+        return teamCopy;
       }
+      
       return null;
     },
     create: async (options?: any) => {
       console.log('Mock creating team:', options);
       const teamData = options?.data || {};
-      const includeData = options?.include || {};
       
-      // Generate a random ID
-      const id = 'team' + Math.floor(Math.random() * 1000);
+      // Generate a random ID if not provided
+      const id = teamData.id || `team${Math.floor(Math.random() * 10000)}`;
       
-      // Create the base team object with a more flexible type
-      const team: any = {
+      // Create the team object
+      const newTeam = {
         id,
         name: teamData.name || 'New Team',
+        players: [],
         createdAt: new Date(),
         updatedAt: new Date()
       };
       
-      // Add included relations if requested
-      if (includeData.players) {
-        team.players = [];
-      }
+      // Add to the mock teams array
+      mockTeams.push(newTeam);
       
-      if (includeData.homeMatches) {
-        team.homeMatches = [];
-      }
+      console.log('Created mock team:', newTeam);
       
-      if (includeData.awayMatches) {
-        team.awayMatches = [];
-      }
-      
-      console.log('Created mock team:', team);
-      return team;
+      // Return a deep copy to prevent accidental modification
+      return JSON.parse(JSON.stringify(newTeam));
     },
-    update: async (data: any) => data.data,
+    update: async (data: any) => {
+      console.log('Mock updating team:', data);
+      
+      const teamId = data.where.id;
+      const teamIndex = mockTeams.findIndex(t => t.id === teamId);
+      
+      if (teamIndex !== -1) {
+        // Update the team
+        mockTeams[teamIndex] = {
+          ...mockTeams[teamIndex],
+          ...data.data,
+          updatedAt: new Date()
+        };
+        
+        console.log('Updated mock team:', mockTeams[teamIndex]);
+        
+        // Return a deep copy to prevent accidental modification
+        return JSON.parse(JSON.stringify(mockTeams[teamIndex]));
+      }
+      
+      throw new Error(`Team with ID ${teamId} not found`);
+    },
     delete: async (data: any) => {
       console.log('Mock deleting team:', data);
-      return { id: data.where.id, name: 'Deleted Team' };
+      
+      const teamId = data.where.id;
+      const teamIndex = mockTeams.findIndex(t => t.id === teamId);
+      
+      if (teamIndex !== -1) {
+        const deletedTeam = mockTeams[teamIndex];
+        mockTeams.splice(teamIndex, 1);
+        
+        // Also delete all players associated with this team
+        const initialPlayerCount = mockPlayers.length;
+        mockPlayers = mockPlayers.filter(p => p.teamId !== teamId);
+        const deletedPlayerCount = initialPlayerCount - mockPlayers.length;
+        
+        console.log(`Mock deleted team: ${deletedTeam.name} and ${deletedPlayerCount} associated players`);
+        
+        // Return a deep copy to prevent accidental modification
+        return JSON.parse(JSON.stringify(deletedTeam));
+      }
+      
+      throw new Error(`Team with ID ${teamId} not found`);
     }
   },
   player: {
-    findMany: async () => [
-      { id: 'player1', name: 'John Doe', handicapIndex: 12.5, teamId: 'team1' },
-      { id: 'player2', name: 'Jane Smith', handicapIndex: 14.2, teamId: 'team1' },
-      { id: 'player3', name: 'Bob Johnson', handicapIndex: 10.8, teamId: 'team2' },
-      { id: 'player4', name: 'Alice Williams', handicapIndex: 15.3, teamId: 'team2' }
-    ],
-    findUnique: async () => ({ id: 'player1', name: 'John Doe', handicapIndex: 12.5, teamId: 'team1' }),
-    create: async (data: any) => data.data,
-    update: async (data: any) => data.data,
-    delete: async () => ({ id: 'deleted' }),
+    findMany: async (options?: any) => {
+      console.log('Mock finding players:', options);
+      
+      let filteredPlayers = [...mockPlayers];
+      
+      // Apply where filters if specified
+      if (options?.where) {
+        if (options.where.teamId) {
+          filteredPlayers = filteredPlayers.filter(p => p.teamId === options.where.teamId);
+        }
+        // Add more filters as needed
+      }
+      
+      // Handle include if specified
+      if (options?.include?.team) {
+        filteredPlayers = filteredPlayers.map(player => {
+          const team = mockTeams.find(t => t.id === player.teamId);
+          return {
+            ...player,
+            team: team ? JSON.parse(JSON.stringify(team)) : null
+          };
+        });
+      }
+      
+      console.log(`Returning ${filteredPlayers.length} mock players`);
+      
+      // Return a deep copy to prevent accidental modification
+      return JSON.parse(JSON.stringify(filteredPlayers));
+    },
+    findUnique: async (options?: any) => {
+      console.log('Mock finding unique player:', options);
+      
+      const playerId = options?.where?.id;
+      const player = mockPlayers.find(p => p.id === playerId);
+      
+      if (player) {
+        // Create a deep copy
+        const playerCopy = JSON.parse(JSON.stringify(player));
+        
+        // If include is specified, handle it
+        if (options?.include?.team) {
+          const team = mockTeams.find(t => t.id === player.teamId);
+          playerCopy.team = team ? JSON.parse(JSON.stringify(team)) : null;
+        }
+        
+        return playerCopy;
+      }
+      
+      return null;
+    },
+    create: async (options?: any) => {
+      console.log('Mock creating player with options:', JSON.stringify(options, null, 2));
+      
+      try {
+        const playerData = options?.data || {};
+        
+        // Validate required fields
+        if (!playerData.name) {
+          console.error('Player name is required');
+          throw new Error('Player name is required');
+        }
+        
+        if (!playerData.teamId) {
+          console.error('Team ID is required');
+          throw new Error('Team ID is required');
+        }
+        
+        // Check if team exists
+        const team = mockTeams.find(t => t.id === playerData.teamId);
+        if (!team) {
+          console.error(`Team with ID ${playerData.teamId} not found`);
+          throw new Error(`Team with ID ${playerData.teamId} not found`);
+        }
+        
+        // Generate a random ID if not provided
+        const id = playerData.id || `player${Math.floor(Math.random() * 10000)}`;
+        
+        // Create the player object
+        const newPlayer = {
+          id,
+          name: playerData.name,
+          teamId: playerData.teamId,
+          ghinNumber: playerData.ghinNumber || null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        // Add to the mock players array
+        mockPlayers.push(newPlayer);
+        
+        console.log('Created mock player:', JSON.stringify(newPlayer, null, 2));
+        console.log(`Current mock players count: ${mockPlayers.length}`);
+        
+        // Return a deep copy to prevent accidental modification
+        return JSON.parse(JSON.stringify(newPlayer));
+      } catch (error) {
+        console.error('Error in mock player creation:', error);
+        throw error; // Re-throw to be handled by the API
+      }
+    },
+    update: async (data: any) => {
+      console.log('Mock updating player:', data);
+      
+      const playerId = data.where.id;
+      const playerIndex = mockPlayers.findIndex(p => p.id === playerId);
+      
+      if (playerIndex !== -1) {
+        // Update the player
+        mockPlayers[playerIndex] = {
+          ...mockPlayers[playerIndex],
+          ...data.data,
+          updatedAt: new Date()
+        };
+        
+        console.log('Updated mock player:', mockPlayers[playerIndex]);
+        
+        // Return a deep copy to prevent accidental modification
+        return JSON.parse(JSON.stringify(mockPlayers[playerIndex]));
+      }
+      
+      throw new Error(`Player with ID ${playerId} not found`);
+    },
+    delete: async (data: any) => {
+      console.log('Mock deleting player:', data);
+      
+      const playerId = data.where.id;
+      const playerIndex = mockPlayers.findIndex(p => p.id === playerId);
+      
+      if (playerIndex !== -1) {
+        const deletedPlayer = mockPlayers[playerIndex];
+        mockPlayers.splice(playerIndex, 1);
+        console.log('Mock deleted player:', deletedPlayer);
+        
+        // Return a deep copy to prevent accidental modification
+        return JSON.parse(JSON.stringify(deletedPlayer));
+      }
+      
+      throw new Error(`Player with ID ${playerId} not found`);
+    },
     deleteMany: async (data: any) => {
       console.log('Mock deleting players:', data);
-      return { count: data?.where?.teamId ? 2 : 1 };
+      
+      let deletedCount = 0;
+      
+      if (data?.where?.teamId) {
+        const teamId = data.where.teamId;
+        const initialCount = mockPlayers.length;
+        mockPlayers = mockPlayers.filter(p => p.teamId !== teamId);
+        deletedCount = initialCount - mockPlayers.length;
+        console.log(`Deleted ${deletedCount} players for team ${teamId}`);
+      } else {
+        // Handle other deletion criteria if needed
+        deletedCount = 1; // Default for backward compatibility
+      }
+      
+      return { count: deletedCount };
     }
   },
   match: {
@@ -175,8 +415,8 @@ const mockPrismaClient = {
           weekNumber: 1,
           homeTeamId: 'team1',
           awayTeamId: 'team2',
-          homeTeam: { id: 'team1', name: 'Team Alpha' },
-          awayTeam: { id: 'team2', name: 'Team Beta' },
+          homeTeam: { id: 'team1', name: 'Nick/Brent' },
+          awayTeam: { id: 'team2', name: 'Hot/Huerter' },
           status: 'SCHEDULED',
           points: [
             { teamId: 'team1', points: 2 },
@@ -191,8 +431,8 @@ const mockPrismaClient = {
       weekNumber: 1,
       homeTeamId: 'team1',
       awayTeamId: 'team2',
-      homeTeam: { id: 'team1', name: 'Team Alpha' },
-      awayTeam: { id: 'team2', name: 'Team Beta' },
+      homeTeam: { id: 'team1', name: 'Nick/Brent' },
+      awayTeam: { id: 'team2', name: 'Hot/Huerter' },
       status: 'SCHEDULED',
       points: [
         { teamId: 'team1', points: 2 },
@@ -230,8 +470,12 @@ try {
   // Always use the mock client when using placeholder credentials
   if (isUsingPlaceholders) {
     console.log('Using mock Prisma client for development');
+    console.log('Database URL:', process.env.DATABASE_URL);
+    console.log('Is using placeholders:', isUsingPlaceholders);
     prismaClient = mockPrismaClient;
   } else {
+    console.log('Using real Prisma client');
+    console.log('Database URL:', process.env.DATABASE_URL);
     prismaClient = globalForPrisma.prisma || new PrismaClient({
       log: ['query'],
       datasources: {
@@ -245,8 +489,8 @@ try {
   }
 } catch (error) {
   console.error('Failed to initialize Prisma client:', error);
+  console.log('Falling back to mock Prisma client');
   prismaClient = mockPrismaClient;
 }
 
-// Always use the mock client when using placeholder credentials
-export const prisma = isUsingPlaceholders ? mockPrismaClient : prismaClient; 
+export const prisma = prismaClient; 

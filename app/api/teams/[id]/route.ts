@@ -37,6 +37,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log(`Attempting to delete team with ID: ${params.id}`);
+    
     // First check if the team exists
     const team = await prisma.team.findUnique({
       where: { id: params.id },
@@ -44,28 +46,38 @@ export async function DELETE(
     })
 
     if (!team) {
+      console.log(`Team with ID ${params.id} not found`);
       return NextResponse.json(
         { error: 'Team not found' },
         { status: 404 }
       )
     }
 
-    // Use a transaction to ensure both operations complete or neither does
-    const deletedTeam = await prisma.$transaction(async (tx) => {
+    console.log(`Found team: ${team.name} with ${team.players.length} players`);
+
+    try {
       // Delete players if they exist
-      if (team.players.length > 0) {
-        await tx.player.deleteMany({
+      if (team.players && team.players.length > 0) {
+        console.log(`Deleting ${team.players.length} players from team ${team.name}`);
+        await prisma.player.deleteMany({
           where: { teamId: params.id }
         })
       }
 
       // Delete the team
-      return await tx.team.delete({
+      const deletedTeam = await prisma.team.delete({
         where: { id: params.id }
       })
-    })
 
-    return NextResponse.json(deletedTeam)
+      console.log(`Successfully deleted team: ${deletedTeam.name}`);
+      return NextResponse.json(deletedTeam)
+    } catch (deleteError) {
+      console.error('Error during deletion process:', deleteError);
+      return NextResponse.json(
+        { error: 'Failed to delete team or its players' },
+        { status: 500 }
+      )
+    }
   } catch (error) {
     console.error('Error deleting team:', error)
     

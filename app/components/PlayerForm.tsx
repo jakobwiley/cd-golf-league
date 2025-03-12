@@ -1,149 +1,101 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { calculateCourseHandicap } from '../lib/handicap'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 
 interface PlayerFormProps {
-  onSubmit: (data: {
-    name: string;
-    playerType: string;
-    handicapIndex: number;
-  }) => void;
-  initialData?: {
-    name: string;
-    playerType: string;
-    handicapIndex: number;
-  };
+  teamId: string
 }
 
-export default function PlayerForm({ onSubmit, initialData }: PlayerFormProps) {
-  const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    playerType: initialData?.playerType || 'PRIMARY',
-    handicapIndex: initialData?.handicapIndex || 0,
-  })
-
-  // Calculate course handicap whenever handicap index changes
-  const courseHandicap = useMemo(() => {
-    return calculateCourseHandicap(formData.handicapIndex)
-  }, [formData.handicapIndex])
+export function PlayerForm({ teamId }: PlayerFormProps) {
+  const [name, setName] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit(formData)
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'handicapIndex' ? parseFloat(value) : value
-    }))
+    setError(null)
+    
+    if (!name.trim()) {
+      toast.error('Player name is required')
+      setError('Player name is required')
+      return
+    }
+    
+    try {
+      setIsLoading(true)
+      
+      const playerData = {
+        name: name.trim(),
+        teamId
+      }
+      
+      console.log('Submitting player form with data:', playerData)
+      
+      const response = await fetch('/api/players', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(playerData),
+      })
+      
+      console.log('Response status:', response.status)
+      
+      let data
+      try {
+        data = await response.json()
+        console.log('Response data:', data)
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError)
+        throw new Error('Failed to parse server response')
+      }
+      
+      if (!response.ok) {
+        const errorMessage = data?.error || data?.details || 'Failed to add player'
+        console.error('Server error:', errorMessage)
+        throw new Error(errorMessage)
+      }
+      
+      toast.success('Player added successfully')
+      setName('')
+      router.refresh()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Error adding player:', error)
+      setError(errorMessage)
+      toast.error(`Error adding player: ${errorMessage}`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 sm:px-6 lg:px-8">
-      <form onSubmit={handleSubmit} className="space-y-8 bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-100">
-        <div className="space-y-3">
-          <label 
-            htmlFor="name" 
-            className="block text-xl sm:text-lg font-semibold text-gray-800"
-          >
-            Player Name 👤
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="w-full h-14 sm:h-12 px-4 py-3 text-lg sm:text-base rounded-xl border border-gray-200 focus:border-[#5B8B5B] focus:ring-2 focus:ring-[#5B8B5B]/20 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
-            placeholder="Enter player name"
-            autoComplete="off"
-          />
+    <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Player Name</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Enter player name"
+          required
+          disabled={isLoading}
+        />
+      </div>
+      {error && (
+        <div className="text-red-500 text-sm">
+          Error: {error}
         </div>
-
-        <div className="space-y-3">
-          <label 
-            htmlFor="playerType" 
-            className="block text-xl sm:text-lg font-semibold text-gray-800"
-          >
-            Player Type 🎯
-          </label>
-          <select
-            id="playerType"
-            name="playerType"
-            value={formData.playerType}
-            onChange={handleChange}
-            required
-            className="w-full h-14 sm:h-12 px-4 py-3 text-lg sm:text-base rounded-xl border border-gray-200 focus:border-[#5B8B5B] focus:ring-2 focus:ring-[#5B8B5B]/20 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
-          >
-            <option value="PRIMARY">Primary</option>
-            <option value="SUB">Sub</option>
-          </select>
-          <p className="text-base sm:text-sm text-gray-500">
-            Select whether this player is a primary team member or a substitute
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <label 
-            htmlFor="handicapIndex" 
-            className="block text-xl sm:text-lg font-semibold text-gray-800"
-          >
-            Handicap Index ⛳
-          </label>
-          <input
-            type="number"
-            id="handicapIndex"
-            name="handicapIndex"
-            value={formData.handicapIndex}
-            onChange={handleChange}
-            required
-            step="0.1"
-            min="0"
-            max="54"
-            className="w-full h-14 sm:h-12 px-4 py-3 text-lg sm:text-base rounded-xl border border-gray-200 focus:border-[#5B8B5B] focus:ring-2 focus:ring-[#5B8B5B]/20 transition-all duration-200 text-gray-800 bg-gray-50 hover:bg-gray-100"
-            placeholder="Enter handicap index"
-            inputMode="decimal"
-          />
-          <p className="text-base sm:text-sm text-gray-500">
-            Enter the player's handicap index (0-54)
-          </p>
-        </div>
-
-        <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
-          <label 
-            htmlFor="courseHandicap" 
-            className="block text-xl sm:text-lg font-semibold text-gray-800"
-          >
-            Course Handicap 🏌️
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              id="courseHandicap"
-              value={courseHandicap}
-              readOnly
-              className="w-full h-14 sm:h-12 px-4 py-3 text-lg sm:text-base rounded-xl border border-gray-200 bg-white text-gray-800 font-bold"
-            />
-            <div className="text-2xl">⛳</div>
-          </div>
-          <p className="text-base sm:text-sm text-gray-500">
-            Your course handicap at Country Drive Golf Course is automatically calculated based on your handicap index using the course rating (68.0) and slope (107).
-          </p>
-        </div>
-
-        <div className="pt-4">
-          <button
-            type="submit"
-            className="w-full h-14 sm:h-12 px-6 text-lg sm:text-base font-semibold text-white bg-[#5B8B5B] rounded-xl hover:bg-[#4A724A] focus:outline-none focus:ring-2 focus:ring-[#5B8B5B]/50 transition-all duration-200"
-          >
-            Save Player
-          </button>
-        </div>
-      </form>
-    </div>
+      )}
+      <Button type="submit" disabled={isLoading} className="w-full">
+        {isLoading ? 'Adding Player...' : 'Add Player'}
+      </Button>
+    </form>
   )
 } 
