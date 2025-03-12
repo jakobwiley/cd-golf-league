@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Direct Team Setup - Country Drive Golf League</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      color: #2e7d32;
+      text-align: center;
+    }
+    button {
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      display: block;
+      margin: 20px auto;
+    }
+    button:hover {
+      background-color: #1b5e20;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #output {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      height: 400px;
+      overflow-y: auto;
+    }
+    .team-list {
+      margin: 20px 0;
+      padding: 0;
+      list-style-type: none;
+    }
+    .team-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .team-list li:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Direct Team Setup - Country Drive Golf League</h1>
+  
+  <p>This utility will directly set up the following teams, bypassing the regular API endpoints:</p>
+  
+  <ol class="team-list">
+    <li>Nick/Brent</li>
+    <li>Hot/Huerter</li>
+    <li>Ashley/Alli</li>
+    <li>Brew/Jake</li>
+    <li>Sketch/Rob</li>
+    <li>Trev/Murph</li>
+    <li>Ryan/Drew</li>
+    <li>AP/JohnP</li>
+    <li>Clauss/Wade</li>
+    <li>Brett/Tony</li>
+  </ol>
+  
+  <button id="setupButton">Run Direct Setup</button>
+  
+  <div id="output">Click the button above to set up the teams...</div>
+  
+  <script>
+    const setupButton = document.getElementById('setupButton');
+    const output = document.getElementById('output');
+    
+    function log(message) {
+      output.textContent += message + '\n';
+      output.scrollTop = output.scrollHeight;
+      console.log(message);
+    }
+    
+    setupButton.addEventListener('click', async () => {
+      try {
+        // Disable the button to prevent multiple clicks
+        setupButton.disabled = true;
+        setupButton.textContent = 'Setting up teams...';
+        
+        // Clear the output
+        output.textContent = 'Starting direct team setup...\n';
+        
+        // Call the direct setup API endpoint
+        const response = await fetch('/api/direct-setup-teams');
+        
+        // Log the raw response for debugging
+        log(`Response status: ${response.status}`);
+        
+        const responseText = await response.text();
+        log(`Response text length: ${responseText.length} characters`);
+        
+        let result;
+        try {
+          result = JSON.parse(responseText);
+          
+          if (response.ok) {
+            log(`\nSuccess! ${result.deletedTeams?.length || 0} teams deleted and ${result.createdTeams?.length || 0} teams created.`);
+            
+            if (result.deletedTeams?.length > 0) {
+              log('\nDeleted teams:');
+              result.deletedTeams.forEach((team, index) => {
+                log(`${index + 1}. ${team.name} (ID: ${team.id})`);
+              });
+            }
+            
+            if (result.createdTeams?.length > 0) {
+              log('\nCreated teams:');
+              result.createdTeams.forEach((team, index) => {
+                log(`${index + 1}. ${team.name} (ID: ${team.id})`);
+              });
+            }
+            
+            log('\nTeam setup completed successfully!');
+            log('You can now go to the Teams page to see the new teams.');
+          } else {
+            log(`Error: ${result.error}`);
+            if (result.details) {
+              log(`Details: ${result.details}`);
+            }
+            if (result.stack) {
+              log(`Stack: ${result.stack}`);
+            }
+          }
+        } catch (e) {
+          log(`Error parsing response: ${e.message}`);
+          log(`Raw response: ${responseText}`);
+        }
+      } catch (error) {
+        log(`Error: ${error.message}`);
+      } finally {
+        // Re-enable the button
+        setupButton.disabled = false;
+        setupButton.textContent = 'Run Direct Setup';
+      }
+    });
+  </script>
+</body>
+</html> 

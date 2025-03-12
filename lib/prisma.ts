@@ -111,7 +111,38 @@ const mockPrismaClient = {
       }
       return null;
     },
-    create: async (data: any) => data.data,
+    create: async (options?: any) => {
+      console.log('Mock creating team:', options);
+      const teamData = options?.data || {};
+      const includeData = options?.include || {};
+      
+      // Generate a random ID
+      const id = 'team' + Math.floor(Math.random() * 1000);
+      
+      // Create the base team object with a more flexible type
+      const team: any = {
+        id,
+        name: teamData.name || 'New Team',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // Add included relations if requested
+      if (includeData.players) {
+        team.players = [];
+      }
+      
+      if (includeData.homeMatches) {
+        team.homeMatches = [];
+      }
+      
+      if (includeData.awayMatches) {
+        team.awayMatches = [];
+      }
+      
+      console.log('Created mock team:', team);
+      return team;
+    },
     update: async (data: any) => data.data,
     delete: async (data: any) => {
       console.log('Mock deleting team:', data);
