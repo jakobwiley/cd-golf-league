@@ -1,0 +1,43 @@
+{
+  "name": "cd-golf-league",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3007",
+    "build": "echo 'Starting build process' && prisma generate && echo 'Prisma generated' && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@hookform/resolvers": "^4.1.3",
+    "@prisma/client": "latest",
+    "axios": "^1.8.2",
+    "clsx": "^2.1.0",
+    "date-fns": "^2.30.0",
+    "date-fns-tz": "^2.0.0",
+    "lucide-react": "^0.479.0",
+    "next": "^14.2.24",
+    "next-pwa": "^5.6.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hook-form": "^7.54.2",
+    "sharp": "^0.33.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0",
+    "postcss": "^8",
+    "postcss-preset-env": "^9.3.0",
+    "prisma": "latest",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5"
+  }
+}
