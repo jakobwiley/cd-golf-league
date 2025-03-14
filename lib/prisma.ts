@@ -3,11 +3,13 @@
 
 import { PrismaClient } from '@prisma/client'
 
+// Use a more reliable global object for serverless environments
 const globalForPrisma = global as unknown as { 
   prisma: PrismaClient,
   mockTeams: any[],
   mockPlayers: any[],
-  mockMatches: any[]
+  mockMatches: any[],
+  isInitialized: boolean
 }
 
 // Check if we're using placeholder credentials
@@ -156,6 +158,71 @@ if (!globalForPrisma.mockPlayers || globalForPrisma.mockPlayers.length === 0) {
 if (!globalForPrisma.mockMatches) {
   console.log('Initializing empty matches array in the mock database');
   globalForPrisma.mockMatches = [];
+  
+  // If we're in a production environment, pre-populate with matches
+  if (process.env.NODE_ENV === 'production' && !globalForPrisma.isInitialized) {
+    console.log('Pre-populating matches for production environment');
+    
+    // Schedule data based on the raw data provided
+    const scheduleData = [
+      // Week 1 - April 15, 2025
+      [1, 1, 'Hot/Huerter', 'Nick/Brent', '2025-04-15T18:00:00.000Z'],
+      [1, 2, 'Ashley/Alli', 'Brett/Tony', '2025-04-15T18:00:00.000Z'],
+      [1, 3, 'Brew/Jake', 'Clauss/Wade', '2025-04-15T18:00:00.000Z'],
+      [1, 4, 'Sketch/Rob', 'AP/JohnP', '2025-04-15T18:00:00.000Z'],
+      [1, 5, 'Trev/Murph', 'Ryan/Drew', '2025-04-15T18:00:00.000Z'],
+      
+      // Week 2 - April 22, 2025
+      [2, 1, 'Brett/Tony', 'Brew/Jake', '2025-04-22T18:00:00.000Z'],
+      [2, 2, 'Nick/Brent', 'Ryan/Drew', '2025-04-22T18:00:00.000Z'],
+      [2, 3, 'AP/JohnP', 'Trev/Murph', '2025-04-22T18:00:00.000Z'],
+      [2, 4, 'Clauss/Wade', 'Sketch/Rob', '2025-04-22T18:00:00.000Z'],
+      [2, 5, 'Hot/Huerter', 'Ashley/Alli', '2025-04-22T18:00:00.000Z'],
+      
+      // Week 3 - April 29, 2025
+      [3, 1, 'Ryan/Drew', 'AP/JohnP', '2025-04-29T18:00:00.000Z'],
+      [3, 2, 'Trev/Murph', 'Clauss/Wade', '2025-04-29T18:00:00.000Z'],
+      [3, 3, 'Sketch/Rob', 'Brett/Tony', '2025-04-29T18:00:00.000Z'],
+      [3, 4, 'Brew/Jake', 'Hot/Huerter', '2025-04-29T18:00:00.000Z'],
+      [3, 5, 'Ashley/Alli', 'Nick/Brent', '2025-04-29T18:00:00.000Z'],
+    ];
+    
+    // Create a map of team names to IDs
+    const teamMap = new Map();
+    globalForPrisma.mockTeams.forEach(team => {
+      teamMap.set(team.name, team.id);
+    });
+    
+    // Create matches
+    let matchCount = 0;
+    for (const [weekNumber, startingHole, homeTeamName, awayTeamName, date] of scheduleData) {
+      const homeTeamId = teamMap.get(homeTeamName);
+      const awayTeamId = teamMap.get(awayTeamName);
+      
+      if (!homeTeamId || !awayTeamId) {
+        console.log(`Could not find team IDs for ${homeTeamName} vs ${awayTeamName}`);
+        continue;
+      }
+      
+      const newMatch = {
+        id: `match${matchCount + 1}`,
+        date: new Date(date as string),
+        weekNumber: Number(weekNumber),
+        homeTeamId,
+        awayTeamId,
+        startingHole: Number(startingHole),
+        status: 'SCHEDULED',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      globalForPrisma.mockMatches.push(newMatch);
+      matchCount++;
+    }
+    
+    console.log(`Pre-populated ${matchCount} matches in the mock database for production`);
+    globalForPrisma.isInitialized = true;
+  }
 }
 
 // Access the global mock data

@@ -47,6 +47,20 @@ export default function AdminPage() {
             Score Matches
           </Link>
         </div>
+        
+        <div className="bg-white rounded-lg shadow p-6 col-span-1 md:col-span-2">
+          <h2 className="text-xl font-semibold mb-4">Data Initialization</h2>
+          <p className="text-gray-600 mb-4">Initialize or reset all data for the application. Use this if data is missing in the production environment.</p>
+          <div className="flex space-x-4">
+            <Link href="/admin/setup" className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+              Initialize All Data
+            </Link>
+            <Link href="/api/force-setup" className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+              Force Setup (Direct)
+            </Link>
+          </div>
+          <p className="text-gray-500 mt-2 text-sm">Use "Force Setup" if players are not showing up on the teams page or if matches are missing.</p>
+        </div>
       </div>
     </div>
   )
