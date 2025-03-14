@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma'
-import TeamsList from '../components/TeamsList'
+import { calculateCourseHandicap } from '../../lib/handicap'
 
 // Fallback player data in case the API doesn't return players
 const fallbackPlayerData = [
@@ -115,13 +115,44 @@ export default async function TeamsPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent"></div>
           <div className="relative px-8 py-6">
             <h1 className="text-4xl font-audiowide text-white mb-2">Teams</h1>
-            <p className="text-white/90 font-orbitron tracking-wide">Manage your teams and players</p>
+            <p className="text-white/90 font-orbitron tracking-wide">View league teams and players</p>
           </div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-1/4 -translate-y-1/4"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
         </div>
 
-        <TeamsList teams={teams} />
+        {/* Read-only Teams Display */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {teams.map((team) => (
+            <div key={team.id} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
+              <div className="p-6 relative">
+                <h3 className="text-xl font-audiowide text-white mb-4">{team.name}</h3>
+                
+                <div className="space-y-3 mb-6">
+                  {team.players.map((player) => (
+                    <div key={player.id} className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 p-3">
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                      <div className="relative">
+                        <div className="text-white font-orbitron">{player.name}</div>
+                        <div className="text-sm text-[#00df82]/80 font-audiowide space-x-2">
+                          <span>HCP: {player.handicapIndex}</span>
+                          <span>•</span>
+                          <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {team.players.length === 0 && (
+                    <div className="text-white/50 text-center py-4 font-orbitron">No players added yet</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

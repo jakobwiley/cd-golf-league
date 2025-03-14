@@ -30,7 +30,6 @@ export default function Navigation() {
                 <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Schedule</Link>
                 <Link href="/teams" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Teams</Link>
                 <Link href="/matches" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Matches</Link>
-                <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Scoring</Link>
                 <Link href="/standings" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Standings</Link>
               </div>
             </div>
@@ -60,7 +59,6 @@ export default function Navigation() {
             <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Schedule</Link>
             <Link href="/teams" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Teams</Link>
             <Link href="/matches" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Matches</Link>
-            <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Scoring</Link>
             <Link href="/standings" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Standings</Link>
           </div>
         </div>

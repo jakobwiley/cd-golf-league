@@ -122,28 +122,28 @@ export default function SchedulePage({
                       <div className="grid grid-cols-1 divide-y divide-[#00df82]/10">
                         {matchesByWeek[weekNumber].map((match, idx) => (
                           <div key={match.id} className="p-4">
-                            <div className="flex flex-col sm:flex-row items-center">
+                            <div className="flex flex-col sm:flex-row items-center sm:justify-start">
                               {/* Starting Hole */}
-                              <div className="flex items-center justify-center mb-3 sm:mb-0 sm:mr-4">
+                              <div className="flex items-center justify-center mb-3 sm:mb-0 sm:mr-6">
                                 <span className="inline-flex items-center justify-center bg-[#00df82]/10 text-[#00df82] rounded-full h-10 w-10 font-orbitron text-sm">
                                   {match.startingHole}
                                 </span>
                               </div>
                               
-                              {/* Teams */}
-                              <div className="flex flex-1 flex-col sm:flex-row sm:items-center justify-between w-full">
+                              {/* Teams - Adjusted to be closer to starting hole */}
+                              <div className="flex flex-1 flex-col sm:flex-row sm:items-center w-full sm:w-auto">
                                 {/* Home Team */}
-                                <div className="mb-2 sm:mb-0 text-center sm:text-left sm:flex-1">
+                                <div className="mb-2 sm:mb-0 text-center sm:text-right">
                                   <div className="text-white font-orbitron">
                                     {match.homeTeam?.name || 'Unknown Team'}
                                   </div>
                                 </div>
                                 
                                 {/* VS Divider */}
-                                <div className="text-[#00df82] mx-2 mb-2 sm:mb-0">vs</div>
+                                <div className="text-[#00df82] mx-2 mb-2 sm:mb-0 text-center">vs</div>
                                 
                                 {/* Away Team */}
-                                <div className="text-center sm:text-left sm:flex-1">
+                                <div className="text-center sm:text-left">
                                   <div className="text-white font-orbitron">
                                     {match.awayTeam?.name || 'Unknown Team'}
                                   </div>

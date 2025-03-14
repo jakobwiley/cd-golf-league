@@ -11,21 +11,24 @@ export const holeHandicaps = {
   9: 5   // 5th hardest hole
 }
 
-// Country Drive Golf Course (Ashland, NE) - Official Ratings
-const COURSE_RATING = 68.0  // Official course rating
-const SLOPE_RATING = 107    // Official slope rating
-const PAR = 72             // Total par for 18 holes
+// Country Drive Golf Course (Ashland, NE) - Official 9-hole Ratings
+const COURSE_RATING = 34.0  // 9-hole course rating
+const SLOPE_RATING = 107    // 9-hole slope rating
+const PAR = 36             // 9-hole par
 
 export function calculateCourseHandicap(handicapIndex: number): number {
   if (typeof handicapIndex !== 'number' || isNaN(handicapIndex)) {
     return 0;
   }
   
-  // 1. Calculate 18-hole Course Handicap: (Handicap Index × Slope Rating ÷ 113) + (Course Rating - Par)
-  const eighteenHoleCH = handicapIndex * (SLOPE_RATING / 113) + (COURSE_RATING - PAR)
+  // First, take half of the 18-hole Handicap Index and round to one decimal
+  const halfHandicapIndex = Math.round((handicapIndex / 2) * 10) / 10;
   
-  // 2. For 9-holes, take half and round to nearest whole number
-  return Math.round(eighteenHoleCH / 2)
+  // Calculate 9-hole Course Handicap using the correct formula
+  const nineHoleCH = halfHandicapIndex * (SLOPE_RATING / 113) + (COURSE_RATING - PAR);
+  
+  // Round to nearest whole number
+  return Math.round(nineHoleCH);
 }
 
 export function calculateStrokesReceived(playerHandicap: number, opponentHandicap: number) {

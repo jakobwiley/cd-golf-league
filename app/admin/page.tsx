@@ -40,14 +40,6 @@ export default function AdminPage() {
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Match Scoring</h2>
-          <p className="text-gray-600 mb-4">Record scores for matches.</p>
-          <Link href="/admin/scoring" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Score Matches
-          </Link>
-        </div>
-        
         <div className="bg-white rounded-lg shadow p-6 col-span-1 md:col-span-2">
           <h2 className="text-xl font-semibold mb-4">Data Initialization</h2>
           <p className="text-gray-600 mb-4">Initialize or reset all data for the application. Use this if data is missing in the production environment.</p>
