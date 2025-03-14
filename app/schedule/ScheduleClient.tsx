@@ -122,29 +122,31 @@ export default function SchedulePage({
                       <div className="grid grid-cols-1 divide-y divide-[#00df82]/10">
                         {matchesByWeek[weekNumber].map((match, idx) => (
                           <div key={match.id} className="p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center">
-                                <span className="inline-flex items-center justify-center bg-[#00df82]/10 text-[#00df82] rounded-full h-8 w-8 mr-3 font-orbitron text-sm">
+                            <div className="flex flex-col sm:flex-row items-center">
+                              {/* Starting Hole */}
+                              <div className="flex items-center justify-center mb-3 sm:mb-0 sm:mr-4">
+                                <span className="inline-flex items-center justify-center bg-[#00df82]/10 text-[#00df82] rounded-full h-10 w-10 font-orbitron text-sm">
                                   {match.startingHole}
                                 </span>
-                                <span className="text-white/50 text-xs font-orbitron">HOLE</span>
                               </div>
-                            </div>
-                            
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-                              <div className="mb-2 sm:mb-0 flex-1">
-                                <div className="text-sm text-white/50 font-orbitron mb-1">HOME</div>
-                                <div className="text-white font-orbitron">
-                                  {match.homeTeam?.name || 'Unknown Team'}
+                              
+                              {/* Teams */}
+                              <div className="flex flex-1 flex-col sm:flex-row sm:items-center justify-between w-full">
+                                {/* Home Team */}
+                                <div className="mb-2 sm:mb-0 text-center sm:text-left sm:flex-1">
+                                  <div className="text-white font-orbitron">
+                                    {match.homeTeam?.name || 'Unknown Team'}
+                                  </div>
                                 </div>
-                              </div>
-                              
-                              <div className="text-[#00df82] mx-2 hidden sm:block">vs</div>
-                              
-                              <div className="flex-1">
-                                <div className="text-sm text-white/50 font-orbitron mb-1">AWAY</div>
-                                <div className="text-white font-orbitron">
-                                  {match.awayTeam?.name || 'Unknown Team'}
+                                
+                                {/* VS Divider */}
+                                <div className="text-[#00df82] mx-2 mb-2 sm:mb-0">vs</div>
+                                
+                                {/* Away Team */}
+                                <div className="text-center sm:text-left sm:flex-1">
+                                  <div className="text-white font-orbitron">
+                                    {match.awayTeam?.name || 'Unknown Team'}
+                                  </div>
                                 </div>
                               </div>
                             </div>

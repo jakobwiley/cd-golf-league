@@ -23,6 +23,7 @@ const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsW
 
 // Initialize global mock data if it doesn't exist
 if (!globalForPrisma.mockTeams) {
+  console.log('Initializing mock teams data');
   globalForPrisma.mockTeams = [
     {
       id: 'team1',
@@ -97,8 +98,9 @@ if (!globalForPrisma.mockTeams) {
   ];
 }
 
-// Initialize global mock players if it doesn't exist
-if (!globalForPrisma.mockPlayers) {
+// Initialize global mock players if it doesn't exist or is empty
+if (!globalForPrisma.mockPlayers || globalForPrisma.mockPlayers.length === 0) {
+  console.log('Initializing mock players data');
   globalForPrisma.mockPlayers = [];
   
   // Pre-populate with players
@@ -146,10 +148,13 @@ if (!globalForPrisma.mockPlayers) {
       updatedAt: new Date()
     });
   });
+  
+  console.log(`Initialized ${globalForPrisma.mockPlayers.length} players in the mock database`);
 }
 
 // Initialize global mock matches if it doesn't exist
 if (!globalForPrisma.mockMatches) {
+  console.log('Initializing empty matches array in the mock database');
   globalForPrisma.mockMatches = [];
 }
 
@@ -222,6 +227,9 @@ const mockPrismaClient = {
             }
           }
           
+          // Update the global reference to ensure persistence
+          globalForPrisma.mockPlayers = mockPlayers;
+          
           const deletedCount = initialCount - mockPlayers.length;
           return { count: deletedCount };
         }
@@ -234,6 +242,8 @@ const mockPrismaClient = {
           if (teamIndex !== -1) {
             const deletedTeam = mockTeams[teamIndex];
             mockTeams.splice(teamIndex, 1);
+            // Update the global reference to ensure persistence
+            globalForPrisma.mockTeams = mockTeams;
             console.log('Mock deleted team in transaction:', deletedTeam);
             return deletedTeam;
           }
@@ -260,12 +270,15 @@ const mockPrismaClient = {
         });
       }
       
-      if (isSingleOrderBy(params.orderBy) && 'name' in params.orderBy) {
-        teams.sort((a, b) => {
-          return params.orderBy.name === 'asc' 
-            ? a.name.localeCompare(b.name)
-            : b.name.localeCompare(a.name);
-        });
+      if (isSingleOrderBy(params.orderBy)) {
+        const orderBy = params.orderBy as OrderBy;
+        if (orderBy.name) {
+          teams.sort((a, b) => {
+            return orderBy.name === 'asc' 
+              ? a.name.localeCompare(b.name)
+              : b.name.localeCompare(a.name);
+          });
+        }
       }
       
       return teams;
@@ -301,6 +314,9 @@ const mockPrismaClient = {
       };
       
       mockTeams.push(newTeam);
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockTeams = mockTeams;
+      console.log(`Added team to mock database. Total teams: ${mockTeams.length}`);
       
       return deepClone(newTeam);
     },
@@ -321,6 +337,8 @@ const mockPrismaClient = {
       };
       
       mockTeams[teamIndex] = updatedTeam;
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockTeams = mockTeams;
       
       return deepClone(updatedTeam);
     },
@@ -336,6 +354,8 @@ const mockPrismaClient = {
       
       const deletedTeam = mockTeams[teamIndex];
       mockTeams.splice(teamIndex, 1);
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockTeams = mockTeams;
       
       // Also delete all players associated with this team
       for (let i = mockPlayers.length - 1; i >= 0; i--) {
@@ -343,6 +363,8 @@ const mockPrismaClient = {
           mockPlayers.splice(i, 1);
         }
       }
+      // Update the global players reference
+      globalForPrisma.mockPlayers = mockPlayers;
       
       return deepClone(deletedTeam);
     }
@@ -377,12 +399,15 @@ const mockPrismaClient = {
               });
             }
           });
-        } else if ('name' in params.orderBy) {
-          players.sort((a, b) => {
-            return params.orderBy.name === 'asc' 
-              ? a.name.localeCompare(b.name)
-              : b.name.localeCompare(a.name);
-          });
+        } else if (isSingleOrderBy(params.orderBy)) {
+          const orderBy = params.orderBy as OrderBy;
+          if (orderBy.name) {
+            players.sort((a, b) => {
+              return orderBy.name === 'asc' 
+                ? a.name.localeCompare(b.name)
+                : b.name.localeCompare(a.name);
+            });
+          }
         }
       }
       
@@ -430,6 +455,9 @@ const mockPrismaClient = {
       };
       
       mockPlayers.push(newPlayer);
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockPlayers = mockPlayers;
+      console.log(`Added player to mock database. Total players: ${mockPlayers.length}`);
       
       const result = deepClone(newPlayer);
       
@@ -457,6 +485,8 @@ const mockPrismaClient = {
       };
       
       mockPlayers[playerIndex] = updatedPlayer;
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockPlayers = mockPlayers;
       
       const result = deepClone(updatedPlayer);
       
@@ -479,6 +509,8 @@ const mockPrismaClient = {
       
       const deletedPlayer = mockPlayers[playerIndex];
       mockPlayers.splice(playerIndex, 1);
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockPlayers = mockPlayers;
       
       return deepClone(deletedPlayer);
     },
@@ -504,6 +536,9 @@ const mockPrismaClient = {
         mockPlayers.length = 0;
       }
       
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockPlayers = mockPlayers;
+      
       return { count };
     }
   },
@@ -511,6 +546,7 @@ const mockPrismaClient = {
   match: {
     findMany: async (params: FindManyParams = {}) => {
       console.log('Mock: Finding all matches', params);
+      console.log(`Found ${mockMatches.length} matches in the mock database`);
       
       let matches = deepClone(mockMatches);
       
@@ -552,24 +588,25 @@ const mockPrismaClient = {
               });
             }
           });
-        } else {
-          if ('weekNumber' in params.orderBy) {
+        } else if (isSingleOrderBy(params.orderBy)) {
+          const orderBy = params.orderBy as OrderBy;
+          if (orderBy.weekNumber) {
             matches.sort((a, b) => {
-              return params.orderBy.weekNumber === 'asc' 
+              return orderBy.weekNumber === 'asc' 
                 ? a.weekNumber - b.weekNumber
                 : b.weekNumber - a.weekNumber;
             });
-          } else if ('date' in params.orderBy) {
+          } else if (orderBy.date) {
             matches.sort((a, b) => {
               const dateA = new Date(a.date);
               const dateB = new Date(b.date);
-              return params.orderBy.date === 'asc' 
+              return orderBy.date === 'asc' 
                 ? dateA.getTime() - dateB.getTime()
                 : dateB.getTime() - dateA.getTime();
             });
-          } else if ('startingHole' in params.orderBy) {
+          } else if (orderBy.startingHole) {
             matches.sort((a, b) => {
-              return params.orderBy.startingHole === 'asc'
+              return orderBy.startingHole === 'asc'
                 ? a.startingHole - b.startingHole
                 : b.startingHole - a.startingHole;
             });
@@ -596,6 +633,9 @@ const mockPrismaClient = {
       };
       
       mockMatches.push(newMatch);
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockMatches = mockMatches;
+      console.log(`Added match to mock database. Total matches: ${mockMatches.length}`);
       
       const result = deepClone(newMatch);
       
@@ -617,6 +657,9 @@ const mockPrismaClient = {
       
       const count = mockMatches.length;
       mockMatches.length = 0;
+      // Update the global reference to ensure persistence
+      globalForPrisma.mockMatches = mockMatches;
+      console.log(`Deleted all ${count} matches from mock database`);
       
       return { count };
     }

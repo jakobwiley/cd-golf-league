@@ -1,8 +1,18 @@
-import React from 'react';
-import { prisma } from '../../../lib/prisma'
-import Link from 'next/link';
+'use client'
 
-export default async function ScheduleAdminPage() {
+import React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+export default function ScheduleAdminPage() {
+  const router = useRouter();
+  
+  const handleClearSchedule = () => {
+    if (confirm('Are you sure you want to clear the entire schedule? This cannot be undone.')) {
+      router.push('/api/schedule?clear=true');
+    }
+  };
+  
   try {
     return (
       <div className="min-h-screen bg-[#030f0f] relative overflow-hidden">
@@ -72,11 +82,7 @@ export default async function ScheduleAdminPage() {
               <div className="flex justify-end">
                 <button 
                   className="group relative overflow-hidden px-6 py-3 bg-red-900/30 text-red-400 rounded-lg border border-red-500/30 hover:border-red-500/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to clear the entire schedule? This cannot be undone.')) {
-                      window.location.href = '/api/schedule?clear=true';
-                    }
-                  }}
+                  onClick={handleClearSchedule}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent"></div>
                   <div className="absolute -top-10 -right-10 w-20 h-20 bg-red-500/10 rounded-full blur-3xl group-hover:bg-red-500/20 transition-all duration-500"></div>
