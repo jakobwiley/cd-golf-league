@@ -1,10 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+  
+  // Close mobile menu when pathname changes (navigation occurs)
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
   return (
     <nav className="bg-[#030f0f] border-b border-[#00df82]/10">
@@ -15,16 +22,16 @@ export default function Navigation() {
               href="/" 
               className="flex items-center gap-2"
             >
-              <span className="text-white text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-[#00df82]">CD Golf League</span>
+              <span className="text-white text-xl font-audiowide bg-clip-text text-transparent bg-gradient-to-r from-white to-[#00df82]">CD Golf League</span>
               <span role="img" aria-label="golf flag" className="text-xl">⛳</span>
             </Link>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
-                <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Schedule</Link>
-                <Link href="/teams" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Teams</Link>
-                <Link href="/matches" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Matches</Link>
-                <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Scoring</Link>
-                <Link href="/standings" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-bold transition-colors">Standings</Link>
+                <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Schedule</Link>
+                <Link href="/teams" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Teams</Link>
+                <Link href="/matches" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Matches</Link>
+                <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Scoring</Link>
+                <Link href="/standings" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Standings</Link>
               </div>
             </div>
           </div>
@@ -50,11 +57,11 @@ export default function Navigation() {
       {isMobileMenuOpen && (
         <div className="md:hidden" id="mobile-menu">
           <div className="space-y-1 px-2 pb-3 pt-2">
-            <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Schedule</Link>
-            <Link href="/teams" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Teams</Link>
-            <Link href="/matches" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Matches</Link>
-            <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Scoring</Link>
-            <Link href="/standings" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-bold transition-colors">Standings</Link>
+            <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Schedule</Link>
+            <Link href="/teams" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Teams</Link>
+            <Link href="/matches" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Matches</Link>
+            <Link href="/scoring" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Scoring</Link>
+            <Link href="/standings" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Standings</Link>
           </div>
         </div>
       )}

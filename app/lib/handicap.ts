@@ -17,6 +17,10 @@ const SLOPE_RATING = 107    // Official slope rating
 const PAR = 72             // Total par for 18 holes
 
 export function calculateCourseHandicap(handicapIndex: number): number {
+  if (typeof handicapIndex !== 'number' || isNaN(handicapIndex)) {
+    return 0;
+  }
+  
   // 1. Calculate 18-hole Course Handicap: (Handicap Index × Slope Rating ÷ 113) + (Course Rating - Par)
   const eighteenHoleCH = handicapIndex * (SLOPE_RATING / 113) + (COURSE_RATING - PAR)
   

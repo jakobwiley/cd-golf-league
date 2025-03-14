@@ -7,8 +7,7 @@ const playerSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   playerType: z.enum(['PRIMARY', 'SUB']).default('PRIMARY'),
-  handicapIndex: z.number().min(0).max(54).default(0),
-  handicap: z.number().nullable().optional(),
+  handicapIndex: z.number().min(-10).max(54).default(0),
   teamId: z.string().optional()
 })
 
@@ -101,7 +100,8 @@ export async function POST(request: Request) {
     const player = await prisma.player.create({
       data: {
         name: data.name,
-        handicapIndex: data.handicap || 0, // Use handicap value for handicapIndex
+        handicapIndex: parseFloat(data.handicapIndex) || 0, // Ensure handicapIndex is a number
+        playerType: data.playerType || 'PRIMARY',
         teamId: data.teamId
       },
       include: {
@@ -130,15 +130,17 @@ export async function PUT(request: Request) {
       )
     }
 
-    // If handicap is provided, update handicapIndex
-    if (updateData.handicap !== undefined) {
-      updateData.handicapIndex = updateData.handicap;
-      delete updateData.handicap;
+    // Ensure handicapIndex is a number
+    if (updateData.handicapIndex !== undefined) {
+      updateData.handicapIndex = parseFloat(updateData.handicapIndex);
     }
 
     const player = await prisma.player.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      include: {
+        team: true
+      }
     })
 
     return NextResponse.json(player)
