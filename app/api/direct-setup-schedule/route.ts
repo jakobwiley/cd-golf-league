@@ -169,7 +169,24 @@ export async function GET(request: Request) {
       } catch (error) {
         console.error(`Error creating match for Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}:`, error);
       }
+
     }
+    
+    // Verify all matches were created
+    const totalMatches = await prisma.match.count();
+    console.log(`Total matches in database after setup: ${totalMatches}`);
+    
+    if (totalMatches !== scheduleData.length) {
+      console.warn(`Warning: Expected ${scheduleData.length} matches but found ${totalMatches} in the database`);
+    }
+    
+    // Group matches by week for verification
+    const weekCounts = createdMatches.reduce((acc, match) => {
+      acc[match.weekNumber] = (acc[match.weekNumber] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
+    
+    console.log('Matches created per week:', weekCounts);
     
     // Return HTML response for better user experience
     const html = `

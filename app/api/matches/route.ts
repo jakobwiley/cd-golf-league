@@ -21,60 +21,38 @@ const matchUpdateSchema = matchCreateSchema.partial().extend({
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
+    console.log('Fetching matches...');
     
-    // Build filter conditions
-    const where: any = {}
-    
-    // Filter by status
-    const status = searchParams.get('status')
-    if (status) {
-      where.status = status
-    }
-
-    // Filter by week
-    const week = searchParams.get('week')
-    if (week) {
-      where.weekNumber = parseInt(week)
-    }
-
-    // Filter by team
-    const teamId = searchParams.get('teamId')
-    if (teamId) {
-      where.OR = [
-        { homeTeamId: teamId },
-        { awayTeamId: teamId }
-      ]
-    }
-
-    // Filter by date range
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
-    if (startDate || endDate) {
-      where.date = {}
-      if (startDate) where.date.gte = new Date(startDate)
-      if (endDate) where.date.lte = new Date(endDate)
-    }
-
     const matches = await prisma.match.findMany({
-      where,
       include: {
         homeTeam: true,
         awayTeam: true,
       },
       orderBy: [
         { weekNumber: 'asc' },
-        { date: 'asc' }
+        { startingHole: 'asc' }
       ]
-    })
-
+    });
+    
+    // Log match statistics
+    console.log(`Found ${matches.length} matches`);
+    
+    // Group matches by week for debugging
+    const weekCounts = matches.reduce((acc, match) => {
+      acc[match.weekNumber] = (acc[match.weekNumber] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
+    
+    console.log('Matches per week:', weekCounts);
+    
+    // Log unique week numbers
+    const uniqueWeeks = Array.from(new Set(matches.map(m => m.weekNumber))).sort((a, b) => a - b);
+    console.log('Unique weeks:', uniqueWeeks);
+    
     return NextResponse.json(matches)
   } catch (error) {
     console.error('Error fetching matches:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch matches', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch matches' }, { status: 500 })
   }
 }
 
@@ -176,6 +154,78 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { error: 'Failed to create match' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const data = await request.json()
+    
+    // Validate request data
+    const validatedData = matchUpdateSchema.parse(data)
+
+    // Check if match exists
+    const existingMatch = await prisma.match.findUnique({
+      where: { id: validatedData.id }
+    })
+
+    if (!existingMatch) {
+      return NextResponse.json(
+        { error: 'Match not found' },
+        { status: 404 }
+      )
+    }
+
+    // If teams are being updated, check if they exist
+    if (validatedData.homeTeamId || validatedData.awayTeamId) {
+      const [homeTeam, awayTeam] = await Promise.all([
+        validatedData.homeTeamId
+          ? prisma.team.findUnique({ where: { id: validatedData.homeTeamId } })
+          : Promise.resolve(true),
+        validatedData.awayTeamId
+          ? prisma.team.findUnique({ where: { id: validatedData.awayTeamId } })
+          : Promise.resolve(true)
+      ])
+
+      if (!homeTeam || !awayTeam) {
+        return NextResponse.json(
+          { error: 'One or both teams not found' },
+          { status: 404 }
+        )
+      }
+    }
+
+    // Update match
+    const { id, ...updateData } = validatedData
+    const match = await prisma.match.update({
+      where: { id },
+      data: updateData,
+      include: {
+        homeTeam: true,
+        awayTeam: true
+      }
+    })
+
+    return NextResponse.json(match)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.errors },
+        { status: 400 }
+      )
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      return NextResponse.json(
+        { error: 'Database error', code: error.code },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to update match' },
       { status: 500 }
     )
   }

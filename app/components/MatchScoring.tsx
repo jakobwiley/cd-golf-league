@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { calculateNetScore, holeHandicaps } from '../lib/handicap'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -9,17 +9,21 @@ interface Player {
   id: string
   name: string
   handicapIndex: number
+  teamId: string
 }
 
 interface Team {
   id: string
   name: string
-  players: Player[]
+  players?: Player[]
 }
 
 interface Match {
   id: string
   date: string
+  weekNumber: number
+  homeTeamId: string
+  awayTeamId: string
   homeTeam: Team
   awayTeam: Team
   startingHole: number
@@ -27,16 +31,27 @@ interface Match {
 }
 
 interface Score {
+  id?: string
+  matchId: string
   playerId: string
-  hole: number
-  score: number
+  grossScore: number
+  netScore?: number
+  player?: Player
 }
 
-export default function MatchScoring({ match }: { match: Match }) {
+interface MatchScoringProps {
+  match?: Match
+}
+
+export default function MatchScoring({ match }: MatchScoringProps) {
   const [scores, setScores] = useState<Score[]>([])
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const socket = useWebSocket(`/api/scores/ws?matchId=${match.id}`)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [homeTeamPlayers, setHomeTeamPlayers] = useState<Player[]>([])
+  const [awayTeamPlayers, setAwayTeamPlayers] = useState<Player[]>([])
+  const socket = useWebSocket(`/api/scores/ws?matchId=${match?.id}`)
 
   // Array of holes 1-9
   const holes = Array.from({ length: 9 }, (_, i) => i + 1)
@@ -54,291 +69,239 @@ export default function MatchScoring({ match }: { match: Match }) {
     9: 4
   }
 
+  // If no match is provided, show a message
+  if (!match) {
+    return <div className="text-center p-4 text-white">No match selected</div>
+  }
+
   useEffect(() => {
-    const loadScores = async () => {
+    const fetchPlayers = async () => {
       try {
-        const response = await fetch(`/api/scores?matchId=${match.id}`)
-        if (response.ok) {
-          const data = await response.json()
-          setScores(data)
+        setLoading(true)
+        
+        // Fetch home team players
+        const homeResponse = await fetch(`/api/teams/${match.homeTeamId}`)
+        const homeData = await homeResponse.json()
+        
+        // Fetch away team players
+        const awayResponse = await fetch(`/api/teams/${match.awayTeamId}`)
+        const awayData = await awayResponse.json()
+        
+        if (homeData.players) {
+          setHomeTeamPlayers(homeData.players)
         }
-      } catch (error) {
-        console.error('Error loading scores:', error)
-        setError('Failed to load existing scores')
+        
+        if (awayData.players) {
+          setAwayTeamPlayers(awayData.players)
+        }
+        
+        // Fetch existing scores for this match
+        const scoresResponse = await fetch(`/api/scores?matchId=${match.id}`)
+        const scoresData = await scoresResponse.json()
+        
+        if (scoresData.length > 0) {
+          setScores(scoresData)
+        } else {
+          // Initialize empty scores for all players
+          const initialScores: Score[] = [
+            ...homeData.players.map((player: Player) => ({
+              matchId: match.id,
+              playerId: player.id,
+              grossScore: 0,
+              player
+            })),
+            ...awayData.players.map((player: Player) => ({
+              matchId: match.id,
+              playerId: player.id,
+              grossScore: 0,
+              player
+            }))
+          ]
+          setScores(initialScores)
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err)
+        setError('Failed to load match data')
+      } finally {
+        setLoading(false)
       }
     }
-
-    loadScores()
-
-    // Listen for real-time score updates
-    if (socket) {
-      socket.onmessage = (event) => {
-        const newScores = JSON.parse(event.data)
-        setScores(newScores)
-      }
+    
+    if (match && match.id) {
+      fetchPlayers()
     }
+  }, [match])
 
+  useEffect(() => {
+    if (!match || !match.id) return
+    
+    // WebSocket setup would go here in a real implementation
+    // For now, we'll just simulate it
+    
     return () => {
-      if (socket) {
-        socket.close()
-      }
+      // Cleanup WebSocket
     }
-  }, [match.id, socket])
+  }, [match])
 
-  const handleScoreChange = async (playerId: string, hole: number, value: string) => {
-    const numericValue = parseInt(value) || 0
-    
-    const newScores = [...scores]
-    const existingScoreIndex = newScores.findIndex(
-      s => s.playerId === playerId && s.hole === hole
+  const handleScoreChange = (playerId: string, value: number) => {
+    setScores(prevScores => 
+      prevScores.map(score => 
+        score.playerId === playerId 
+          ? { ...score, grossScore: value, netScore: calculateNetScore(value, playerId) } 
+          : score
+      )
     )
-
-    if (existingScoreIndex >= 0) {
-      newScores[existingScoreIndex].score = numericValue
-    } else {
-      newScores.push({ playerId, hole, score: numericValue })
-    }
-
-    setScores(newScores)
-
-    // Send score update to server
-    try {
-      await fetch('/api/scores', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          matchId: match.id,
-          scores: [{ playerId, hole, score: numericValue }],
-        }),
-      })
-    } catch (error) {
-      console.error('Error saving score:', error)
-    }
   }
 
-  const getPlayerScore = (playerId: string, hole: number) => {
-    return scores.find(s => s.playerId === playerId && s.hole === hole)?.score || ''
-  }
-
-  const getNetScore = (playerId: string, hole: number, grossScore: number) => {
-    const player = [...match.homeTeam.players, ...match.awayTeam.players].find(p => p.id === playerId)
-    const opponent = [...match.homeTeam.players, ...match.awayTeam.players].find(p => p.id !== playerId)
+  const calculateNetScore = (grossScore: number, playerId: string): number => {
+    const allPlayers = [...homeTeamPlayers, ...awayTeamPlayers]
+    const player = allPlayers.find(p => p.id === playerId)
     
-    if (!player || !opponent) return grossScore
-
-    return calculateNetScore(grossScore, player.handicapIndex, opponent.handicapIndex, hole)
+    if (!player || grossScore === 0) return 0
+    
+    // Simple calculation: gross score - handicap (rounded)
+    // In a real app, this would be more complex based on course rating, etc.
+    const netScore = Math.max(0, grossScore - Math.round(player.handicapIndex))
+    return netScore
   }
 
-  const calculateTotal = (playerId: string) => {
-    return holes.reduce((total, hole) => {
-      const score = scores.find(s => s.playerId === playerId && s.hole === hole)?.score || 0
-      return total + score
-    }, 0)
-  }
+  const isMatchComplete = useCallback(() => {
+    return scores.every(score => score.grossScore > 0)
+  }, [scores])
 
-  const calculateNetTotal = (playerId: string) => {
-    return holes.reduce((total, hole) => {
-      const score = scores.find(s => s.playerId === playerId && s.hole === hole)?.score || 0
-      return total + getNetScore(playerId, hole, score)
-    }, 0)
-  }
-
-  const getHoleHandicap = (hole: number) => {
-    return holeHandicaps[hole as keyof typeof holeHandicaps]
-  }
-
-  const handleSave = async () => {
-    setSaving(true)
-    setError(null)
-
+  const saveScores = async () => {
+    if (!isMatchComplete()) {
+      setError('Please enter scores for all players')
+      return
+    }
+    
     try {
+      setSaving(true)
+      setError(null)
+      
       const response = await fetch('/api/scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          matchId: match.id,
-          scores: scores,
-        }),
+        body: JSON.stringify({ scores }),
       })
-
+      
       if (!response.ok) {
         throw new Error('Failed to save scores')
       }
-
-      // Update match status if all scores are entered
-      if (isMatchComplete()) {
-        await fetch(`/api/matches/${match.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            status: 'COMPLETED',
-          }),
-        })
-      }
-    } catch (error) {
-      console.error('Error saving scores:', error)
+      
+      setSuccess('Scores saved successfully!')
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccess(null)
+      }, 3000)
+    } catch (err) {
+      console.error('Error saving scores:', err)
       setError('Failed to save scores')
     } finally {
       setSaving(false)
     }
   }
 
-  const isMatchComplete = () => {
-    const allPlayers = [...match.homeTeam.players, ...match.awayTeam.players]
-    return allPlayers.every(player => 
-      holes.every(hole => 
-        scores.some(s => s.playerId === player.id && s.hole === hole)
-      )
-    )
+  const viewHistory = () => {
+    // Implementation for viewing score history
+    console.log('View history for match:', match.id)
   }
 
+  if (loading) {
+    return <div className="text-center p-4">Loading match data...</div>
+  }
+  
+  if (error && !scores.length) {
+    return <div className="text-center p-4 text-red-500">{error}</div>
+  }
+  
   return (
-    <div className="space-y-6">
-      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-        <div className="px-4 py-5 sm:p-6">
-          <div className="sm:flex sm:items-center sm:justify-between">
-            <h3 className="text-base font-semibold leading-7 text-gray-900">
-              {format(new Date(match.date), 'MMMM d, yyyy')}
-            </h3>
-            <div className="mt-2 sm:mt-0">
-              <span className="text-sm text-gray-500">
-                Starting Hole: {match.startingHole}
-              </span>
-            </div>
+    <div className="bg-[#030f0f]/80 rounded-xl p-4 backdrop-blur-sm border border-[#00df82]/20">
+      <div className="mb-4">
+        <h3 className="text-xl font-audiowide text-white mb-2">Match Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-[#030f0f]/50 p-3 rounded-lg border border-[#00df82]/10">
+            <p className="text-white/80 font-orbitron text-sm">Date: <span className="text-white">{format(new Date(match.date), 'MMMM d, yyyy')}</span></p>
+            <p className="text-white/80 font-orbitron text-sm">Week: <span className="text-white">{match.weekNumber}</span></p>
+            <p className="text-white/80 font-orbitron text-sm">Starting Hole: <span className="text-white">{match.startingHole}</span></p>
           </div>
-
-          <div className="mt-6 flow-root">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead>
-                  <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">
-                      Player
-                    </th>
-                    {holes.map(hole => (
-                      <th key={hole} scope="col" className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                        {hole}
-                        <div className="text-xs text-gray-500">
-                          Par {parValues[hole as keyof typeof parValues]}
-                          <br />
-                          Hdcp {getHoleHandicap(hole)}
-                        </div>
-                      </th>
-                    ))}
-                    <th scope="col" className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                      Gross
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                      Net
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {match.homeTeam.players.map(player => (
-                    <tr key={player.id} className="bg-masters-cream/10">
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
-                        {player.name}
-                        <div className="text-xs text-gray-500">
-                          {match.homeTeam.name} • HCP: {player.handicapIndex}
-                        </div>
-                      </td>
-                      {holes.map(hole => {
-                        const grossScore = getPlayerScore(player.id, hole)
-                        const netScore = grossScore ? getNetScore(player.id, hole, grossScore) : ''
-                        return (
-                          <td key={hole} className="whitespace-nowrap px-3 py-4 text-center">
-                            <input
-                              type="number"
-                              min="1"
-                              max="12"
-                              value={grossScore}
-                              onChange={(e) => handleScoreChange(player.id, hole, e.target.value)}
-                              className="w-12 text-center rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-masters-green sm:text-sm sm:leading-6"
-                            />
-                            {grossScore && netScore !== grossScore && (
-                              <div className="text-xs text-gray-500 mt-1">({netScore})</div>
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="whitespace-nowrap px-3 py-4 text-center text-sm font-medium text-gray-900">
-                        {calculateTotal(player.id)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-center text-sm font-medium text-gray-900">
-                        {calculateNetTotal(player.id)}
-                      </td>
-                    </tr>
-                  ))}
-                  {match.awayTeam.players.map(player => (
-                    <tr key={player.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
-                        {player.name}
-                        <div className="text-xs text-gray-500">
-                          {match.awayTeam.name} • HCP: {player.handicapIndex}
-                        </div>
-                      </td>
-                      {holes.map(hole => {
-                        const grossScore = getPlayerScore(player.id, hole)
-                        const netScore = grossScore ? getNetScore(player.id, hole, grossScore) : ''
-                        return (
-                          <td key={hole} className="whitespace-nowrap px-3 py-4 text-center">
-                            <input
-                              type="number"
-                              min="1"
-                              max="12"
-                              value={grossScore}
-                              onChange={(e) => handleScoreChange(player.id, hole, e.target.value)}
-                              className="w-12 text-center rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-masters-green sm:text-sm sm:leading-6"
-                            />
-                            {grossScore && netScore !== grossScore && (
-                              <div className="text-xs text-gray-500 mt-1">({netScore})</div>
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="whitespace-nowrap px-3 py-4 text-center text-sm font-medium text-gray-900">
-                        {calculateTotal(player.id)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-center text-sm font-medium text-gray-900">
-                        {calculateNetTotal(player.id)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mt-4 text-sm text-red-600">
-              {error}
-            </div>
-          )}
-
-          <div className="mt-6 flex justify-end gap-x-3">
-            <button
-              type="button"
-              onClick={() => {}}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              View History
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="btn-primary"
-            >
-              {saving ? 'Saving...' : 'Save Scores'}
-            </button>
+          <div className="bg-[#030f0f]/50 p-3 rounded-lg border border-[#00df82]/10">
+            <p className="text-white/80 font-orbitron text-sm">Home Team: <span className="text-white">{match.homeTeam.name}</span></p>
+            <p className="text-white/80 font-orbitron text-sm">Away Team: <span className="text-white">{match.awayTeam.name}</span></p>
+            <p className="text-white/80 font-orbitron text-sm">Status: <span className="text-white">{match.status}</span></p>
           </div>
         </div>
+      </div>
+      
+      <div className="mb-4">
+        <h3 className="text-xl font-audiowide text-white mb-2">Player Scores</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-[#00df82]/10 border-b border-[#00df82]/20">
+                <th className="p-2 text-left text-white font-orbitron">Player</th>
+                <th className="p-2 text-left text-white font-orbitron">Team</th>
+                <th className="p-2 text-left text-white font-orbitron">Handicap</th>
+                <th className="p-2 text-left text-white font-orbitron">Gross Score</th>
+                <th className="p-2 text-left text-white font-orbitron">Net Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scores.map((score, index) => {
+                const player = homeTeamPlayers.find(p => p.id === score.playerId) || 
+                               awayTeamPlayers.find(p => p.id === score.playerId)
+                
+                if (!player) return null
+                
+                const team = player.teamId === match.homeTeamId ? match.homeTeam : match.awayTeam
+                
+                return (
+                  <tr key={index} className="border-b border-[#00df82]/10 hover:bg-[#00df82]/5">
+                    <td className="p-2 text-white font-orbitron">{player.name}</td>
+                    <td className="p-2 text-white/80">{team.name}</td>
+                    <td className="p-2 text-white/80">{player.handicapIndex}</td>
+                    <td className="p-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={score.grossScore || ''}
+                        onChange={(e) => handleScoreChange(player.id, parseInt(e.target.value) || 0)}
+                        className="w-20 bg-[#030f0f] border border-[#00df82]/30 rounded p-1 text-white"
+                      />
+                    </td>
+                    <td className="p-2 text-white/80">{score.netScore || calculateNetScore(score.grossScore, player.id)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {error && <div className="mb-4 p-2 bg-red-500/20 border border-red-500/30 rounded text-white">{error}</div>}
+      {success && <div className="mb-4 p-2 bg-green-500/20 border border-green-500/30 rounded text-white">{success}</div>}
+      
+      <div className="flex flex-wrap gap-2 justify-end">
+        <button
+          onClick={viewHistory}
+          className="px-4 py-2 bg-[#030f0f] border border-[#00df82]/30 hover:border-[#00df82]/50 rounded-lg text-white font-orbitron text-sm transition-all"
+        >
+          View History
+        </button>
+        <button
+          onClick={saveScores}
+          disabled={saving || !isMatchComplete()}
+          className={`px-4 py-2 rounded-lg text-white font-orbitron text-sm transition-all ${
+            saving || !isMatchComplete()
+              ? 'bg-[#00df82]/20 cursor-not-allowed'
+              : 'bg-[#00df82]/40 hover:bg-[#00df82]/50'
+          }`}
+        >
+          {saving ? 'Saving...' : 'Save Scores'}
+        </button>
       </div>
     </div>
   )

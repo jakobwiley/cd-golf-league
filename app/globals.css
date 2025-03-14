@@ -177,6 +177,20 @@
   }
 }
 
+/* Shimmer animation for buttons */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
 /* Remove or comment out any @font-face declarations for Grifter fonts */
 /* For example:
 @font-face {
