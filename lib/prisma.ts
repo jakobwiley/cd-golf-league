@@ -614,6 +614,30 @@ const mockPrismaClient = {
       return matches;
     },
     
+    findUnique: async (params: FindUniqueParams) => {
+      console.log(`Mock: Finding match with ID ${params.where.id}`, params);
+      
+      const match = mockMatches.find(m => m.id === params.where.id);
+      
+      if (!match) {
+        return null;
+      }
+      
+      const result = deepClone(match);
+      
+      if (params.include) {
+        if (params.include.homeTeam) {
+          result.homeTeam = deepClone(mockTeams.find(t => t.id === match.homeTeamId) || null);
+        }
+        
+        if (params.include.awayTeam) {
+          result.awayTeam = deepClone(mockTeams.find(t => t.id === match.awayTeamId) || null);
+        }
+      }
+      
+      return result;
+    },
+    
     create: async (params: CreateParams) => {
       console.log('Mock: Creating match', params.data);
       
@@ -647,6 +671,23 @@ const mockPrismaClient = {
       }
       
       return result;
+    },
+    
+    count: async (params: FindManyParams = {}) => {
+      console.log('Mock: Counting matches', params);
+      
+      // Apply filters if provided
+      let filteredMatches = mockMatches;
+      if (params.where) {
+        // Add filtering logic based on params.where
+        // For example, if filtering by status:
+        if (params.where.status) {
+          filteredMatches = filteredMatches.filter(match => match.status === params.where.status);
+        }
+        // Add more filters as needed
+      }
+      
+      return filteredMatches.length;
     },
     
     deleteMany: async () => {
@@ -740,14 +781,25 @@ const mockPrismaClient = {
   },
 };
 
-// Check if we're using placeholder credentials
-const isUsingPlaceholders = process.env.USE_MOCK_DATA === 'true' || process.env.NODE_ENV === 'development'
+// Create a real Prisma client instance
+let prismaClient: PrismaClient;
 
-// Use the real Prisma client in production, mock in development
-export const prisma = isUsingPlaceholders || process.env.NODE_ENV !== 'production'
-  ? mockPrismaClient as unknown as PrismaClient
-  : global.prisma || new PrismaClient({
+if (process.env.NODE_ENV === 'production') {
+  prismaClient = new PrismaClient({
+    log: ['error', 'warn'],
+  });
+} else {
+  // In development, use a global variable to prevent multiple instances during hot reloading
+  if (!global.prisma) {
+    global.prisma = new PrismaClient({
       log: ['query', 'info', 'warn', 'error'],
-    })
+    });
+  }
+  prismaClient = global.prisma;
+}
 
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma 
+// Check if we should use mock data
+const useMockData = process.env.USE_MOCK_DATA === 'true';
+
+// Export the appropriate client
+export const prisma = useMockData ? (mockPrismaClient as unknown as PrismaClient) : prismaClient; 

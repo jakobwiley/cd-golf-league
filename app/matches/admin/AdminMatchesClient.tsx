@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { FaEdit, FaCheck, FaTimes, FaExchangeAlt, FaChevronDown, FaChevronRight } from 'react-icons/fa'
 import { toast } from 'react-hot-toast'
+import { useSocket } from '../../../lib/useSocket'
+import { SocketEvents } from '../../../lib/socket'
 
 type Player = {
   id: string
@@ -51,6 +53,59 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [selectedSubstitute, setSelectedSubstitute] = useState<Player | null>(null)
   const [expandedWeeks, setExpandedWeeks] = useState<Record<number, boolean>>({})
+  const firstRenderRef = useRef(true)
+  const { isConnected, subscribe } = useSocket()
+
+  // Subscribe to Socket.io events
+  useEffect(() => {
+    if (!isConnected) return
+
+    // Subscribe to match updated events
+    const unsubscribe = subscribe(SocketEvents.MATCH_UPDATED, (data) => {
+      console.log('Match updated event received:', data)
+      
+      // Refresh match players if the updated match is the selected match
+      if (selectedMatch && data.matchId === selectedMatch.id) {
+        fetchMatchPlayers(selectedMatch.id)
+      }
+      
+      // Refresh all matches
+      fetchMatches()
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [isConnected, selectedMatch])
+
+  // Fetch all matches
+  const fetchMatches = async () => {
+    try {
+      const response = await fetch('/api/matches')
+      if (!response.ok) throw new Error('Failed to fetch matches')
+      const data = await response.json()
+      setMatches(data.matches)
+    } catch (error) {
+      console.error('Error fetching matches:', error)
+      toast.error('Failed to load matches')
+    }
+  }
+
+  // Fetch match players
+  const fetchMatchPlayers = async (matchId: string) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/matches/${matchId}/players`)
+      if (!response.ok) throw new Error('Failed to fetch match players')
+      const data = await response.json()
+      setMatchPlayers(data)
+    } catch (error) {
+      console.error('Error fetching match players:', error)
+      toast.error('Failed to load match players')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Fetch all players for substitution options
   useEffect(() => {
@@ -76,22 +131,7 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
       return
     }
 
-    const fetchMatchPlayers = async () => {
-      setLoading(true)
-      try {
-        const response = await fetch(`/api/matches/${selectedMatch.id}/players`)
-        if (!response.ok) throw new Error('Failed to fetch match players')
-        const data = await response.json()
-        setMatchPlayers(data)
-      } catch (error) {
-        console.error('Error fetching match players:', error)
-        toast.error('Failed to load match players')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchMatchPlayers()
+    fetchMatchPlayers(selectedMatch.id)
   }, [selectedMatch])
 
   // Group matches by week
@@ -112,10 +152,10 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
   useEffect(() => {
     const weeksCount = sortedWeeks.length;
     
-    // Use a ref to track if this is the first render
-    const isFirstRender = Object.keys(expandedWeeks).length === 0;
-    
-    if (weeksCount > 0 && isFirstRender) {
+    // Only initialize on first render when there are weeks available
+    if (weeksCount > 0 && firstRenderRef.current) {
+      firstRenderRef.current = false;
+      
       const initialExpandedState: Record<number, boolean> = {};
       sortedWeeks.forEach((week, index) => {
         // Expand only the first week by default
@@ -193,11 +233,8 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
       // Get the response data
       const responseData = await response.json()
 
-      // Refresh match players
-      const updatedPlayersResponse = await fetch(`/api/matches/${selectedMatch.id}/players`)
-      if (!updatedPlayersResponse.ok) throw new Error('Failed to fetch updated match players')
-      const updatedPlayersData = await updatedPlayersResponse.json()
-      setMatchPlayers(updatedPlayersData)
+      // No need to manually refresh match players - Socket.io will handle this
+      // The Socket.io event handler will call fetchMatchPlayers when it receives the MATCH_UPDATED event
 
       // Show success notification with team name
       toast.success(responseData.message || `${responseData.teamName} was updated with active players for this match`)

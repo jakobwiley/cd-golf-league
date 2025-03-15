@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../../lib/prisma'
 import { z } from 'zod'
+import { Server as SocketIOServer } from 'socket.io'
+import { SocketEvents } from '../../../../../lib/socket'
 
 // Validation schema for player assignments
 const PlayerAssignmentSchema = z.object({
@@ -13,6 +15,32 @@ const PlayerAssignmentSchema = z.object({
 const MatchPlayerAssignmentsSchema = z.object({
   playerAssignments: z.array(PlayerAssignmentSchema),
 })
+
+// Function to emit match updated event
+async function emitMatchUpdated(matchId: string) {
+  try {
+    // Get the Socket.io server instance
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/socket`, {
+      method: 'GET',
+    })
+    
+    if (!res.ok) {
+      console.error('Failed to get Socket.io server instance')
+      return
+    }
+    
+    // Emit the match updated event
+    const socketIo = (global as any).socketIo as SocketIOServer
+    if (socketIo) {
+      console.log(`Emitting ${SocketEvents.MATCH_UPDATED} event for match ${matchId}`)
+      socketIo.emit(SocketEvents.MATCH_UPDATED, { matchId })
+    } else {
+      console.warn('Socket.io server not initialized')
+    }
+  } catch (error) {
+    console.error('Error emitting match updated event:', error)
+  }
+}
 
 // GET: Fetch current player assignments for a match
 export async function GET(
@@ -261,6 +289,9 @@ export async function PUT(
       // In a real implementation, you would update the MatchPlayer model
       console.log(`Substituting player ${substitutePlayerId} for ${originalPlayerId} in match ${matchId}`);
     }
+
+    // Emit match updated event
+    await emitMatchUpdated(matchId)
 
     // Get team name for the response
     const teamId = playerAssignments[0].teamId;
