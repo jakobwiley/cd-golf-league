@@ -76,6 +76,11 @@ interface MatchesPageProps {
   initialTeams?: Team[];
 }
 
+// Helper function to create a URL-friendly slug
+const createMatchSlug = (homeTeam: string, awayTeam: string) => {
+  return `${homeTeam.toLowerCase().replace(/\s+/g, '-')}-vs-${awayTeam.toLowerCase().replace(/\s+/g, '-')}`;
+};
+
 export default function MatchesPage({ initialMatches = [], initialTeams = [] }: MatchesPageProps) {
   const [matches, setMatches] = useState<Match[]>(initialMatches.length > 0 ? initialMatches : []);
   const [teams, setTeams] = useState<Team[]>(initialTeams.length > 0 ? initialTeams : []);
@@ -230,7 +235,7 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                           </div>
                           
                           {/* Play Match Button - Enhanced with futuristic design */}
-                          <div>
+                          <div className="flex space-x-3">
                             <button
                               className="group relative overflow-hidden px-5 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105"
                               onClick={() => toggleMatch(match.id)}
@@ -249,32 +254,41 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                         </div>
                         
                         {/* Mobile view - Updated with enhanced button */}
-                        <div className="md:hidden grid grid-cols-6 items-center py-3 px-2 relative z-10">
-                          {/* Starting Hole - Left aligned */}
-                          <div className="col-span-1 text-left">
-                            <div className="w-8 h-8 rounded-full bg-[#00df82]/10 border border-[#00df82]/30 flex items-center justify-center text-white text-sm font-orbitron">
-                              {match.startingHole}
+                        <div className="md:hidden py-3 px-4 relative z-10">
+                          <div className="flex items-center mb-2">
+                            {/* Starting Hole */}
+                            <div className="mr-3">
+                              <div className="w-8 h-8 rounded-full bg-[#00df82]/10 border border-[#00df82]/30 flex items-center justify-center text-white text-sm font-orbitron">
+                                {match.startingHole}
+                              </div>
+                            </div>
+                            
+                            {/* Teams */}
+                            <div className="flex-1">
+                              <div className="flex flex-col">
+                                <span className="font-orbitron text-white text-sm">{match.homeTeam.name}</span>
+                                <div className="flex items-center">
+                                  <span className="text-[#00df82] mr-1 text-xs font-audiowide">vs</span>
+                                  <span className="font-orbitron text-white text-sm">{match.awayTeam.name}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
-                          {/* Teams - Centered */}
-                          <div className="col-span-3 flex flex-col items-center justify-center">
-                            <div className="text-center">
-                              <div className="font-orbitron text-white">{match.homeTeam.name}</div>
-                              <div className="text-[#00df82] text-sm font-audiowide">vs</div>
-                              <div className="font-orbitron text-white">{match.awayTeam.name}</div>
-                            </div>
-                          </div>
-                          
-                          {/* Play Match Button - Enhanced for mobile */}
-                          <div className="col-span-2 flex justify-end">
+                          {/* Buttons */}
+                          <div className="flex space-x-2 mt-2">
                             <button
-                              className="group relative overflow-hidden px-3 py-1 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs font-audiowide shadow-[0_0_10px_rgba(0,223,130,0.3)] hover:shadow-[0_0_15px_rgba(0,223,130,0.5)]"
+                              className="flex-1 group relative overflow-hidden px-3 py-1.5 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-md transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs font-audiowide shadow-[0_0_10px_rgba(0,223,130,0.3)] hover:shadow-[0_0_15px_rgba(0,223,130,0.5)]"
                               onClick={() => toggleMatch(match.id)}
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
-                              <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
-                              <span className="relative">Play Match</span>
+                              <span className="relative flex items-center justify-center">
+                                <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#00df82" strokeWidth="2"/>
+                                  <path d="M15 12L10 15.4641V8.5359L15 12Z" fill="#00df82"/>
+                                </svg>
+                                Play
+                              </span>
                             </button>
                           </div>
                         </div>

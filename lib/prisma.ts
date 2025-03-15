@@ -734,7 +734,7 @@ const mockPrismaClient = {
 };
 
 // Use the real Prisma client in production, mock in development
-export const prisma = isUsingPlaceholders
+export const prisma = isUsingPlaceholders || process.env.NODE_ENV !== 'production'
   ? mockPrismaClient as unknown as PrismaClient
   : globalForPrisma.prisma || new PrismaClient({
       log: ['query'],
