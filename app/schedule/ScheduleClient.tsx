@@ -9,8 +9,7 @@ function formatDate(dateString: string) {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', {
     month: 'long',
-    day: 'numeric',
-    year: 'numeric'
+    day: 'numeric'
   });
 }
 
@@ -103,7 +102,7 @@ export default function SchedulePage({
                     <div className="absolute inset-0 bg-gradient-to-b from-[#00df82]/5 to-transparent"></div>
                     <div className="relative flex justify-between items-center">
                       <h2 className="text-2xl font-audiowide text-white">
-                        Week {weekNumber} - {formattedDate}
+                        Week {weekNumber} - {formattedDate.split(', ')[0]}
                       </h2>
                       <div className={`text-[#00df82] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
