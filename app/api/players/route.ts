@@ -43,24 +43,26 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const players = await prisma.player.findMany({
       include: {
-        team: true
+        team: true,
       },
       orderBy: {
-        name: 'asc'
-      }
-    });
-    
-    return NextResponse.json(players);
+        name: 'asc',
+      },
+    })
+
+    return NextResponse.json({
+      players,
+    })
   } catch (error) {
-    console.error('Error fetching players:', error);
+    console.error('Error fetching players:', error)
     return NextResponse.json(
       { error: 'Failed to fetch players' },
       { status: 500 }
-    );
+    )
   }
 }
 

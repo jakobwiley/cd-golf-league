@@ -1,8 +1,10 @@
 {
-  "/page": "app/page.js",
   "/matches/page": "app/matches/page.js",
-  "/api/direct-setup-schedule/route": "app/api/direct-setup-schedule/route.js",
-  "/api/matches/route": "app/api/matches/route.js",
+  "/matches/admin/page": "app/matches/admin/page.js",
+  "/api/players/route": "app/api/players/route.js",
+  "/api/matches/[id]/players/route": "app/api/matches/[id]/players/route.js",
+  "/teams/page": "app/teams/page.js",
+  "/teams/admin/page": "app/teams/admin/page.js",
   "/api/teams/[id]/route": "app/api/teams/[id]/route.js",
   "/api/scores/route": "app/api/scores/route.js"
 }

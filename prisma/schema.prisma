@@ -29,6 +29,7 @@ model Player {
   scores        MatchScore[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  matchPlayers  MatchPlayer[] // Relation to match-specific assignments
 
   @@index([teamId])
 }
@@ -47,6 +48,7 @@ model Match {
   startingHole  Int         @default(1) @db.SmallInt
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  matchPlayers  MatchPlayer[] // Relation to match-specific player assignments
 }
 
 model MatchScore {
@@ -74,4 +76,30 @@ model MatchPoints {
   updatedAt  DateTime @updatedAt
 
   @@unique([matchId, teamId])
+}
+
+// New model for match-specific player assignments
+model MatchPlayer {
+  id            String   @id @default(cuid())
+  matchId       String
+  match         Match    @relation(fields: [matchId], references: [id])
+  playerId      String
+  player        Player   @relation(fields: [playerId], references: [id])
+  substituteFor String?  // ID of the player being substituted, null if not a substitute
+  isSubstitute  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([matchId, playerId])
+}
+
+enum PlayerType {
+  PRIMARY
+  SUBSTITUTE
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
 } 

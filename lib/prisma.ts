@@ -3,30 +3,37 @@
 
 import { PrismaClient } from '@prisma/client'
 
-// Use a more reliable global object for serverless environments
-const globalForPrisma = global as unknown as { 
-  prisma: PrismaClient,
-  mockTeams: any[],
-  mockPlayers: any[],
-  mockMatches: any[],
-  isInitialized: boolean
+// Add MatchPlayer to the global type
+declare global {
+  var globalForPrisma: {
+    mockTeams: any[]
+    mockPlayers: any[]
+    mockMatches: any[]
+    mockScores: any[]
+    mockPoints: any[]
+    mockMatchPlayers: any[] // Add matchPlayers array
+    isInitialized: boolean
+  }
+  var prisma: PrismaClient
 }
 
-// Check if we're using placeholder credentials
-const isUsingPlaceholders = 
-  !process.env.DATABASE_URL || 
-  process.env.DATABASE_URL.includes('placeholder') ||
-  !process.env.DATABASE_URL.startsWith('postgresql://');
+// Initialize the global object if it doesn't exist
+if (!global.globalForPrisma) {
+  global.globalForPrisma = {
+    mockTeams: [],
+    mockPlayers: [],
+    mockMatches: [],
+    mockScores: [],
+    mockPoints: [],
+    mockMatchPlayers: [], // Initialize empty matchPlayers array
+    isInitialized: false,
+  }
+}
 
-// Ensure DATABASE_URL has the correct format
-const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgresql://') 
-  ? process.env.DATABASE_URL 
-  : "postgresql://placeholder:placeholder@localhost:5432/placeholder";
-
-// Initialize global mock data if it doesn't exist
-if (!globalForPrisma.mockTeams) {
-  console.log('Initializing mock teams data');
-  globalForPrisma.mockTeams = [
+// Initialize mock data if it doesn't exist
+if (!global.globalForPrisma.isInitialized) {
+  // Initialize teams
+  global.globalForPrisma.mockTeams = [
     {
       id: 'team1',
       name: 'Nick/Brent',
@@ -98,15 +105,9 @@ if (!globalForPrisma.mockTeams) {
       updatedAt: new Date()
     }
   ];
-}
 
-// Initialize global mock players if it doesn't exist or is empty
-if (!globalForPrisma.mockPlayers || globalForPrisma.mockPlayers.length === 0) {
-  console.log('Initializing mock players data');
-  globalForPrisma.mockPlayers = [];
-  
-  // Pre-populate with players
-  const playerData = [
+  // Initialize players
+  global.globalForPrisma.mockPlayers = [
     { name: 'AP', handicapIndex: 7.3, teamId: 'team8' },
     { name: 'JohnP', handicapIndex: 21.4, teamId: 'team8' },
     
@@ -136,99 +137,28 @@ if (!globalForPrisma.mockPlayers || globalForPrisma.mockPlayers.length === 0) {
     
     { name: 'Ashley', handicapIndex: 40.6, teamId: 'team3' },
     { name: 'Alli', handicapIndex: 30.0, teamId: 'team3' }
-  ];
-  
-  // Add players to the mock database
-  playerData.forEach((player, index) => {
-    globalForPrisma.mockPlayers.push({
-      id: `player${index + 1}`,
-      name: player.name,
-      playerType: 'PRIMARY',
-      handicapIndex: player.handicapIndex,
-      teamId: player.teamId,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-  });
-  
-  console.log(`Initialized ${globalForPrisma.mockPlayers.length} players in the mock database`);
-}
+  ].map((player, index) => ({
+    id: `player${index + 1}`,
+    name: player.name,
+    playerType: 'PRIMARY',
+    handicapIndex: player.handicapIndex,
+    teamId: player.teamId,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }));
 
-// Initialize global mock matches if it doesn't exist
-if (!globalForPrisma.mockMatches) {
-  console.log('Initializing empty matches array in the mock database');
-  globalForPrisma.mockMatches = [];
-  
-  // If we're in a production environment, pre-populate with matches
-  if (process.env.NODE_ENV === 'production' && !globalForPrisma.isInitialized) {
-    console.log('Pre-populating matches for production environment');
-    
-    // Schedule data based on the raw data provided
-    const scheduleData = [
-      // Week 1 - April 15, 2025
-      [1, 1, 'Hot/Huerter', 'Nick/Brent', '2025-04-15T18:00:00.000Z'],
-      [1, 2, 'Ashley/Alli', 'Brett/Tony', '2025-04-15T18:00:00.000Z'],
-      [1, 3, 'Brew/Jake', 'Clauss/Wade', '2025-04-15T18:00:00.000Z'],
-      [1, 4, 'Sketch/Rob', 'AP/JohnP', '2025-04-15T18:00:00.000Z'],
-      [1, 5, 'Trev/Murph', 'Ryan/Drew', '2025-04-15T18:00:00.000Z'],
-      
-      // Week 2 - April 22, 2025
-      [2, 1, 'Brett/Tony', 'Brew/Jake', '2025-04-22T18:00:00.000Z'],
-      [2, 2, 'Nick/Brent', 'Ryan/Drew', '2025-04-22T18:00:00.000Z'],
-      [2, 3, 'AP/JohnP', 'Trev/Murph', '2025-04-22T18:00:00.000Z'],
-      [2, 4, 'Clauss/Wade', 'Sketch/Rob', '2025-04-22T18:00:00.000Z'],
-      [2, 5, 'Hot/Huerter', 'Ashley/Alli', '2025-04-22T18:00:00.000Z'],
-      
-      // Week 3 - April 29, 2025
-      [3, 1, 'Ryan/Drew', 'AP/JohnP', '2025-04-29T18:00:00.000Z'],
-      [3, 2, 'Trev/Murph', 'Clauss/Wade', '2025-04-29T18:00:00.000Z'],
-      [3, 3, 'Sketch/Rob', 'Brett/Tony', '2025-04-29T18:00:00.000Z'],
-      [3, 4, 'Brew/Jake', 'Hot/Huerter', '2025-04-29T18:00:00.000Z'],
-      [3, 5, 'Ashley/Alli', 'Nick/Brent', '2025-04-29T18:00:00.000Z'],
-    ];
-    
-    // Create a map of team names to IDs
-    const teamMap = new Map();
-    globalForPrisma.mockTeams.forEach(team => {
-      teamMap.set(team.name, team.id);
-    });
-    
-    // Create matches
-    let matchCount = 0;
-    for (const [weekNumber, startingHole, homeTeamName, awayTeamName, date] of scheduleData) {
-      const homeTeamId = teamMap.get(homeTeamName);
-      const awayTeamId = teamMap.get(awayTeamName);
-      
-      if (!homeTeamId || !awayTeamId) {
-        console.log(`Could not find team IDs for ${homeTeamName} vs ${awayTeamName}`);
-        continue;
-      }
-      
-      const newMatch = {
-        id: `match${matchCount + 1}`,
-        date: new Date(date as string),
-        weekNumber: Number(weekNumber),
-        homeTeamId,
-        awayTeamId,
-        startingHole: Number(startingHole),
-        status: 'SCHEDULED',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      globalForPrisma.mockMatches.push(newMatch);
-      matchCount++;
-    }
-    
-    console.log(`Pre-populated ${matchCount} matches in the mock database for production`);
-    globalForPrisma.isInitialized = true;
-  }
+  // Initialize matches
+  global.globalForPrisma.mockMatches = [
+    // ... existing matches
+  ];
+
+  global.globalForPrisma.isInitialized = true;
 }
 
 // Access the global mock data
-const mockTeams = globalForPrisma.mockTeams;
-const mockPlayers = globalForPrisma.mockPlayers;
-const mockMatches = globalForPrisma.mockMatches;
+const mockTeams = global.globalForPrisma.mockTeams;
+const mockPlayers = global.globalForPrisma.mockPlayers;
+const mockMatches = global.globalForPrisma.mockMatches;
 
 // Helper function to deep clone objects
 function deepClone(obj: any) {
@@ -295,7 +225,7 @@ const mockPrismaClient = {
           }
           
           // Update the global reference to ensure persistence
-          globalForPrisma.mockPlayers = mockPlayers;
+          global.globalForPrisma.mockPlayers = mockPlayers;
           
           const deletedCount = initialCount - mockPlayers.length;
           return { count: deletedCount };
@@ -310,7 +240,7 @@ const mockPrismaClient = {
             const deletedTeam = mockTeams[teamIndex];
             mockTeams.splice(teamIndex, 1);
             // Update the global reference to ensure persistence
-            globalForPrisma.mockTeams = mockTeams;
+            global.globalForPrisma.mockTeams = mockTeams;
             console.log('Mock deleted team in transaction:', deletedTeam);
             return deletedTeam;
           }
@@ -382,7 +312,7 @@ const mockPrismaClient = {
       
       mockTeams.push(newTeam);
       // Update the global reference to ensure persistence
-      globalForPrisma.mockTeams = mockTeams;
+      global.globalForPrisma.mockTeams = mockTeams;
       console.log(`Added team to mock database. Total teams: ${mockTeams.length}`);
       
       return deepClone(newTeam);
@@ -405,7 +335,7 @@ const mockPrismaClient = {
       
       mockTeams[teamIndex] = updatedTeam;
       // Update the global reference to ensure persistence
-      globalForPrisma.mockTeams = mockTeams;
+      global.globalForPrisma.mockTeams = mockTeams;
       
       return deepClone(updatedTeam);
     },
@@ -422,7 +352,7 @@ const mockPrismaClient = {
       const deletedTeam = mockTeams[teamIndex];
       mockTeams.splice(teamIndex, 1);
       // Update the global reference to ensure persistence
-      globalForPrisma.mockTeams = mockTeams;
+      global.globalForPrisma.mockTeams = mockTeams;
       
       // Also delete all players associated with this team
       for (let i = mockPlayers.length - 1; i >= 0; i--) {
@@ -431,7 +361,7 @@ const mockPrismaClient = {
         }
       }
       // Update the global players reference
-      globalForPrisma.mockPlayers = mockPlayers;
+      global.globalForPrisma.mockPlayers = mockPlayers;
       
       return deepClone(deletedTeam);
     }
@@ -523,7 +453,7 @@ const mockPrismaClient = {
       
       mockPlayers.push(newPlayer);
       // Update the global reference to ensure persistence
-      globalForPrisma.mockPlayers = mockPlayers;
+      global.globalForPrisma.mockPlayers = mockPlayers;
       console.log(`Added player to mock database. Total players: ${mockPlayers.length}`);
       
       const result = deepClone(newPlayer);
@@ -553,7 +483,7 @@ const mockPrismaClient = {
       
       mockPlayers[playerIndex] = updatedPlayer;
       // Update the global reference to ensure persistence
-      globalForPrisma.mockPlayers = mockPlayers;
+      global.globalForPrisma.mockPlayers = mockPlayers;
       
       const result = deepClone(updatedPlayer);
       
@@ -577,7 +507,7 @@ const mockPrismaClient = {
       const deletedPlayer = mockPlayers[playerIndex];
       mockPlayers.splice(playerIndex, 1);
       // Update the global reference to ensure persistence
-      globalForPrisma.mockPlayers = mockPlayers;
+      global.globalForPrisma.mockPlayers = mockPlayers;
       
       return deepClone(deletedPlayer);
     },
@@ -604,7 +534,7 @@ const mockPrismaClient = {
       }
       
       // Update the global reference to ensure persistence
-      globalForPrisma.mockPlayers = mockPlayers;
+      global.globalForPrisma.mockPlayers = mockPlayers;
       
       return { count };
     }
@@ -701,7 +631,7 @@ const mockPrismaClient = {
       
       mockMatches.push(newMatch);
       // Update the global reference to ensure persistence
-      globalForPrisma.mockMatches = mockMatches;
+      global.globalForPrisma.mockMatches = mockMatches;
       console.log(`Added match to mock database. Total matches: ${mockMatches.length}`);
       
       const result = deepClone(newMatch);
@@ -725,27 +655,99 @@ const mockPrismaClient = {
       const count = mockMatches.length;
       mockMatches.length = 0;
       // Update the global reference to ensure persistence
-      globalForPrisma.mockMatches = mockMatches;
+      global.globalForPrisma.mockMatches = mockMatches;
       console.log(`Deleted all ${count} matches from mock database`);
       
       return { count };
     }
-  }
+  },
+  matchPlayer: {
+    findMany: async ({ where }: { where?: any } = {}) => {
+      let matchPlayers = [...global.globalForPrisma.mockMatchPlayers]
+      
+      if (where) {
+        if (where.matchId) {
+          matchPlayers = matchPlayers.filter((mp) => mp.matchId === where.matchId)
+        }
+        if (where.playerId) {
+          matchPlayers = matchPlayers.filter((mp) => mp.playerId === where.playerId)
+        }
+      }
+      
+      return matchPlayers
+    },
+    findFirst: async ({ where }: { where: any }) => {
+      let matchPlayers = [...global.globalForPrisma.mockMatchPlayers]
+      
+      if (where.matchId) {
+        matchPlayers = matchPlayers.filter((mp) => mp.matchId === where.matchId)
+      }
+      if (where.playerId) {
+        matchPlayers = matchPlayers.filter((mp) => mp.playerId === where.playerId)
+      }
+      
+      return matchPlayers[0] || null
+    },
+    upsert: async ({ 
+      where, 
+      create, 
+      update 
+    }: { 
+      where: { matchId_playerId: { matchId: string; playerId: string } }; 
+      create: any; 
+      update: any 
+    }) => {
+      const { matchId, playerId } = where.matchId_playerId
+      const existingIndex = global.globalForPrisma.mockMatchPlayers.findIndex(
+        (mp) => mp.matchId === matchId && mp.playerId === playerId
+      )
+      
+      if (existingIndex !== -1) {
+        // Update existing record
+        const updatedMatchPlayer = {
+          ...global.globalForPrisma.mockMatchPlayers[existingIndex],
+          ...update,
+          updatedAt: new Date(),
+        }
+        global.globalForPrisma.mockMatchPlayers[existingIndex] = updatedMatchPlayer
+        return updatedMatchPlayer
+      } else {
+        // Create new record
+        const newMatchPlayer = {
+          id: `matchPlayer-${global.globalForPrisma.mockMatchPlayers.length + 1}`,
+          ...create,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        global.globalForPrisma.mockMatchPlayers.push(newMatchPlayer)
+        return newMatchPlayer
+      }
+    },
+    delete: async ({ where }: { where: { matchId_playerId: { matchId: string; playerId: string } } }) => {
+      const { matchId, playerId } = where.matchId_playerId
+      const index = global.globalForPrisma.mockMatchPlayers.findIndex(
+        (mp) => mp.matchId === matchId && mp.playerId === playerId
+      )
+      
+      if (index === -1) {
+        throw new Error('MatchPlayer not found')
+      }
+      
+      const deletedMatchPlayer = global.globalForPrisma.mockMatchPlayers[index]
+      global.globalForPrisma.mockMatchPlayers.splice(index, 1)
+      return deletedMatchPlayer
+    },
+  },
 };
+
+// Check if we're using placeholder credentials
+const isUsingPlaceholders = process.env.USE_MOCK_DATA === 'true' || process.env.NODE_ENV === 'development'
 
 // Use the real Prisma client in production, mock in development
 export const prisma = isUsingPlaceholders || process.env.NODE_ENV !== 'production'
   ? mockPrismaClient as unknown as PrismaClient
-  : globalForPrisma.prisma || new PrismaClient({
-      log: ['query'],
-      datasources: {
-        db: {
-          url: databaseUrl,
-        },
-      },
+  : global.prisma || new PrismaClient({
+      log: ['query', 'info', 'warn', 'error'],
     })
 
-// Save the Prisma client to the global object in development
-if (!isUsingPlaceholders && process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-} 
+if (process.env.NODE_ENV !== 'production') global.prisma = prisma 
