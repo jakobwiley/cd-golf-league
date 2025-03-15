@@ -190,13 +190,17 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
         throw new Error(errorData.error || 'Failed to update player assignment')
       }
 
+      // Get the response data
+      const responseData = await response.json()
+
       // Refresh match players
       const updatedPlayersResponse = await fetch(`/api/matches/${selectedMatch.id}/players`)
       if (!updatedPlayersResponse.ok) throw new Error('Failed to fetch updated match players')
       const updatedPlayersData = await updatedPlayersResponse.json()
       setMatchPlayers(updatedPlayersData)
 
-      toast.success('Player substitution saved successfully')
+      // Show success notification with team name
+      toast.success(responseData.message || `${responseData.teamName} was updated with active players for this match`)
       handleCancelEdit()
     } catch (error) {
       console.error('Error saving substitution:', error)
@@ -213,6 +217,11 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
   const getTeamPlayers = (teamId: string) => {
     return allPlayers.filter(player => player.teamId === teamId)
   }
+
+  // Count active players for each team
+  const countActivePlayers = (players: MatchPlayer[]) => {
+    return players.filter(player => !player.isSubstitute).length;
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -308,6 +317,13 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
               </div>
             </div>
 
+            <div className="mb-4 p-3 bg-blue-900/30 text-blue-200 rounded-lg text-sm">
+              <p className="flex items-center">
+                <span className="mr-2">ℹ️</span>
+                <span>Only two players can be active per team for each match. Use the substitute button to change active players.</span>
+              </p>
+            </div>
+
             {loading ? (
               <div className="flex justify-center items-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00df82]"></div>
@@ -316,8 +332,11 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Home Team Players */}
                 <div className="bg-black/30 p-4 rounded-xl">
-                  <h3 className="text-lg font-orbitron text-white mb-3 border-b border-[#00df82]/30 pb-2">
-                    {selectedMatch.homeTeam.name} Players
+                  <h3 className="text-lg font-orbitron text-white mb-3 border-b border-[#00df82]/30 pb-2 flex justify-between items-center">
+                    <span>{selectedMatch.homeTeam.name} Players</span>
+                    <span className="text-sm font-normal text-white/70">
+                      Active: {countActivePlayers(matchPlayers.homePlayers)}/2
+                    </span>
                   </h3>
                   <div className="space-y-3">
                     {matchPlayers.homePlayers.map((player) => (
@@ -401,8 +420,11 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
 
                 {/* Away Team Players */}
                 <div className="bg-black/30 p-4 rounded-xl">
-                  <h3 className="text-lg font-orbitron text-white mb-3 border-b border-[#00df82]/30 pb-2">
-                    {selectedMatch.awayTeam.name} Players
+                  <h3 className="text-lg font-orbitron text-white mb-3 border-b border-[#00df82]/30 pb-2 flex justify-between items-center">
+                    <span>{selectedMatch.awayTeam.name} Players</span>
+                    <span className="text-sm font-normal text-white/70">
+                      Active: {countActivePlayers(matchPlayers.awayPlayers)}/2
+                    </span>
                   </h3>
                   <div className="space-y-3">
                     {matchPlayers.awayPlayers.map((player) => (

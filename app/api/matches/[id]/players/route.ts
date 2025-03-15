@@ -132,17 +132,39 @@ export async function PUT(
 
     // Check if match exists
     let match;
+    let homePlayers = [];
+    let awayPlayers = [];
+    let homeTeam;
+    let awayTeam;
     
     try {
       // Try to use Prisma client if available
       match = await prisma.match.findUnique({
         where: { id: matchId },
+        include: {
+          homeTeam: true,
+          awayTeam: true,
+        }
       });
+      
+      if (match) {
+        homeTeam = match.homeTeam;
+        awayTeam = match.awayTeam;
+      }
     } catch (error) {
       console.log('Using mock data fallback for match');
       // Fallback to direct access to mock data
       if (typeof global !== 'undefined' && global.globalForPrisma) {
-        match = global.globalForPrisma.mockMatches.find(m => m.id === matchId);
+        const mockMatch = global.globalForPrisma.mockMatches.find(m => m.id === matchId);
+        if (mockMatch) {
+          homeTeam = global.globalForPrisma.mockTeams.find(t => t.id === mockMatch.homeTeamId);
+          awayTeam = global.globalForPrisma.mockTeams.find(t => t.id === mockMatch.awayTeamId);
+          match = {
+            ...mockMatch,
+            homeTeam,
+            awayTeam
+          };
+        }
       }
     }
 
@@ -152,6 +174,30 @@ export async function PUT(
         { status: 404 }
       )
     }
+
+    try {
+      // Try to use Prisma client if available
+      homePlayers = await prisma.player.findMany({
+        where: { teamId: match.homeTeamId },
+      });
+      
+      awayPlayers = await prisma.player.findMany({
+        where: { teamId: match.awayTeamId },
+      });
+    } catch (error) {
+      console.log('Using mock data fallback for players');
+      // Fallback to direct access to mock data
+      if (typeof global !== 'undefined' && global.globalForPrisma) {
+        homePlayers = global.globalForPrisma.mockPlayers.filter(p => p.teamId === match.homeTeamId);
+        awayPlayers = global.globalForPrisma.mockPlayers.filter(p => p.teamId === match.awayTeamId);
+      }
+    }
+
+    // Track active players for each team
+    const activePlayersByTeam = {
+      [match.homeTeamId]: homePlayers.filter(p => p.playerType !== 'SUBSTITUTE').length,
+      [match.awayTeamId]: awayPlayers.filter(p => p.playerType !== 'SUBSTITUTE').length,
+    };
 
     // Process each player assignment
     for (const assignment of playerAssignments) {
@@ -193,14 +239,37 @@ export async function PUT(
         )
       }
 
+      // Check if this substitution would exceed the 2-player limit
+      // If original player is PRIMARY and substitute is SUBSTITUTE, we're removing an active player
+      // If original player is SUBSTITUTE and substitute is PRIMARY, we're adding an active player
+      if (originalPlayer.playerType !== 'PRIMARY' && substitutePlayer.playerType === 'PRIMARY') {
+        // We're adding an active player
+        if (activePlayersByTeam[teamId] >= 2) {
+          const teamName = teamId === match.homeTeamId ? match.homeTeam.name : match.awayTeam.name;
+          return NextResponse.json(
+            { error: `Cannot add more than 2 active players to ${teamName} for this match` },
+            { status: 400 }
+          )
+        }
+        activePlayersByTeam[teamId]++;
+      } else if (originalPlayer.playerType === 'PRIMARY' && substitutePlayer.playerType !== 'PRIMARY') {
+        // We're removing an active player
+        activePlayersByTeam[teamId]--;
+      }
+
       // In a mock implementation, we'll just return success
       // In a real implementation, you would update the MatchPlayer model
       console.log(`Substituting player ${substitutePlayerId} for ${originalPlayerId} in match ${matchId}`);
     }
 
+    // Get team name for the response
+    const teamId = playerAssignments[0].teamId;
+    const teamName = teamId === match.homeTeamId ? match.homeTeam.name : match.awayTeam.name;
+
     return NextResponse.json({
       success: true,
-      message: 'Player assignments updated successfully',
+      message: `${teamName} was updated with active players for this match`,
+      teamName: teamName
     })
   } catch (error) {
     console.error('Error updating match players:', error)
