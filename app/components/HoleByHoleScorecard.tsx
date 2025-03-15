@@ -154,7 +154,6 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [showNetScores, setShowNetScores] = useState<boolean>(false)
   const [scorecardExpanded, setScorecardExpanded] = useState<boolean>(false)
   // New state variables for match scoring
   const [holePoints, setHolePoints] = useState<{[hole: number]: {home: number, away: number}}>({})
@@ -398,8 +397,34 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
 
   // Calculate total score for a player
   const calculateTotal = (playerId: string) => {
-    return playerScores[playerId]?.reduce((sum, hole) => sum + (hole.score || 0), 0) || 0
-  }
+    let total = 0;
+    for (let i = 0; i < 18; i++) {
+      if (playerScores[playerId]?.[i]?.score) {
+        total += playerScores[playerId][i].score;
+      }
+    }
+    return total > 0 ? total : 0;
+  };
+
+  // Helper function to calculate net score
+  const calculateNetScore = (score: number, strokesGiven: number) => {
+    return score - strokesGiven;
+  };
+
+  // Calculate net total score for a player
+  const calculateNetTotal = (playerId: string) => {
+    const grossTotal = calculateTotal(playerId);
+    if (grossTotal === 0) return 0;
+    
+    const totalStrokes = holes.reduce((sum, hole) => 
+      sum + getStrokesGivenForMatchup(
+        allPlayers.find(p => p.id === playerId)?.handicapIndex || 0, 
+        hole, 
+        allPlayers
+      ), 0);
+    
+    return grossTotal - totalStrokes;
+  };
 
   // Save scores to the database
   const saveScores = async () => {
@@ -587,11 +612,6 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
                     {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
                       <span className="ml-2 px-1.5 py-0.5 bg-[#00df82]/20 rounded text-[#00df82] text-xs">
                         Gets {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)} {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) === 1 ? 'stroke' : 'strokes'}
-                        {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 1 && (
-                          <span className="ml-1">
-                            {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
-                          </span>
-                        )}
                       </span>
                     )}
                   </div>
@@ -644,11 +664,6 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
                     {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
                       <span className="ml-2 px-1.5 py-0.5 bg-[#00df82]/20 rounded text-[#00df82] text-xs">
                         Gets {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)} {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) === 1 ? 'stroke' : 'strokes'}
-                        {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 1 && (
-                          <span className="ml-1">
-                            {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
-                          </span>
-                        )}
                       </span>
                     )}
                   </div>
@@ -688,29 +703,7 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
 
         {/* Scorecard Summary */}
         <div className="mb-6">
-          <div className="bg-gradient-to-r from-[#00df82]/10 to-transparent p-2 mb-2 rounded flex justify-between items-center">
-            <h5 className="text-white font-audiowide">Scorecard Summary</h5>
-            <div className="flex items-center">
-              <button
-                onClick={() => setShowNetScores(false)}
-                className={`px-2 py-1 text-xs rounded-l-md ${!showNetScores 
-                  ? 'bg-[#00df82] text-black font-medium' 
-                  : 'bg-[#00df82]/20 text-white'}`}
-              >
-                Gross
-              </button>
-              <button
-                onClick={() => setShowNetScores(true)}
-                className={`px-2 py-1 text-xs rounded-r-md ${showNetScores 
-                  ? 'bg-[#00df82] text-black font-medium' 
-                  : 'bg-[#00df82]/20 text-white'}`}
-              >
-                Net
-              </button>
-            </div>
-          </div>
-          
-          <div className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 mt-4">
+          <div className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70">
             <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
             <button
               onClick={() => setScorecardExpanded(!scorecardExpanded)}
@@ -734,189 +727,174 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
             </button>
             
             {scorecardExpanded && (
-              <div className="px-4 pb-4 overflow-x-auto relative z-10">
-                <table className="min-w-full border-collapse">
-                  <thead>
-                    <tr className="bg-[#030f0f]/70 border-b border-[#00df82]/20">
-                      <th className="p-2 text-left text-white font-audiowide sticky left-0 bg-[#030f0f]/70 z-10 min-w-[120px]">Player</th>
-                      {holes.map(hole => (
-                        <th key={hole} className="p-2 text-center text-white font-audiowide">
-                          {hole}
-                        </th>
-                      ))}
-                      <th className="p-2 text-center text-white font-audiowide">Total</th>
-                      <th className="p-2 text-center text-[#00df82] font-audiowide">Net</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Match Points Row */}
-                    <tr className="border-b border-[#00df82]/20 bg-[#030f0f]/80">
-                      <td className="p-2 text-left sticky left-0 bg-[#030f0f]/80 z-10">
-                        <div className="text-white font-audiowide">Points</div>
-                      </td>
-                      {holes.map(hole => (
-                        <td key={hole} className="p-2 text-center">
-                          {holePoints[hole] && (holePoints[hole].home > 0 || holePoints[hole].away > 0) ? (
-                            <div className="w-6 h-6 rounded-full mx-auto flex items-center justify-center text-xs font-bold"
-                              style={{
-                                backgroundColor: holePoints[hole].home > holePoints[hole].away 
-                                  ? 'rgba(0, 223, 130, 0.9)' 
-                                  : holePoints[hole].away > holePoints[hole].home 
-                                    ? 'rgba(255, 99, 71, 0.9)' 
-                                    : 'rgba(255, 255, 255, 0.9)',
-                                color: holePoints[hole].home > holePoints[hole].away 
-                                  ? '#000' 
-                                  : holePoints[hole].away > holePoints[hole].home 
-                                    ? '#fff' 
-                                    : '#000'
-                              }}
-                            >
-                              {holePoints[hole].home === 1 ? 'H' : holePoints[hole].away === 1 ? 'A' : 'T'}
-                            </div>
-                          ) : (
-                            <div className="text-white/30">-</div>
-                          )}
+              <div className="px-4 pb-4 relative z-10">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse">
+                    <thead>
+                      <tr className="bg-[#030f0f]/70 border-b border-[#00df82]/20">
+                        <th className="p-2 text-left text-white font-audiowide sticky left-0 bg-[#030f0f]/70 z-10 min-w-[120px]">Player</th>
+                        {holes.map(hole => (
+                          <th key={hole} className="p-2 text-center text-white font-audiowide">
+                            {hole}
+                          </th>
+                        ))}
+                        <th className="p-2 text-center text-white font-audiowide">Gross</th>
+                        <th className="p-2 text-center text-[#00df82] font-audiowide">Net</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Home Team Row with Points */}
+                      <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
+                        <td className="p-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
+                          <div className="text-white font-audiowide">{match.homeTeam.name}</div>
+                          <div className="text-xs text-[#00df82]/70 mt-1">Team Points</div>
                         </td>
+                        {holes.map(hole => (
+                          <td key={hole} className="p-2 text-center">
+                            <div className="flex flex-col items-center">
+                              {holePoints[hole] && holePoints[hole].home > 0 ? (
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1"
+                                  style={{
+                                    backgroundColor: 'rgba(0, 223, 130, 0.9)',
+                                    color: '#000'
+                                  }}
+                                >
+                                  {holePoints[hole].home}
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1 bg-[#030f0f]/50 text-white/30">
+                                  0
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        ))}
+                        <td className="p-2 text-center">
+                          <div className="text-white font-bold">{totalPoints.home.toFixed(1)}</div>
+                        </td>
+                        <td className="p-2"></td>
+                      </tr>
+                      
+                      {/* Home Team Players */}
+                      {homeTeamPlayers.map(player => (
+                        <React.Fragment key={player.id}>
+                          <tr className="border-b border-[#00df82]/5">
+                            <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
+                              <div className="text-white font-orbitron">{player.name}</div>
+                              <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
+                            </td>
+                            {holes.map(hole => {
+                              const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
+                              const score = playerScores[player.id]?.[hole - 1]?.score || 0;
+                              const netScore = score ? calculateNetScore(score, strokesGiven) : 0;
+                              return (
+                                <td key={hole} className="p-2 text-center text-white font-medium">
+                                  <div className="relative">
+                                    {score ? score : '-'}
+                                    {strokesGiven > 0 && (
+                                      <span className="absolute -top-1 -right-2 text-[#00df82] text-xs">
+                                        {score ? `${netScore}*` : '*'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                            <td className="p-2 text-center">
+                              <div className="text-white font-bold">
+                                {calculateTotal(player.id) || '-'}
+                              </div>
+                              {calculateTotal(player.id) ? (
+                                <div className="text-xs text-[#00df82]/70">
+                                  Strokes: {holes.reduce((sum, hole) => 
+                                    sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="p-2 text-center text-[#00df82] font-bold">
+                              {calculateTotal(player.id) ? calculateNetTotal(player.id) : '-'}
+                            </td>
+                          </tr>
+                        </React.Fragment>
                       ))}
-                      <td className="p-2 text-center font-bold text-white">
-                        {totalPoints.home.toFixed(1)} - {totalPoints.away.toFixed(1)}
-                      </td>
-                      <td className="p-2"></td>
-                    </tr>
-                    
-                    {/* Home Team Players */}
-                    <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                      <td colSpan={11} className="p-2 text-left text-white font-audiowide sticky left-0 bg-[#00df82]/5 z-10">
-                        {match.homeTeam.name}
-                      </td>
-                    </tr>
-                    {homeTeamPlayers.map(player => (
-                      <React.Fragment key={player.id}>
-                        <tr className="border-b border-[#00df82]/5">
-                          <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                            <div className="text-white font-orbitron">{player.name}</div>
-                            <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
+                      
+                      {/* Away Team Row with Points */}
+                      <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
+                        <td className="p-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
+                          <div className="text-white font-audiowide">{match.awayTeam.name}</div>
+                          <div className="text-xs text-[#00df82]/70 mt-1">Team Points</div>
+                        </td>
+                        {holes.map(hole => (
+                          <td key={hole} className="p-2 text-center">
+                            <div className="flex flex-col items-center">
+                              {holePoints[hole] && holePoints[hole].away > 0 ? (
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1"
+                                  style={{
+                                    backgroundColor: 'rgba(255, 99, 71, 0.9)',
+                                    color: '#fff'
+                                  }}
+                                >
+                                  {holePoints[hole].away}
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1 bg-[#030f0f]/50 text-white/30">
+                                  0
+                                </div>
+                              )}
+                            </div>
                           </td>
-                          {holes.map(hole => {
-                            const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                            const score = playerScores[player.id]?.[hole - 1]?.score || 0;
-                            return (
-                              <td key={hole} className="p-2 text-center text-white font-medium">
-                                {score ? (
+                        ))}
+                        <td className="p-2 text-center">
+                          <div className="text-white font-bold">{totalPoints.away.toFixed(1)}</div>
+                        </td>
+                        <td className="p-2"></td>
+                      </tr>
+                      
+                      {/* Away Team Players */}
+                      {awayTeamPlayers.map(player => (
+                        <React.Fragment key={player.id}>
+                          <tr className="border-b border-[#00df82]/5">
+                            <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
+                              <div className="text-white font-orbitron">{player.name}</div>
+                              <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
+                            </td>
+                            {holes.map(hole => {
+                              const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
+                              const score = playerScores[player.id]?.[hole - 1]?.score || 0;
+                              const netScore = score ? calculateNetScore(score, strokesGiven) : 0;
+                              return (
+                                <td key={hole} className="p-2 text-center text-white font-medium">
                                   <div className="relative">
-                                    {score}
+                                    {score ? score : '-'}
                                     {strokesGiven > 0 && (
                                       <span className="absolute -top-1 -right-2 text-[#00df82] text-xs">
-                                        {strokesGiven === 1 ? '*' : strokesGiven === 2 ? '**' : '***'}
+                                        {score ? `${netScore}*` : '*'}
                                       </span>
                                     )}
                                   </div>
-                                ) : '-'}
-                              </td>
-                            );
-                          })}
-                          <td className="p-2 text-center text-white font-bold">
-                            {calculateTotal(player.id) || '-'}
-                          </td>
-                          <td className="p-2 text-center text-[#00df82] font-bold">
-                            {calculateTotal(player.id) ? (
-                              calculateTotal(player.id) - holes.reduce((sum, hole) => 
-                                sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)
-                            ) : '-'}
-                          </td>
-                        </tr>
-                        <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                          <td className="py-0.5 px-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
-                            <div className="text-xs text-[#00df82]/70">Strokes</div>
-                          </td>
-                          {holes.map(hole => {
-                            const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                            return (
-                              <td key={hole} className="py-0.5 text-center">
-                                {strokesGiven > 0 ? (
-                                  <span className="text-xs text-[#00df82]">
-                                    {strokesGiven === 1 ? '*' : strokesGiven === 2 ? '**' : '***'}
-                                  </span>
-                                ) : ''}
-                              </td>
-                            );
-                          })}
-                          <td className="py-0.5 text-center text-xs text-[#00df82]/70">
-                            {holes.reduce((sum, hole) => 
-                              sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
-                          </td>
-                          <td className="py-0.5"></td>
-                        </tr>
-                      </React.Fragment>
-                    ))}
-                    
-                    {/* Away Team Players */}
-                    <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                      <td colSpan={11} className="p-2 text-left text-white font-audiowide sticky left-0 bg-[#00df82]/5 z-10">
-                        {match.awayTeam.name}
-                      </td>
-                    </tr>
-                    {awayTeamPlayers.map(player => (
-                      <React.Fragment key={player.id}>
-                        <tr className="border-b border-[#00df82]/5">
-                          <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                            <div className="text-white font-orbitron">{player.name}</div>
-                            <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
-                          </td>
-                          {holes.map(hole => {
-                            const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                            const score = playerScores[player.id]?.[hole - 1]?.score || 0;
-                            return (
-                              <td key={hole} className="p-2 text-center text-white font-medium">
-                                {score ? (
-                                  <div className="relative">
-                                    {score}
-                                    {strokesGiven > 0 && (
-                                      <span className="absolute -top-1 -right-2 text-[#00df82] text-xs">
-                                        {strokesGiven === 1 ? '*' : strokesGiven === 2 ? '**' : '***'}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : '-'}
-                              </td>
-                            );
-                          })}
-                          <td className="p-2 text-center text-white font-bold">
-                            {calculateTotal(player.id) || '-'}
-                          </td>
-                          <td className="p-2 text-center text-[#00df82] font-bold">
-                            {calculateTotal(player.id) ? (
-                              calculateTotal(player.id) - holes.reduce((sum, hole) => 
-                                sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)
-                            ) : '-'}
-                          </td>
-                        </tr>
-                        <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                          <td className="py-0.5 px-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
-                            <div className="text-xs text-[#00df82]/70">Strokes</div>
-                          </td>
-                          {holes.map(hole => {
-                            const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                            return (
-                              <td key={hole} className="py-0.5 text-center">
-                                {strokesGiven > 0 ? (
-                                  <span className="text-xs text-[#00df82]">
-                                    {strokesGiven === 1 ? '*' : strokesGiven === 2 ? '**' : '***'}
-                                  </span>
-                                ) : ''}
-                              </td>
-                            );
-                          })}
-                          <td className="py-0.5 text-center text-xs text-[#00df82]/70">
-                            {holes.reduce((sum, hole) => 
-                              sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
-                          </td>
-                          <td className="py-0.5"></td>
-                        </tr>
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                                </td>
+                              );
+                            })}
+                            <td className="p-2 text-center">
+                              <div className="text-white font-bold">
+                                {calculateTotal(player.id) || '-'}
+                              </div>
+                              {calculateTotal(player.id) ? (
+                                <div className="text-xs text-[#00df82]/70">
+                                  Strokes: {holes.reduce((sum, hole) => 
+                                    sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="p-2 text-center text-[#00df82] font-bold">
+                              {calculateTotal(player.id) ? calculateNetTotal(player.id) : '-'}
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
