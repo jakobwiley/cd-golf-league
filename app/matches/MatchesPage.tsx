@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import MatchScoring from '../components/MatchScoring';
+import HoleByHoleScorecard from '../components/HoleByHoleScorecard';
 
 // Helper function to format date
 const formatDate = (dateString: string) => {
@@ -280,7 +281,10 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                         
                         {expandedMatch === match.id && (
                           <div className="p-4 bg-[#030f0f]/80 border-t border-[#00df82]/20 relative z-10">
-                            <MatchScoring match={match} />
+                            <HoleByHoleScorecard 
+                              match={match} 
+                              onClose={() => toggleMatch(match.id)} 
+                            />
                           </div>
                         )}
                       </div>
