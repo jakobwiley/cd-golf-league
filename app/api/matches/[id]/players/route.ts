@@ -10,6 +10,24 @@ type Player = {
   handicapIndex: number;
   teamId: string | null;
   playerType: string;
+  createdAt: Date;
+  updatedAt: Date;
+  handicap?: number | null;
+  [key: string]: any;
+};
+
+// Define types for match players
+type MatchPlayer = {
+  id: string;
+  matchId: string;
+  playerId: string;
+  teamId?: string;
+  originalPlayerId?: string;
+  substitutePlayerId?: string;
+  isSubstitute: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  substituteFor?: string | null;
   [key: string]: any;
 };
 
@@ -116,23 +134,101 @@ export async function GET(
       }
     }
 
-    // Map home players with default substitution info (no substitutes)
-    const mappedHomePlayers = homePlayers.map(player => ({
-      playerId: player.id,
-      teamId: player.teamId || '',
-      name: player.name,
-      handicapIndex: player.handicapIndex,
-      isSubstitute: player.playerType === 'SUBSTITUTE',
-    }))
+    // Get match player assignments if any exist
+    let matchPlayers: MatchPlayer[] = [];
+    try {
+      matchPlayers = await prisma.matchPlayer.findMany({
+        where: { matchId: matchId },
+      });
+    } catch (error) {
+      console.log('Using mock data fallback for match players');
+      // Fallback to direct access to mock data
+      if (typeof global !== 'undefined' && global.globalForPrisma) {
+        matchPlayers = global.globalForPrisma.mockMatchPlayers.filter(mp => mp.matchId === matchId);
+      }
+    }
 
-    // Map away players with default substitution info (no substitutes)
-    const mappedAwayPlayers = awayPlayers.map(player => ({
+    // Filter home players to get only the active ones (max 2)
+    // First, prioritize PRIMARY players unless they've been substituted
+    let activeHomePlayers: Player[] = homePlayers
+      .filter(player => player.playerType === 'PRIMARY')
+      .slice(0, 2);
+
+    // If we have substitutions, apply them
+    if (matchPlayers.length > 0) {
+      // Get substitutions for home team
+      const homeSubstitutions = matchPlayers.filter(mp => 
+        mp.teamId === match.homeTeamId && 
+        mp.isSubstitute === true
+      );
+
+      // Apply substitutions
+      if (homeSubstitutions.length > 0) {
+        // Replace PRIMARY players with their substitutes
+        activeHomePlayers = activeHomePlayers.map(player => {
+          const substitution = homeSubstitutions.find(sub => sub.originalPlayerId === player.id);
+          if (substitution) {
+            // Find the substitute player
+            const substitutePlayer = homePlayers.find(p => p.id === substitution.substitutePlayerId);
+            return substitutePlayer || player;
+          }
+          return player;
+        });
+      }
+    }
+
+    // Ensure we have at most 2 active home players
+    activeHomePlayers = activeHomePlayers.slice(0, 2);
+
+    // Filter away players to get only the active ones (max 2)
+    // First, prioritize PRIMARY players unless they've been substituted
+    let activeAwayPlayers: Player[] = awayPlayers
+      .filter(player => player.playerType === 'PRIMARY')
+      .slice(0, 2);
+
+    // If we have substitutions, apply them
+    if (matchPlayers.length > 0) {
+      // Get substitutions for away team
+      const awaySubstitutions = matchPlayers.filter(mp => 
+        mp.teamId === match.awayTeamId && 
+        mp.isSubstitute === true
+      );
+
+      // Apply substitutions
+      if (awaySubstitutions.length > 0) {
+        // Replace PRIMARY players with their substitutes
+        activeAwayPlayers = activeAwayPlayers.map(player => {
+          const substitution = awaySubstitutions.find(sub => sub.originalPlayerId === player.id);
+          if (substitution) {
+            // Find the substitute player
+            const substitutePlayer = awayPlayers.find(p => p.id === substitution.substitutePlayerId);
+            return substitutePlayer || player;
+          }
+          return player;
+        });
+      }
+    }
+
+    // Ensure we have at most 2 active away players
+    activeAwayPlayers = activeAwayPlayers.slice(0, 2);
+
+    // Map home players with substitution info
+    const mappedHomePlayers = activeHomePlayers.map(player => ({
       playerId: player.id,
       teamId: player.teamId || '',
       name: player.name,
       handicapIndex: player.handicapIndex,
       isSubstitute: player.playerType === 'SUBSTITUTE',
-    }))
+    }));
+
+    // Map away players with substitution info
+    const mappedAwayPlayers = activeAwayPlayers.map(player => ({
+      playerId: player.id,
+      teamId: player.teamId || '',
+      name: player.name,
+      handicapIndex: player.handicapIndex,
+      isSubstitute: player.playerType === 'SUBSTITUTE',
+    }));
 
     return NextResponse.json({
       homePlayers: mappedHomePlayers,

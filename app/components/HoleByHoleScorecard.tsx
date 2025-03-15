@@ -269,71 +269,79 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
     }
   }, [playerScores, loading]);
 
-  // Fetch players and initialize scores
+  // Fetch match data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
         
-        let homeTeamData: any = { players: [] };
-        let awayTeamData: any = { players: [] };
-        
+        // Fetch match players using the updated API endpoint
+        // This will return only the active players (max 2 per team)
         try {
-          // Fetch home team players
-          const homeResponse = await fetch(`/api/teams/${match.homeTeamId}`)
-          if (homeResponse.ok) {
-            homeTeamData = await homeResponse.json()
+          const matchPlayersResponse = await fetch(`/api/matches/${match.id}/players`);
+          if (matchPlayersResponse.ok) {
+            const matchPlayersData = await matchPlayersResponse.json();
+            
+            if (matchPlayersData.homePlayers && matchPlayersData.homePlayers.length > 0) {
+              // Convert the API response format to our Player type
+              const homePlayers = matchPlayersData.homePlayers.map((player: any) => ({
+                id: player.playerId,
+                name: player.name,
+                handicapIndex: player.handicapIndex,
+                teamId: player.teamId,
+                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
+              }));
+              setHomeTeamPlayers(homePlayers);
+            } else {
+              console.warn('No home team players found, using fallback data');
+              setHomeTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2));
+            }
+            
+            if (matchPlayersData.awayPlayers && matchPlayersData.awayPlayers.length > 0) {
+              // Convert the API response format to our Player type
+              const awayPlayers = matchPlayersData.awayPlayers.map((player: any) => ({
+                id: player.playerId,
+                name: player.name,
+                handicapIndex: player.handicapIndex,
+                teamId: player.teamId,
+                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
+              }));
+              setAwayTeamPlayers(awayPlayers);
+            } else {
+              console.warn('No away team players found, using fallback data');
+              setAwayTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2));
+            }
+            
+            // Set all players for handicap calculations
+            setAllPlayers([
+              ...matchPlayersData.homePlayers.map((player: any) => ({
+                id: player.playerId,
+                name: player.name,
+                handicapIndex: player.handicapIndex,
+                teamId: player.teamId,
+                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
+              })),
+              ...matchPlayersData.awayPlayers.map((player: any) => ({
+                id: player.playerId,
+                name: player.name,
+                handicapIndex: player.handicapIndex,
+                teamId: player.teamId,
+                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
+              }))
+            ]);
           } else {
-            console.error('Failed to fetch home team data, using fallback')
-            // Use fallback data
-            homeTeamData.players = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId)
+            throw new Error('Failed to fetch match players');
           }
         } catch (error) {
-          console.error('Error fetching home team:', error)
+          console.error('Error fetching match players:', error);
           // Use fallback data
-          homeTeamData.players = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId)
+          const homePlayers = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2);
+          const awayPlayers = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2);
+          
+          setHomeTeamPlayers(homePlayers);
+          setAwayTeamPlayers(awayPlayers);
+          setAllPlayers([...homePlayers, ...awayPlayers]);
         }
-        
-        try {
-          // Fetch away team players
-          const awayResponse = await fetch(`/api/teams/${match.awayTeamId}`)
-          if (awayResponse.ok) {
-            awayTeamData = await awayResponse.json()
-          } else {
-            console.error('Failed to fetch away team data, using fallback')
-            // Use fallback data
-            awayTeamData.players = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId)
-          }
-        } catch (error) {
-          console.error('Error fetching away team:', error)
-          // Use fallback data
-          awayTeamData.players = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId)
-        }
-        
-        if (homeTeamData.players && homeTeamData.players.length > 0) {
-          setHomeTeamPlayers(homeTeamData.players)
-        } else {
-          console.warn('No home team players found, using fallback data')
-          setHomeTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.homeTeamId))
-        }
-        
-        if (awayTeamData.players && awayTeamData.players.length > 0) {
-          setAwayTeamPlayers(awayTeamData.players)
-        } else {
-          console.warn('No away team players found, using fallback data')
-          setAwayTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.awayTeamId))
-        }
-        
-        // Set all players for handicap calculations
-        const homePlayers = homeTeamData.players && homeTeamData.players.length > 0 
-          ? homeTeamData.players 
-          : fallbackPlayerData.filter(player => player.teamId === match.homeTeamId);
-        
-        const awayPlayers = awayTeamData.players && awayTeamData.players.length > 0 
-          ? awayTeamData.players 
-          : fallbackPlayerData.filter(player => player.teamId === match.awayTeamId);
-        
-        setAllPlayers([...homePlayers, ...awayPlayers]);
         
         // Fetch existing scores for this match
         const scoresResponse = await fetch(`/api/scores?matchId=${match.id}`)
@@ -343,7 +351,7 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
         const initialScores: PlayerScores = {}
         
         // Initialize empty scores for all players and all holes
-        const allPlayers = [...(homeTeamData.players || []), ...(awayTeamData.players || [])]
+        const allPlayers = [...homeTeamPlayers, ...awayTeamPlayers];
         
         allPlayers.forEach(player => {
           initialScores[player.id] = holes.map(hole => ({
@@ -352,53 +360,30 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
           }))
         })
         
-        // If we have existing scores, populate them
-        if (scoresData && scoresData.length > 0) {
+        // If we have existing scores, update the initial scores
+        if (scoresData && Array.isArray(scoresData) && scoresData.length > 0) {
           scoresData.forEach((score: any) => {
-            if (initialScores[score.playerId]) {
-              const holeIndex = score.hole - 1
-              if (initialScores[score.playerId][holeIndex]) {
-                initialScores[score.playerId][holeIndex].score = score.score
-              }
+            const { playerId, hole, score: scoreValue } = score
+            if (initialScores[playerId] && initialScores[playerId][hole - 1]) {
+              initialScores[playerId][hole - 1].score = scoreValue
             }
           })
         }
         
         setPlayerScores(initialScores)
+        setLoading(false)
+        
+        // Calculate match points
+        updateMatchPoints()
       } catch (err) {
         console.error('Error fetching data:', err)
         setError('Failed to load match data')
-        
-        // Use fallback data
-        setHomeTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.homeTeamId))
-        setAwayTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.awayTeamId))
-        
-        // Set all players for handicap calculations using fallback data
-        const homePlayers = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId);
-        const awayPlayers = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId);
-        setAllPlayers([...homePlayers, ...awayPlayers]);
-        
-        // Initialize player scores with fallback data
-        const allPlayers = fallbackPlayerData.filter(player => 
-          player.teamId === match.homeTeamId || player.teamId === match.awayTeamId
-        )
-        
-        const initialScores: PlayerScores = {}
-        allPlayers.forEach(player => {
-          initialScores[player.id] = holes.map(hole => ({
-            hole,
-            score: 0
-          }))
-        })
-        
-        setPlayerScores(initialScores)
-      } finally {
         setLoading(false)
       }
     }
     
     fetchData()
-  }, [match])
+  }, [match.id])
 
   // Handle score change for a player on a specific hole
   const handleScoreChange = (playerId: string, hole: number, score: number) => {
