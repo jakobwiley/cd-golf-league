@@ -20,6 +20,9 @@ export enum SocketEvents {
   STANDINGS_UPDATED = 'standings:updated',
 }
 
+// This file only contains shared types and enums
+// Server-specific code is moved to pages/api/socket.ts
+
 // Initialize Socket.io server
 export const initSocketServer = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
   if (!res.socket.server.io) {

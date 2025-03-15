@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../../lib/prisma'
 import { z } from 'zod'
-import { Server as SocketIOServer } from 'socket.io'
 import { SocketEvents } from '../../../../../lib/socket'
+
+// Define types for players
+type Player = {
+  id: string;
+  name: string;
+  handicapIndex: number;
+  teamId: string | null;
+  playerType: string;
+  [key: string]: any;
+};
 
 // Validation schema for player assignments
 const PlayerAssignmentSchema = z.object({
@@ -30,7 +39,7 @@ async function emitMatchUpdated(matchId: string) {
     }
     
     // Emit the match updated event
-    const socketIo = (global as any).socketIo as SocketIOServer
+    const socketIo = (global as any).socketIo
     if (socketIo) {
       console.log(`Emitting ${SocketEvents.MATCH_UPDATED} event for match ${matchId}`)
       socketIo.emit(SocketEvents.MATCH_UPDATED, { matchId })
@@ -53,8 +62,8 @@ export async function GET(
     // Direct access to mock data for development
     // In a real implementation, you would use Prisma client methods
     let match;
-    let homePlayers = [];
-    let awayPlayers = [];
+    let homePlayers: Player[] = [];
+    let awayPlayers: Player[] = [];
 
     try {
       // Try to use Prisma client if available
