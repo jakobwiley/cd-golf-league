@@ -156,6 +156,9 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
   const [success, setSuccess] = useState<string | null>(null)
   const [showNetScores, setShowNetScores] = useState<boolean>(false)
   const [scorecardExpanded, setScorecardExpanded] = useState<boolean>(false)
+  // New state variables for match scoring
+  const [holePoints, setHolePoints] = useState<{[hole: number]: {home: number, away: number}}>({})
+  const [totalPoints, setTotalPoints] = useState<{home: number, away: number}>({home: 0, away: 0})
 
   // Array of holes 1-9
   const holes = Array.from({ length: 9 }, (_, i) => i + 1)
@@ -172,6 +175,77 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
     8: 5,
     9: 4
   }
+
+  // Calculate the net score for a player on a specific hole
+  const getPlayerNetScore = (playerId: string, hole: number): number | null => {
+    const score = playerScores[playerId]?.[hole - 1]?.score;
+    if (!score) return null;
+    
+    const player = [...homeTeamPlayers, ...awayTeamPlayers].find(p => p.id === playerId);
+    if (!player) return null;
+    
+    const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
+    return calculateNetScore(score, strokesGiven);
+  }
+
+  // Determine which team wins the point for a hole
+  const calculateHoleWinner = (hole: number) => {
+    const homeNetScores = homeTeamPlayers
+      .map(player => ({
+        playerId: player.id,
+        netScore: getPlayerNetScore(player.id, hole)
+      }))
+      .filter(score => score.netScore !== null) as {playerId: string, netScore: number}[];
+    
+    const awayNetScores = awayTeamPlayers
+      .map(player => ({
+        playerId: player.id,
+        netScore: getPlayerNetScore(player.id, hole)
+      }))
+      .filter(score => score.netScore !== null) as {playerId: string, netScore: number}[];
+    
+    // If either team doesn't have scores, no points are awarded
+    if (homeNetScores.length === 0 || awayNetScores.length === 0) {
+      return { home: 0, away: 0 };
+    }
+    
+    // Find the lowest net score for each team
+    const lowestHomeNetScore = Math.min(...homeNetScores.map(s => s.netScore));
+    const lowestAwayNetScore = Math.min(...awayNetScores.map(s => s.netScore));
+    
+    // Determine the winner
+    if (lowestHomeNetScore < lowestAwayNetScore) {
+      return { home: 1, away: 0 };
+    } else if (lowestAwayNetScore < lowestHomeNetScore) {
+      return { home: 0, away: 1 };
+    } else {
+      // Tie - each team gets 0.5 points
+      return { home: 0.5, away: 0.5 };
+    }
+  }
+
+  // Calculate points for all holes and update state
+  const updateMatchPoints = () => {
+    const newHolePoints: {[hole: number]: {home: number, away: number}} = {};
+    let newTotalPoints = {home: 0, away: 0};
+    
+    holes.forEach(hole => {
+      const holeResult = calculateHoleWinner(hole);
+      newHolePoints[hole] = holeResult;
+      newTotalPoints.home += holeResult.home;
+      newTotalPoints.away += holeResult.away;
+    });
+    
+    setHolePoints(newHolePoints);
+    setTotalPoints(newTotalPoints);
+  }
+
+  // Update match points whenever scores change
+  useEffect(() => {
+    if (!loading) {
+      updateMatchPoints();
+    }
+  }, [playerScores, loading]);
 
   // Fetch players and initialize scores
   useEffect(() => {
@@ -405,20 +479,22 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
     <div className="bg-[#030f0f]/90 rounded-xl backdrop-blur-sm border border-[#00df82]/20 overflow-hidden">
       {/* Header with match details */}
       <div className="bg-gradient-to-r from-[#00df82]/20 to-transparent p-4 border-b border-[#00df82]/20">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-center items-center">
           <h3 className="text-xl font-audiowide text-white">Match Scorecard</h3>
-          <div className="text-white/70 font-orbitron text-sm">
-            Week {match.weekNumber} • {format(new Date(match.date), 'MMM d, yyyy')}
-          </div>
         </div>
-        <div className="mt-2 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <span className="text-white font-orbitron">{match.homeTeam.name}</span>
-            <span className="text-[#00df82] mx-1">vs</span>
-            <span className="text-white font-orbitron">{match.awayTeam.name}</span>
-          </div>
-          <div className="text-white/70 font-orbitron text-sm">
-            Starting Hole: {match.startingHole}
+        
+        {/* Match Scoreboard */}
+        <div className="mt-4 bg-[#030f0f]/70 rounded-lg border border-[#00df82]/30 p-3">
+          <div className="flex justify-center items-center">
+            <div className="flex-1 text-center">
+              <div className="text-white font-orbitron">{match.homeTeam.name}</div>
+              <div className="text-3xl font-bold text-[#00df82]">{totalPoints.home.toFixed(1)}</div>
+            </div>
+            <div className="mx-4 text-white/50 font-bold">-</div>
+            <div className="flex-1 text-center">
+              <div className="text-white font-orbitron">{match.awayTeam.name}</div>
+              <div className="text-3xl font-bold text-[#00df82]">{totalPoints.away.toFixed(1)}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -428,34 +504,27 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
         <div className="flex justify-between items-center">
           <button 
             onClick={goToPrevHole}
-            className="p-2 text-white/70 hover:text-white transition-colors w-10 h-10 flex items-center justify-center"
+            className="p-2 text-white border border-[#00df82]/50 rounded-md hover:bg-[#00df82]/10 transition-colors w-16 h-10 flex items-center justify-center"
+            aria-label="Previous hole"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           </button>
           
-          <div className="flex space-x-1 md:space-x-2 overflow-x-auto py-1 px-1 scrollbar-hide">
-            {holes.map(hole => (
-              <button
-                key={hole}
-                onClick={() => setActiveHole(hole)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-orbitron transition-all ${
-                  activeHole === hole 
-                    ? 'bg-[#00df82] text-black' 
-                    : 'bg-[#00df82]/10 text-white hover:bg-[#00df82]/20'
-                }`}
-              >
-                {hole}
-              </button>
-            ))}
+          <div className="flex-1 flex justify-center">
+            <div className="rounded-full bg-[#00df82] flex flex-col items-center justify-center px-4 py-2">
+              <span className="text-xs font-medium text-black font-orbitron">Hole</span>
+              <span className="text-xl font-bold text-black font-orbitron">{activeHole}</span>
+            </div>
           </div>
           
           <button 
             onClick={goToNextHole}
-            className="p-2 text-white/70 hover:text-white transition-colors w-10 h-10 flex items-center justify-center"
+            className="p-2 text-white border border-[#00df82]/50 rounded-md hover:bg-[#00df82]/10 transition-colors w-16 h-10 flex items-center justify-center"
+            aria-label="Next hole"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
             </svg>
           </button>
@@ -472,6 +541,35 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
               Handicap {holeHandicaps[activeHole as keyof typeof holeHandicaps]}
             </div>
           </div>
+          
+          {/* Hole result indicator */}
+          {holePoints[activeHole] && (holePoints[activeHole].home > 0 || holePoints[activeHole].away > 0) && (
+            <div className="mt-2 p-2 rounded-md text-center"
+              style={{
+                backgroundColor: holePoints[activeHole].home > holePoints[activeHole].away 
+                  ? 'rgba(0, 223, 130, 0.2)' 
+                  : holePoints[activeHole].away > holePoints[activeHole].home 
+                    ? 'rgba(255, 99, 71, 0.2)' 
+                    : 'rgba(255, 255, 255, 0.1)'
+              }}
+            >
+              <div className="text-sm font-audiowide"
+                style={{
+                  color: holePoints[activeHole].home > holePoints[activeHole].away 
+                    ? '#00df82' 
+                    : holePoints[activeHole].away > holePoints[activeHole].home 
+                      ? '#ff6347' 
+                      : '#ffffff'
+                }}
+              >
+                {holePoints[activeHole].home > holePoints[activeHole].away 
+                  ? `${match.homeTeam.name} wins hole (${holePoints[activeHole].home} point)` 
+                  : holePoints[activeHole].away > holePoints[activeHole].home 
+                    ? `${match.awayTeam.name} wins hole (${holePoints[activeHole].away} point)` 
+                    : `Hole tied (${holePoints[activeHole].home} point each)`}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Home Team */}
@@ -651,6 +749,41 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
                     </tr>
                   </thead>
                   <tbody>
+                    {/* Match Points Row */}
+                    <tr className="border-b border-[#00df82]/20 bg-[#030f0f]/80">
+                      <td className="p-2 text-left sticky left-0 bg-[#030f0f]/80 z-10">
+                        <div className="text-white font-audiowide">Points</div>
+                      </td>
+                      {holes.map(hole => (
+                        <td key={hole} className="p-2 text-center">
+                          {holePoints[hole] && (holePoints[hole].home > 0 || holePoints[hole].away > 0) ? (
+                            <div className="w-6 h-6 rounded-full mx-auto flex items-center justify-center text-xs font-bold"
+                              style={{
+                                backgroundColor: holePoints[hole].home > holePoints[hole].away 
+                                  ? 'rgba(0, 223, 130, 0.9)' 
+                                  : holePoints[hole].away > holePoints[hole].home 
+                                    ? 'rgba(255, 99, 71, 0.9)' 
+                                    : 'rgba(255, 255, 255, 0.9)',
+                                color: holePoints[hole].home > holePoints[hole].away 
+                                  ? '#000' 
+                                  : holePoints[hole].away > holePoints[hole].home 
+                                    ? '#fff' 
+                                    : '#000'
+                              }}
+                            >
+                              {holePoints[hole].home === 1 ? 'H' : holePoints[hole].away === 1 ? 'A' : 'T'}
+                            </div>
+                          ) : (
+                            <div className="text-white/30">-</div>
+                          )}
+                        </td>
+                      ))}
+                      <td className="p-2 text-center font-bold text-white">
+                        {totalPoints.home.toFixed(1)} - {totalPoints.away.toFixed(1)}
+                      </td>
+                      <td className="p-2"></td>
+                    </tr>
+                    
                     {/* Home Team Players */}
                     <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
                       <td colSpan={11} className="p-2 text-left text-white font-audiowide sticky left-0 bg-[#00df82]/5 z-10">

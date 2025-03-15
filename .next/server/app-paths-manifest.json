@@ -1,10 +1,1 @@
-{
-  "/matches/page": "app/matches/page.js",
-  "/teams/page": "app/teams/page.js",
-  "/schedule/page": "app/schedule/page.js",
-  "/api/direct-setup-schedule/route": "app/api/direct-setup-schedule/route.js",
-  "/page": "app/page.js",
-  "/api/matches/route": "app/api/matches/route.js",
-  "/api/scores/route": "app/api/scores/route.js",
-  "/api/teams/[id]/route": "app/api/teams/[id]/route.js"
-}
+{}
