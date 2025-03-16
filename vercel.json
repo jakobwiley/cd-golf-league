@@ -10,9 +10,11 @@
   "env": {
     "NODE_ENV": "production",
     "DATABASE_URL": "placeholder",
-    "CI": "false"
+    "CI": "false",
+    "USE_MOCK_DATA": "false"
   },
   "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"],

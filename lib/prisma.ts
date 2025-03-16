@@ -1,4 +1,5 @@
-import { PrismaClient, Team, Player } from '@prisma/client'
+import { PrismaClient, Team, Player, Prisma } from '@prisma/client'
+import { teams, players, matches, getTeam, getPlayer, getTeamPlayers, getTeamMatches, getWeekMatches } from './data'
 
 // Define types for mock data
 type MockTeam = Team & {
@@ -7,6 +8,18 @@ type MockTeam = Team & {
 
 type MockPlayer = Player & {
   team?: MockTeam;
+}
+
+// Define the extended PrismaClient type
+type ExtendedPrismaClient = PrismaClient & {
+  playerSubstitution: {
+    findMany: (args: { where: { matchId: string } }) => Promise<any[]>;
+    findUnique: (args: { where: { id: string } }) => Promise<any | null>;
+    create: (args: { data: any }) => Promise<any>;
+    update: (args: { where: { id: string }; data: any }) => Promise<any>;
+    delete: (args: { where: { id: string } }) => Promise<any>;
+    deleteMany: (args: { where: { matchId: string } }) => Promise<{ count: number }>;
+  };
 }
 
 // Store teams in memory so they persist between requests
@@ -86,6 +99,15 @@ let mockTeams: MockTeam[] = [
 // Store players in memory so they persist between requests
 let mockPlayers: MockPlayer[] = [];
 
+// Store match scores in memory
+let mockMatchScores: any[] = [];
+
+// Store player substitutions in memory
+let mockPlayerSubstitutions: any[] = [];
+
+// Store match points in memory
+let mockMatchPoints: any[] = [];
+
 // Create a mock client for development with placeholder credentials
 const mockPrismaClient = {
   $transaction: async (callback) => {
@@ -123,28 +145,6 @@ const mockPrismaClient = {
     return await callback(txClient);
   },
   team: {
-    findFirst: async (options?: any) => {
-      console.log('Mock finding first team:', options);
-      
-      const teamName = options?.where?.name;
-      const team = mockTeams.find(t => t.name === teamName);
-      
-      if (team) {
-        // Create a deep copy
-        const teamCopy = JSON.parse(JSON.stringify(team));
-        
-        // If include is specified, handle it
-        if (options?.include?.players) {
-          teamCopy.players = mockPlayers
-            .filter(p => p.teamId === team.id)
-            .map(p => JSON.parse(JSON.stringify(p)));
-        }
-        
-        return teamCopy;
-      }
-      
-      return null;
-    },
     findMany: async (options?: any) => {
       console.log('Using mock team data');
       
@@ -473,22 +473,186 @@ const mockPrismaClient = {
     }
   },
   matchScore: {
-    findMany: async () => [],
-    findUnique: async () => null,
-    create: async (data: any) => data.data,
-    update: async (data: any) => data.data,
-    delete: async () => ({ id: 'deleted' })
+    findMany: async ({ where }: { where: { matchId: string } }) => {
+      return mockMatchScores.filter(score => score.matchId === where.matchId);
+    },
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      return mockMatchScores.find(score => score.id === where.id) || null;
+    },
+    create: async ({ data }: { data: any }) => {
+      const id = `score${Math.floor(Math.random() * 10000)}`;
+      const score = {
+        id,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // Check for unique constraint
+      const existing = mockMatchScores.find(s => 
+        s.matchId === data.matchId && 
+        s.playerId === data.playerId && 
+        s.hole === data.hole
+      );
+      
+      if (existing) {
+        throw new Error('Score already exists for this hole and player');
+      }
+      
+      mockMatchScores.push(score);
+      return score;
+    },
+    update: async ({ where, data }: { where: { id: string }, data: any }) => {
+      const index = mockMatchScores.findIndex(score => score.id === where.id);
+      if (index === -1) {
+        throw new Error('Score not found');
+      }
+      
+      mockMatchScores[index] = {
+        ...mockMatchScores[index],
+        ...data,
+        updatedAt: new Date()
+      };
+      
+      return mockMatchScores[index];
+    },
+    delete: async ({ where }: { where: { id: string } }) => {
+      const index = mockMatchScores.findIndex(score => score.id === where.id);
+      if (index === -1) {
+        throw new Error('Score not found');
+      }
+      
+      const deleted = mockMatchScores[index];
+      mockMatchScores.splice(index, 1);
+      return deleted;
+    },
+    deleteMany: async ({ where }: { where: { matchId: string } }) => {
+      const initialCount = mockMatchScores.length;
+      mockMatchScores = mockMatchScores.filter(score => score.matchId !== where.matchId);
+      return { count: initialCount - mockMatchScores.length };
+    }
   },
   matchPoints: {
-    findMany: async () => [],
-    findUnique: async () => null,
-    create: async (data: any) => data.data,
-    update: async (data: any) => data.data,
-    delete: async () => ({ id: 'deleted' })
+    findMany: async ({ where }: { where: { matchId: string } }) => {
+      return mockMatchPoints.filter(points => points.matchId === where.matchId);
+    },
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      return mockMatchPoints.find(points => points.id === where.id) || null;
+    },
+    create: async ({ data }: { data: any }) => {
+      const id = `points${Math.floor(Math.random() * 10000)}`;
+      const points = {
+        id,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // Check for unique constraint
+      const existing = mockMatchPoints.find(p => 
+        p.matchId === data.matchId && 
+        p.teamId === data.teamId
+      );
+      
+      if (existing) {
+        throw new Error('Points already exist for this team in this match');
+      }
+      
+      mockMatchPoints.push(points);
+      return points;
+    },
+    update: async ({ where, data }: { where: { id: string }, data: any }) => {
+      const index = mockMatchPoints.findIndex(points => points.id === where.id);
+      if (index === -1) {
+        throw new Error('Points not found');
+      }
+      
+      mockMatchPoints[index] = {
+        ...mockMatchPoints[index],
+        ...data,
+        updatedAt: new Date()
+      };
+      
+      return mockMatchPoints[index];
+    },
+    delete: async ({ where }: { where: { id: string } }) => {
+      const index = mockMatchPoints.findIndex(points => points.id === where.id);
+      if (index === -1) {
+        throw new Error('Points not found');
+      }
+      
+      const deleted = mockMatchPoints[index];
+      mockMatchPoints.splice(index, 1);
+      return deleted;
+    },
+    deleteMany: async ({ where }: { where: { matchId: string } }) => {
+      const initialCount = mockMatchPoints.length;
+      mockMatchPoints = mockMatchPoints.filter(points => points.matchId !== where.matchId);
+      return { count: initialCount - mockMatchPoints.length };
+    }
+  },
+  playerSubstitution: {
+    findMany: async ({ where }: { where: { matchId: string } }) => {
+      return mockPlayerSubstitutions.filter(sub => sub.matchId === where.matchId);
+    },
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      return mockPlayerSubstitutions.find(sub => sub.id === where.id) || null;
+    },
+    create: async ({ data }: { data: any }) => {
+      const id = `sub${Math.floor(Math.random() * 10000)}`;
+      const sub = {
+        id,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // Check for unique constraint
+      const existing = mockPlayerSubstitutions.find(s => 
+        s.matchId === data.matchId && 
+        s.originalPlayerId === data.originalPlayerId
+      );
+      
+      if (existing) {
+        throw new Error('Substitution already exists for this player in this match');
+      }
+      
+      mockPlayerSubstitutions.push(sub);
+      return sub;
+    },
+    update: async ({ where, data }: { where: { id: string }, data: any }) => {
+      const index = mockPlayerSubstitutions.findIndex(sub => sub.id === where.id);
+      if (index === -1) {
+        throw new Error('Substitution not found');
+      }
+      
+      mockPlayerSubstitutions[index] = {
+        ...mockPlayerSubstitutions[index],
+        ...data,
+        updatedAt: new Date()
+      };
+      
+      return mockPlayerSubstitutions[index];
+    },
+    delete: async ({ where }: { where: { id: string } }) => {
+      const index = mockPlayerSubstitutions.findIndex(sub => sub.id === where.id);
+      if (index === -1) {
+        throw new Error('Substitution not found');
+      }
+      
+      const deleted = mockPlayerSubstitutions[index];
+      mockPlayerSubstitutions.splice(index, 1);
+      return deleted;
+    },
+    deleteMany: async ({ where }: { where: { matchId: string } }) => {
+      const initialCount = mockPlayerSubstitutions.length;
+      mockPlayerSubstitutions = mockPlayerSubstitutions.filter(sub => sub.matchId !== where.matchId);
+      return { count: initialCount - mockPlayerSubstitutions.length };
+    }
   }
-} as unknown as PrismaClient;
+} as unknown as ExtendedPrismaClient;
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
+const globalForPrisma = global as unknown as { prisma: ExtendedPrismaClient }
 
 // Check if we're using placeholder credentials
 const isUsingPlaceholders = 
@@ -515,4 +679,64 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Export the appropriate client based on environment
-export const prisma = process.env.NODE_ENV === 'production' ? prismaClient : mockPrismaClient; 
+export const prisma = process.env.NODE_ENV === 'production' ? 
+  (prismaClient as ExtendedPrismaClient) : 
+  mockPrismaClient;
+
+// Create a wrapper that combines static and dynamic data
+const prismaWrapper = {
+  team: {
+    findMany: async () => teams,
+    findUnique: async ({ where }: { where: { id: string } }) => getTeam(where.id),
+    findFirst: async ({ where }: { where: { name: string } }) => 
+      teams.find(team => team.name === where.name) || null,
+  },
+  player: {
+    findMany: async () => players,
+    findUnique: async ({ where }: { where: { id: string } }) => getPlayer(where.id),
+    findFirst: async ({ where }: { where: { name: string } }) => 
+      players.find(player => player.name === where.name) || null,
+  },
+  match: {
+    findMany: async () => matches,
+    findUnique: async ({ where }: { where: { id: string } }) => 
+      matches.find(match => match.id === where.id) || null,
+    findFirst: async ({ where }: { where: { id: string } }) => 
+      matches.find(match => match.id === where.id) || null,
+  },
+  matchScore: {
+    findMany: async ({ where }: { where: { matchId: string } }) => 
+      prismaClient.matchScore.findMany({ where }),
+    findUnique: async ({ where }: { where: { id: string } }) => 
+      prismaClient.matchScore.findUnique({ where }),
+    create: async (data: any) => prismaClient.matchScore.create({ data }),
+    update: async ({ where, data }: { where: { id: string }, data: any }) => 
+      prismaClient.matchScore.update({ where, data }),
+    delete: async ({ where }: { where: { id: string } }) => 
+      prismaClient.matchScore.delete({ where }),
+  },
+  matchPoints: {
+    findMany: async ({ where }: { where: { matchId: string } }) => 
+      prismaClient.matchPoints.findMany({ where }),
+    findUnique: async ({ where }: { where: { id: string } }) => 
+      prismaClient.matchPoints.findUnique({ where }),
+    create: async (data: any) => prismaClient.matchPoints.create({ data }),
+    update: async ({ where, data }: { where: { id: string }, data: any }) => 
+      prismaClient.matchPoints.update({ where, data }),
+    delete: async ({ where }: { where: { id: string } }) => 
+      prismaClient.matchPoints.delete({ where }),
+  },
+  playerSubstitution: {
+    findMany: async ({ where }: { where: { matchId: string } }) => 
+      prismaClient.playerSubstitution.findMany({ where }),
+    findUnique: async ({ where }: { where: { id: string } }) => 
+      prismaClient.playerSubstitution.findUnique({ where }),
+    create: async (data: any) => prismaClient.playerSubstitution.create({ data }),
+    update: async ({ where, data }: { where: { id: string }, data: any }) => 
+      prismaClient.playerSubstitution.update({ where, data }),
+    delete: async ({ where }: { where: { id: string } }) => 
+      prismaClient.playerSubstitution.delete({ where }),
+  },
+} as unknown as ExtendedPrismaClient;
+
+export { prismaWrapper } 

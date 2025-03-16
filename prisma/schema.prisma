@@ -8,89 +8,85 @@ datasource db {
 }
 
 model Team {
-  id            String        @id @default(cuid())
+  id            String        @id
   name          String
   players       Player[]
   homeMatches   Match[]      @relation("HomeTeam")
   awayMatches   Match[]      @relation("AwayTeam")
-  matchPoints   MatchPoints[]
+  matchPoints   MatchPoints[] @relation("TeamPoints")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
 
 model Player {
-  id            String   @id @default(cuid())
+  id            String       @id
   name          String
-  playerType    String   @default("PRIMARY") // Can be "PRIMARY" or "SUB"
-  handicapIndex Float    @default(0)
-  handicap      Float?   // Added handicap field as optional Float
-  team          Team?    @relation(fields: [teamId], references: [id])
+  team          Team?        @relation(fields: [teamId], references: [id])
   teamId        String?
-  scores        MatchScore[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  matchPlayers  MatchPlayer[] // Relation to match-specific assignments
-
-  @@index([teamId])
+  playerType    String       @default("PRIMARY") // PRIMARY, SUBSTITUTE
+  handicapIndex Float
+  handicap      Int?
+  scores        MatchScore[] @relation("PlayerScores")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  substitutions PlayerSubstitution[] @relation("SubstitutePlayer")
 }
 
 model Match {
-  id            String        @id @default(cuid())
+  id            String       @id
   date          DateTime
   weekNumber    Int
-  homeTeam      Team         @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  homeTeam      Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
   homeTeamId    String
-  awayTeam      Team         @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  awayTeam      Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
   awayTeamId    String
-  scores        MatchScore[]
-  points        MatchPoints[]
+  scores        MatchScore[] @relation("MatchScores")
+  points        MatchPoints[] @relation("MatchPoints")
   status        String       @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
-  startingHole  Int         @default(1) @db.SmallInt
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  matchPlayers  MatchPlayer[] // Relation to match-specific player assignments
+  startingHole  Int         @default(1)
+  substitutions PlayerSubstitution[] @relation("MatchSubstitutions")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model MatchScore {
-  id        String   @id @default(cuid())
-  match     Match    @relation(fields: [matchId], references: [id])
-  matchId   String
-  player    Player   @relation(fields: [playerId], references: [id])
-  playerId  String
-  hole      Int      @db.SmallInt
-  score     Int      @db.SmallInt
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  match         Match    @relation("MatchScores", fields: [matchId], references: [id])
+  matchId       String
+  player        Player   @relation("PlayerScores", fields: [playerId], references: [id])
+  playerId      String
+  hole          Int
+  score         Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([matchId, playerId, hole])
 }
 
 model MatchPoints {
-  id         String   @id @default(cuid())
-  match      Match    @relation(fields: [matchId], references: [id])
-  matchId    String
-  team       Team     @relation(fields: [teamId], references: [id])
-  teamId     String
-  points     Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(cuid())
+  match         Match    @relation("MatchPoints", fields: [matchId], references: [id])
+  matchId       String
+  team          Team     @relation("TeamPoints", fields: [teamId], references: [id])
+  teamId        String
+  points        Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([matchId, teamId])
 }
 
-// New model for match-specific player assignments
-model MatchPlayer {
+model PlayerSubstitution {
   id            String   @id @default(cuid())
+  match         Match    @relation("MatchSubstitutions", fields: [matchId], references: [id])
   matchId       String
-  match         Match    @relation(fields: [matchId], references: [id])
+  player        Player   @relation("SubstitutePlayer", fields: [playerId], references: [id])
   playerId      String
-  player        Player   @relation(fields: [playerId], references: [id])
-  substituteFor String?  // ID of the player being substituted, null if not a substitute
-  isSubstitute  Boolean  @default(false)
+  hole          Int
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@unique([matchId, playerId])
+  @@unique([matchId, playerId, hole])
 }
 
 enum PlayerType {
