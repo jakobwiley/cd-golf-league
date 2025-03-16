@@ -14,8 +14,11 @@
     "db:deploy": "prisma migrate deploy",
     "vercel:setup": "node scripts/setup-vercel-db.js",
     "vercel:deploy": "vercel --prod",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test:setup": "./scripts/setup-test-db.sh",
+    "test": "npm run test:setup && jest",
+    "test:watch": "npm run test:setup && jest --watch",
+    "test:coverage": "npm run test:setup && jest --coverage",
+    "test:prod": "TEST_BASE_URL=https://cd-gl-2025-ip9vq6bjm-jakes-projects-9070cd0b.vercel.app jest"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -56,6 +59,7 @@
     "postcss-preset-env": "^9.3.0",
     "prisma": "latest",
     "tailwindcss": "^3.3.0",
+    "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   },

@@ -142,26 +142,17 @@ const scheduleData = [
   [14, 5, 'Trev/Murph', 'AP/JohnP', '2025-07-15T18:00:00.000Z']
 ];
 
-// Direct access to the global mock data
-const globalForPrisma = global as unknown as { 
-  mockTeams: any[],
-  mockPlayers: any[],
-  mockMatches: any[]
-}
-
 export async function GET() {
   try {
     console.log('Starting force setup...');
     
-    // Initialize global arrays if they don't exist
-    if (!globalForPrisma.mockTeams) globalForPrisma.mockTeams = [];
-    if (!globalForPrisma.mockPlayers) globalForPrisma.mockPlayers = [];
-    if (!globalForPrisma.mockMatches) globalForPrisma.mockMatches = [];
-    
     // Clear existing data
-    globalForPrisma.mockTeams.length = 0;
-    globalForPrisma.mockPlayers.length = 0;
-    globalForPrisma.mockMatches.length = 0;
+    await prisma.matchScore.deleteMany();
+    await prisma.matchPoints.deleteMany();
+    await prisma.playerSubstitution.deleteMany();
+    await prisma.match.deleteMany();
+    await prisma.player.deleteMany();
+    await prisma.team.deleteMany();
     
     console.log('Cleared existing data');
     
@@ -169,18 +160,14 @@ export async function GET() {
     const teamMap = new Map();
     for (let i = 0; i < teams.length; i++) {
       const teamName = teams[i];
-      const teamId = `team${i + 1}`;
       
-      // Add to mock teams
-      globalForPrisma.mockTeams.push({
-        id: teamId,
-        name: teamName,
-        createdAt: new Date(),
-        updatedAt: new Date()
+      // Create team
+      const team = await prisma.team.create({
+        data: { name: teamName }
       });
       
-      teamMap.set(teamName, teamId);
-      console.log(`Created team: ${teamName} with ID: ${teamId}`);
+      teamMap.set(teamName, team.id);
+      console.log(`Created team: ${teamName} with ID: ${team.id}`);
     }
     
     // Create players
@@ -192,15 +179,14 @@ export async function GET() {
         continue;
       }
       
-      // Add to mock players
-      globalForPrisma.mockPlayers.push({
-        id: `player${globalForPrisma.mockPlayers.length + 1}`,
-        name: player.name,
-        playerType: 'PRIMARY',
-        handicapIndex: player.handicap || 0,
-        teamId: teamId,
-        createdAt: new Date(),
-        updatedAt: new Date()
+      // Create player
+      const newPlayer = await prisma.player.create({
+        data: {
+          name: player.name,
+          playerType: 'PRIMARY',
+          handicapIndex: player.handicap,
+          teamId: teamId
+        }
       });
       
       console.log(`Created player: ${player.name} with handicap ${player.handicap} for team ${player.teamName} (ID: ${teamId})`);
@@ -216,115 +202,24 @@ export async function GET() {
         continue;
       }
       
-      // Add to mock matches
-      globalForPrisma.mockMatches.push({
-        id: `match${globalForPrisma.mockMatches.length + 1}`,
-        date: new Date(date),
-        weekNumber: Number(weekNumber),
-        homeTeamId,
-        awayTeamId,
-        startingHole: Number(startingHole),
-        status: 'SCHEDULED',
-        createdAt: new Date(),
-        updatedAt: new Date()
+      // Create match
+      const match = await prisma.match.create({
+        data: {
+          date: new Date(date),
+          weekNumber: Number(weekNumber),
+          homeTeamId,
+          awayTeamId,
+          startingHole: Number(startingHole),
+          status: 'SCHEDULED'
+        }
       });
       
       console.log(`Created match: Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}, Starting Hole: ${startingHole}`);
     }
     
-    // Return HTML response
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Force Setup Complete</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            h1 {
-              color: #2563eb;
-            }
-            .card {
-              background: #f9fafb;
-              border-radius: 8px;
-              padding: 20px;
-              margin-bottom: 20px;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            .success {
-              color: #059669;
-              font-weight: bold;
-            }
-            .section {
-              margin-top: 20px;
-              border-top: 1px solid #e5e7eb;
-              padding-top: 15px;
-            }
-            .button {
-              display: inline-block;
-              background-color: #2563eb;
-              color: white;
-              padding: 10px 20px;
-              border-radius: 4px;
-              text-decoration: none;
-              margin-top: 20px;
-            }
-            .button:hover {
-              background-color: #1d4ed8;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>Force Setup Complete</h1>
-            <p class="success">Successfully initialized all data for the Country Drive Golf League!</p>
-            
-            <div class="section">
-              <h2>Teams Created: ${globalForPrisma.mockTeams.length}</h2>
-              <p>All teams have been created successfully.</p>
-            </div>
-            
-            <div class="section">
-              <h2>Players Created: ${globalForPrisma.mockPlayers.length}</h2>
-              <p>All players have been added to their respective teams.</p>
-            </div>
-            
-            <div class="section">
-              <h2>Matches Created: ${globalForPrisma.mockMatches.length}</h2>
-              <p>All matches have been scheduled for the season.</p>
-            </div>
-            
-            <div>
-              <a href="/teams" class="button">View Teams</a>
-              <a href="/matches" class="button">View Matches</a>
-              <a href="/admin" class="button" style="background-color: #6b7280;">Back to Admin</a>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-    
-    return new NextResponse(html, {
-      headers: {
-        'Content-Type': 'text/html',
-      },
-    });
+    return NextResponse.json({ message: 'Force setup completed successfully' });
   } catch (error) {
     console.error('Error in force setup:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to force setup',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to complete force setup' }, { status: 500 });
   }
 } 

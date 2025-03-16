@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
+import { Prisma } from '@prisma/client'
 
 // Schedule data based on the raw data provided
 // Format: [weekNumber, startingHole, homeTeamName, awayTeamName, date]
@@ -115,7 +116,7 @@ interface Match {
   status: string;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     console.log('Starting direct schedule setup...');
     
@@ -125,23 +126,35 @@ export async function GET(request: Request) {
       ...scheduleData.map(entry => entry[3] as string)
     ]));
 
+    console.log('Team names to create:', teamNames);
     const teams = new Map<string, any>();
     
     for (const teamName of teamNames) {
-      // Try to find existing team
-      let team = await prisma.team.findFirst({
-        where: { name: teamName }
-      });
-      
-      // Create if doesn't exist
-      if (!team) {
-        team = await prisma.team.create({
-          data: { name: teamName }
+      try {
+        // Try to find existing team
+        let team = await prisma.team.findUnique({
+          where: { name: teamName }
         });
-        console.log(`Created team: ${teamName}`);
+        
+        // Create if doesn't exist
+        if (!team) {
+          const teamData: Prisma.TeamCreateInput = {
+            id: crypto.randomUUID(),
+            name: teamName
+          };
+          team = await prisma.team.create({
+            data: teamData
+          });
+          console.log(`Created team: ${teamName}`);
+        } else {
+          console.log(`Found existing team: ${teamName}`);
+        }
+        
+        teams.set(teamName, team);
+      } catch (error) {
+        console.error(`Error processing team ${teamName}:`, error);
+        throw error;
       }
-      
-      teams.set(teamName, team);
     }
 
     // Delete any existing matches
@@ -150,29 +163,38 @@ export async function GET(request: Request) {
     
     // Create all matches
     for (const entry of scheduleData) {
-      const weekNumber = entry[0] as number;
-      const startingHole = entry[1] as number;
-      const homeTeamName = entry[2] as string;
-      const awayTeamName = entry[3] as string;
-      const dateStr = entry[4] as string;
+      try {
+        const weekNumber = entry[0] as number;
+        const startingHole = entry[1] as number;
+        const homeTeamName = entry[2] as string;
+        const awayTeamName = entry[3] as string;
+        const dateStr = entry[4] as string;
 
-      const homeTeam = teams.get(homeTeamName);
-      const awayTeam = teams.get(awayTeamName);
-      
-      if (!homeTeam || !awayTeam) {
-        throw new Error(`Missing team reference for match: ${homeTeamName} vs ${awayTeamName}`);
-      }
+        const homeTeam = teams.get(homeTeamName);
+        const awayTeam = teams.get(awayTeamName);
+        
+        if (!homeTeam || !awayTeam) {
+          throw new Error(`Missing team reference for match: ${homeTeamName} vs ${awayTeamName}`);
+        }
 
-      await prisma.match.create({
-        data: {
+        const matchData: Prisma.MatchCreateInput = {
+          id: crypto.randomUUID(),
           weekNumber,
           startingHole,
           date: new Date(dateStr),
-          homeTeamId: homeTeam.id,
-          awayTeamId: awayTeam.id,
+          homeTeam: { connect: { id: homeTeam.id } },
+          awayTeam: { connect: { id: awayTeam.id } },
           status: 'SCHEDULED'
-        }
-      });
+        };
+
+        await prisma.match.create({
+          data: matchData
+        });
+        console.log(`Created match: ${homeTeamName} vs ${awayTeamName} (Week ${weekNumber}, Hole ${startingHole})`);
+      } catch (error) {
+        console.error(`Error creating match for entry ${entry}:`, error);
+        throw error;
+      }
     }
 
     // Get all matches
@@ -186,97 +208,14 @@ export async function GET(request: Request) {
         { startingHole: 'asc' }
       ]
     });
-    
-    console.log(`Found ${matches.length} existing matches`);
-    
-    // Group matches by week for verification
-    const weekCounts = matches.reduce((acc, match) => {
-      acc[match.weekNumber] = (acc[match.weekNumber] || 0) + 1;
-      return acc;
-    }, {} as Record<number, number>);
-    
-    console.log('Matches per week:', weekCounts);
-    
-    // Return HTML response for better user experience
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Schedule Setup Complete</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            h1 {
-              color: #2563eb;
-            }
-            .card {
-              background: #f9fafb;
-              border-radius: 8px;
-              padding: 20px;
-              margin-bottom: 20px;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            .success {
-              color: #059669;
-              font-weight: bold;
-            }
-            .week-section {
-              margin-top: 20px;
-              border-top: 1px solid #e5e7eb;
-              padding-top: 15px;
-            }
-            .match-item {
-              padding: 10px;
-              border-bottom: 1px solid #e5e7eb;
-            }
-            .match-item:last-child {
-              border-bottom: none;
-            }
-            .button {
-              display: inline-block;
-              background-color: #2563eb;
-              color: white;
-              padding: 10px 20px;
-              border-radius: 4px;
-              text-decoration: none;
-              margin-top: 20px;
-            }
-            .button:hover {
-              background-color: #1d4ed8;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>Schedule Setup Complete</h1>
-            <p class="success">✅ Successfully set up the schedule with ${matches.length} matches.</p>
-            <p>The schedule has been set up with matches for the following weeks:</p>
-            <ul>
-              ${Object.entries(weekCounts).map(([week, count]) => 
-                `<li>Week ${week}: ${count} matches</li>`
-              ).join('')}
-            </ul>
-            <a href="/schedule" class="button">View Schedule</a>
-          </div>
-        </body>
-      </html>
-    `;
-    
-    return new Response(html, {
-      headers: {
-        'Content-Type': 'text/html',
-      },
-    });
+
+    console.log(`Successfully created ${matches.length} matches`);
+    return NextResponse.json(matches);
   } catch (error) {
     console.error('Error setting up schedule:', error);
-    return NextResponse.json({ error: 'Failed to set up schedule' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to set up schedule',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 

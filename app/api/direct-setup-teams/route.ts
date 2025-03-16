@@ -74,13 +74,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error in direct team setup:', error)
-    return NextResponse.json(
-      { 
-        error: 'Failed to set up teams directly',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to set up teams' }, { status: 500 })
   }
 } 
