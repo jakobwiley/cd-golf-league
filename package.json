@@ -59,7 +59,6 @@
     "postcss-preset-env": "^9.3.0",
     "prisma": "latest",
     "tailwindcss": "^3.3.0",
-    "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   },
