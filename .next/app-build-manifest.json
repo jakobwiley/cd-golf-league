@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/page": [
+    "/schedule/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/schedule/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -11,15 +11,10 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/schedule/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/schedule/page.js"
-    ],
-    "/schedule/admin/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/schedule/admin/page.js"
+      "static/chunks/app/page.js"
     ],
     "/matches/page": [
       "static/chunks/webpack.js",
@@ -31,20 +26,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/teams/page.js"
     ],
-    "/teams/admin/page": [
+    "/schedule/admin/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/teams/admin/page.js"
+      "static/chunks/app/schedule/admin/page.js"
     ],
     "/admin/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/admin/page.js"
-    ],
-    "/admin/players/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/players/page.js"
     ]
   }
 }

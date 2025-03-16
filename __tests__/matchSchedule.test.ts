@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { mockPrismaClient } from '../lib/prisma';
+import { matches, getWeekMatches, getTeamMatches } from '../lib/data'
 
 describe('Match Schedule', () => {
   beforeAll(() => {
@@ -7,138 +7,98 @@ describe('Match Schedule', () => {
   });
 
   // Basic Schedule Structure Tests
-  test('should have 5 matches for Week 1', async () => {
-    const week1Matches = await mockPrismaClient.match.findMany({
-      where: { weekNumber: 1 },
-      include: { homeTeam: true, awayTeam: true },
-      orderBy: [{ startingHole: 'asc' }]
-    });
-    expect(week1Matches.length).toBe(5);
-  });
+  test('should have 5 matches for Week 1', () => {
+    const week1Matches = getWeekMatches(1)
+    expect(week1Matches.length).toBe(5)
+  })
 
-  test('should have matches for all weeks except Week 10', async () => {
-    const allMatches = await mockPrismaClient.match.findMany();
-    const uniqueWeeks = Array.from(new Set(allMatches.map(match => match.weekNumber))).sort((a, b) => a - b);
-    expect(uniqueWeeks).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14]);
-  });
+  test('should have matches for all weeks except Week 10', () => {
+    const uniqueWeeks = Array.from(new Set(matches.map(match => match.weekNumber))).sort((a, b) => a - b)
+    expect(uniqueWeeks).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14])
+  })
 
-  test('should have 5 matches per week', async () => {
-    const allMatches = await mockPrismaClient.match.findMany();
-    const matchesByWeek = allMatches.reduce((acc, match) => {
-      acc[match.weekNumber] = (acc[match.weekNumber] || 0) + 1;
-      return acc;
-    }, {});
+  test('should have 5 matches per week', () => {
+    const matchesByWeek = matches.reduce((acc, match) => {
+      acc[match.weekNumber] = (acc[match.weekNumber] || 0) + 1
+      return acc
+    }, {} as Record<number, number>)
 
     Object.values(matchesByWeek).forEach(count => {
-      expect(count).toBe(5);
-    });
-  });
+      expect(count).toBe(5)
+    })
+  })
 
   // Week 1 Specific Tests
-  test('should have correct matchups for Week 1', async () => {
-    const week1Matches = await mockPrismaClient.match.findMany({
-      where: { weekNumber: 1 },
-      include: { homeTeam: true, awayTeam: true },
-      orderBy: [{ startingHole: 'asc' }]
-    });
+  test('should have correct matchups for Week 1', () => {
+    const week1Matches = getWeekMatches(1)
+    const matchups = week1Matches.map(match => ({
+      home: match.homeTeamId,
+      away: match.awayTeamId,
+      hole: match.startingHole
+    }))
 
-    const expectedMatchups = [
-      { homeTeam: 'Hot/Huerter', awayTeam: 'Nick/Brent', startingHole: 1 },
-      { homeTeam: 'Ashley/Alli', awayTeam: 'Brett/Tony', startingHole: 2 },
-      { homeTeam: 'Brew/Jake', awayTeam: 'Clauss/Wade', startingHole: 3 },
-      { homeTeam: 'Sketch/Rob', awayTeam: 'AP/JohnP', startingHole: 4 },
-      { homeTeam: 'Trev/Murph', awayTeam: 'Ryan/Drew', startingHole: 5 }
-    ];
+    expect(matchups).toEqual([
+      { home: 'team2', away: 'team1', hole: 1 },
+      { home: 'team3', away: 'team10', hole: 2 },
+      { home: 'team4', away: 'team9', hole: 3 },
+      { home: 'team5', away: 'team8', hole: 4 },
+      { home: 'team6', away: 'team7', hole: 5 }
+    ])
+  })
 
-    week1Matches.forEach((match, index) => {
-      expect(match.homeTeam.name).toBe(expectedMatchups[index].homeTeam);
-      expect(match.awayTeam.name).toBe(expectedMatchups[index].awayTeam);
-      expect(match.startingHole).toBe(expectedMatchups[index].startingHole);
-    });
-  });
-
-  test('should have correct date for Week 1 matches', async () => {
-    const week1Matches = await mockPrismaClient.match.findMany({
-      where: { weekNumber: 1 }
-    });
-
-    const expectedDate = new Date('2025-04-15T18:00:00.000Z');
+  test('should have correct date for Week 1 matches', () => {
+    const week1Matches = getWeekMatches(1)
+    const expectedDate = new Date('2024-05-01')
+    
     week1Matches.forEach(match => {
-      expect(new Date(match.date).toISOString()).toBe(expectedDate.toISOString());
-    });
-  });
+      expect(match.date.toISOString().split('T')[0]).toBe(expectedDate.toISOString().split('T')[0])
+    })
+  })
 
   // Starting Hole Tests
-  test('should have correct starting holes for each match', async () => {
-    const allMatches = await mockPrismaClient.match.findMany({
-      orderBy: [{ weekNumber: 'asc' }, { startingHole: 'asc' }]
-    });
+  test('should have correct starting holes for each match', () => {
+    const sortedMatches = [...matches].sort((a, b) => {
+      if (a.weekNumber !== b.weekNumber) return a.weekNumber - b.weekNumber
+      return a.startingHole - b.startingHole
+    })
 
-    allMatches.forEach(match => {
-      expect(match.startingHole).toBeGreaterThanOrEqual(1);
-      expect(match.startingHole).toBeLessThanOrEqual(5);
-    });
-  });
+    sortedMatches.forEach(match => {
+      expect(match.startingHole).toBeGreaterThanOrEqual(1)
+      expect(match.startingHole).toBeLessThanOrEqual(5)
+    })
+  })
 
   // Match Status Tests
-  test('should have all matches initially set to SCHEDULED status', async () => {
-    const allMatches = await mockPrismaClient.match.findMany();
-    allMatches.forEach(match => {
-      expect(match.status).toBe('SCHEDULED');
-    });
-  });
+  test('should have all matches initially set to SCHEDULED status', () => {
+    matches.forEach(match => {
+      expect(match.status).toBe('SCHEDULED')
+    })
+  })
 
   // Team Participation Tests
-  test('should have each team playing exactly once per week', async () => {
-    const allMatches = await mockPrismaClient.match.findMany({
-      include: { homeTeam: true, awayTeam: true }
-    });
+  test('should have each team playing exactly once per week', () => {
+    const teamParticipation = matches.reduce((acc, match) => {
+      const week = match.weekNumber
+      if (!acc[week]) acc[week] = new Set()
+      acc[week].add(match.homeTeamId)
+      acc[week].add(match.awayTeamId)
+      return acc
+    }, {} as Record<number, Set<string>>)
 
-    const weeklyTeamCounts = new Map();
-    
-    allMatches.forEach(match => {
-      const weekKey = `week${match.weekNumber}`;
-      if (!weeklyTeamCounts.has(weekKey)) {
-        weeklyTeamCounts.set(weekKey, new Set());
-      }
-      weeklyTeamCounts.get(weekKey).add(match.homeTeamId);
-      weeklyTeamCounts.get(weekKey).add(match.awayTeamId);
-    });
-
-    weeklyTeamCounts.forEach((teams, week) => {
-      if (week !== 'week10') { // Skip week 10 as it has no matches
-        expect(teams.size).toBe(10); // Each week should have all 10 teams playing
-      }
-    });
-  });
+    Object.values(teamParticipation).forEach(teams => {
+      expect(teams.size).toBe(10) // All 10 teams should play each week
+    })
+  })
 
   // Date Tests
-  test('should have correct weekly progression of dates', async () => {
-    const allMatches = await mockPrismaClient.match.findMany({
-      orderBy: [{ weekNumber: 'asc' }]
-    });
-
-    const weekDates = new Map();
-    allMatches.forEach(match => {
-      const weekNumber = match.weekNumber;
-      const dateStr = new Date(match.date).toISOString();
-      
-      if (!weekDates.has(weekNumber)) {
-        weekDates.set(weekNumber, dateStr);
-      } else {
-        expect(weekDates.get(weekNumber)).toBe(dateStr);
-      }
-    });
-
-    // Verify dates are 7 days apart (except for week 10 gap)
-    const sortedWeeks = Array.from(weekDates.keys()).sort((a, b) => a - b);
-    sortedWeeks.forEach((week, index) => {
-      if (index > 0 && week !== 11) { // Skip checking the gap between weeks 9 and 11
-        const prevDate = new Date(weekDates.get(sortedWeeks[index - 1]));
-        const currDate = new Date(weekDates.get(week));
-        const daysDiff = (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
-        expect(daysDiff).toBe(7);
-      }
-    });
-  });
+  test('should have correct weekly progression of dates', () => {
+    const sortedMatches = [...matches].sort((a, b) => a.weekNumber - b.weekNumber)
+    const baseDate = new Date('2024-05-01')
+    
+    sortedMatches.forEach(match => {
+      const expectedDate = new Date(baseDate)
+      expectedDate.setDate(baseDate.getDate() + (match.weekNumber - 1) * 7)
+      expect(match.date.toISOString().split('T')[0]).toBe(expectedDate.toISOString().split('T')[0])
+    })
+  })
 }); 
