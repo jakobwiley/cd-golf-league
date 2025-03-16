@@ -149,7 +149,7 @@ export async function GET() {
     // Clear existing data
     await prisma.matchScore.deleteMany();
     await prisma.matchPoints.deleteMany();
-    await prisma.playerSubstitution.deleteMany();
+    await prisma.matchPlayer.deleteMany();
     await prisma.match.deleteMany();
     await prisma.player.deleteMany();
     await prisma.team.deleteMany();
@@ -163,7 +163,10 @@ export async function GET() {
       
       // Create team
       const team = await prisma.team.create({
-        data: { name: teamName }
+        data: {
+          id: crypto.randomUUID(),
+          name: teamName
+        }
       });
       
       teamMap.set(teamName, team.id);
@@ -182,6 +185,7 @@ export async function GET() {
       // Create player
       const newPlayer = await prisma.player.create({
         data: {
+          id: crypto.randomUUID(),
           name: player.name,
           playerType: 'PRIMARY',
           handicapIndex: player.handicap,
@@ -205,6 +209,7 @@ export async function GET() {
       // Create match
       const match = await prisma.match.create({
         data: {
+          id: crypto.randomUUID(),
           date: new Date(date),
           weekNumber: Number(weekNumber),
           homeTeamId,

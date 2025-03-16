@@ -129,37 +129,39 @@ export async function GET() {
     console.log('Team names to create:', teamNames);
     const teams = new Map<string, any>();
     
+    // Delete any existing matches first
+    await prisma.match.deleteMany({});
+    console.log('Cleared existing matches');
+
+    // Get all existing teams
+    const existingTeams = await prisma.team.findMany();
+    console.log(`Found ${existingTeams.length} existing teams`);
+
+    // Delete all existing teams
+    for (const team of existingTeams) {
+      await prisma.team.delete({
+        where: { id: team.id }
+      });
+      console.log(`Deleted team: ${team.name}`);
+    }
+    
+    // Create all teams fresh
     for (const teamName of teamNames) {
       try {
-        // Try to find existing team
-        let team = await prisma.team.findUnique({
-          where: { name: teamName }
+        const teamData: Prisma.TeamCreateInput = {
+          id: crypto.randomUUID(),
+          name: teamName
+        };
+        const team = await prisma.team.create({
+          data: teamData
         });
-        
-        // Create if doesn't exist
-        if (!team) {
-          const teamData: Prisma.TeamCreateInput = {
-            id: crypto.randomUUID(),
-            name: teamName
-          };
-          team = await prisma.team.create({
-            data: teamData
-          });
-          console.log(`Created team: ${teamName}`);
-        } else {
-          console.log(`Found existing team: ${teamName}`);
-        }
-        
+        console.log(`Created team: ${teamName} with ID: ${team.id}`);
         teams.set(teamName, team);
       } catch (error) {
-        console.error(`Error processing team ${teamName}:`, error);
+        console.error(`Error creating team ${teamName}:`, error);
         throw error;
       }
     }
-
-    // Delete any existing matches
-    await prisma.match.deleteMany({});
-    console.log('Cleared existing matches');
     
     // Create all matches
     for (const entry of scheduleData) {
@@ -187,8 +189,12 @@ export async function GET() {
           status: 'SCHEDULED'
         };
 
-        await prisma.match.create({
-          data: matchData
+        const match = await prisma.match.create({
+          data: matchData,
+          include: {
+            homeTeam: true,
+            awayTeam: true
+          }
         });
         console.log(`Created match: ${homeTeamName} vs ${awayTeamName} (Week ${weekNumber}, Hole ${startingHole})`);
       } catch (error) {
