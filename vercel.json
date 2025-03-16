@@ -7,9 +7,16 @@
       "use": "@vercel/next"
     }
   ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
   "env": {
     "NODE_ENV": "production",
-    "DATABASE_URL": "placeholder"
+    "DATABASE_URL": "placeholder",
+    "CI": "false"
   },
   "buildCommand": "npm run build",
   "installCommand": "npm install",
