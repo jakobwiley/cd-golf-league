@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
+import { SocketEvents } from '../../../lib/socket'
 
 // Validation schema for score
 const scoreSchema = z.object({
@@ -15,6 +16,58 @@ const scoreSchema = z.object({
 const batchScoreSchema = z.object({
   scores: z.array(scoreSchema)
 })
+
+// Function to emit score updated event
+async function emitScoreUpdated(matchId: string) {
+  try {
+    // Get the Socket.io server instance
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/socket`, {
+      method: 'GET',
+    })
+    
+    if (!res.ok) {
+      console.error('Failed to get Socket.io server instance')
+      return
+    }
+    
+    // Emit the score updated event
+    const socketIo = (global as any).socketIo
+    if (socketIo) {
+      console.log(`Emitting ${SocketEvents.SCORE_UPDATED} event for match ${matchId}`)
+      socketIo.emit(SocketEvents.SCORE_UPDATED, { matchId })
+    } else {
+      console.warn('Socket.io server not initialized')
+    }
+  } catch (error) {
+    console.error('Error emitting score updated event:', error)
+  }
+}
+
+// Function to emit standings updated event
+async function emitStandingsUpdated() {
+  try {
+    // Get the Socket.io server instance
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/socket`, {
+      method: 'GET',
+    })
+    
+    if (!res.ok) {
+      console.error('Failed to get Socket.io server instance')
+      return
+    }
+    
+    // Emit the standings updated event
+    const socketIo = (global as any).socketIo
+    if (socketIo) {
+      console.log(`Emitting ${SocketEvents.STANDINGS_UPDATED} event`)
+      socketIo.emit(SocketEvents.STANDINGS_UPDATED, {})
+    } else {
+      console.warn('Socket.io server not initialized')
+    }
+  } catch (error) {
+    console.error('Error emitting standings updated event:', error)
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -121,15 +174,18 @@ export async function POST(request: Request) {
       })
     }
     
+    let allScores = [];
+    let matchPlayers = [];
+    
     // Check if all players have scores for all 9 holes
     if (prisma.matchScore) {
-      const allScores = await prisma.matchScore.findMany({
+      allScores = await prisma.matchScore.findMany({
         where: {
           matchId: validatedData.scores[0].matchId
         }
       })
       
-      const matchPlayers = await prisma.player.findMany({
+      matchPlayers = await prisma.player.findMany({
         where: {
           OR: [
             { teamId: match?.homeTeamId },
@@ -149,6 +205,14 @@ export async function POST(request: Request) {
           }
         })
       }
+    }
+    
+    // Emit Socket.IO events for real-time updates
+    await emitScoreUpdated(validatedData.scores[0].matchId)
+    
+    // If the match status changed to COMPLETED, also update standings
+    if (matchPlayers.length > 0 && allScores.length === matchPlayers.length * 9) {
+      await emitStandingsUpdated()
     }
     
     return NextResponse.json({ success: true, count: results.length })

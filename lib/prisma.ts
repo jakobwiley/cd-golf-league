@@ -12,6 +12,7 @@ declare global {
     mockScores: any[]
     mockPoints: any[]
     mockMatchPlayers: any[] // Add matchPlayers array
+    mockMatchScores: any[] // Add mockMatchScores array
     isInitialized: boolean
   }
   var prisma: PrismaClient
@@ -26,6 +27,7 @@ if (!global.globalForPrisma) {
     mockScores: [],
     mockPoints: [],
     mockMatchPlayers: [], // Initialize empty matchPlayers array
+    mockMatchScores: [], // Initialize mockMatchScores array
     isInitialized: false,
   }
 }
@@ -150,130 +152,811 @@ if (!global.globalForPrisma.isInitialized) {
   // Initialize matches
   global.globalForPrisma.mockMatches = [];
   
-  // Schedule data based on the raw data provided
-  // Format: [weekNumber, startingHole, homeTeamName, awayTeamName, date]
-  const scheduleData = [
-    // Week 1 - April 15, 2025
-    [1, 1, 'Hot/Huerter', 'Nick/Brent', '2025-04-15T18:00:00.000Z'],
-    [1, 2, 'Ashley/Alli', 'Brett/Tony', '2025-04-15T18:00:00.000Z'],
-    [1, 3, 'Brew/Jake', 'Clauss/Wade', '2025-04-15T18:00:00.000Z'],
-    [1, 4, 'Sketch/Rob', 'AP/JohnP', '2025-04-15T18:00:00.000Z'],
-    [1, 5, 'Trev/Murph', 'Ryan/Drew', '2025-04-15T18:00:00.000Z'],
-    
-    // Week 2 - April 22, 2025
-    [2, 1, 'Brett/Tony', 'Brew/Jake', '2025-04-22T18:00:00.000Z'],
-    [2, 2, 'Nick/Brent', 'Ryan/Drew', '2025-04-22T18:00:00.000Z'],
-    [2, 3, 'AP/JohnP', 'Trev/Murph', '2025-04-22T18:00:00.000Z'],
-    [2, 4, 'Clauss/Wade', 'Sketch/Rob', '2025-04-22T18:00:00.000Z'],
-    [2, 5, 'Hot/Huerter', 'Ashley/Alli', '2025-04-22T18:00:00.000Z'],
-    
-    // Week 3 - April 29, 2025
-    [3, 1, 'Ryan/Drew', 'AP/JohnP', '2025-04-29T18:00:00.000Z'],
-    [3, 2, 'Trev/Murph', 'Clauss/Wade', '2025-04-29T18:00:00.000Z'],
-    [3, 3, 'Sketch/Rob', 'Brett/Tony', '2025-04-29T18:00:00.000Z'],
-    [3, 4, 'Brew/Jake', 'Hot/Huerter', '2025-04-29T18:00:00.000Z'],
-    [3, 5, 'Ashley/Alli', 'Nick/Brent', '2025-04-29T18:00:00.000Z'],
-    
-    // Week 4 - May 6, 2025
-    [4, 1, 'Nick/Brent', 'AP/JohnP', '2025-05-06T18:00:00.000Z'],
-    [4, 2, 'Hot/Huerter', 'Sketch/Rob', '2025-05-06T18:00:00.000Z'],
-    [4, 3, 'Ashley/Alli', 'Brew/Jake', '2025-05-06T18:00:00.000Z'],
-    [4, 4, 'Brett/Tony', 'Trev/Murph', '2025-05-06T18:00:00.000Z'],
-    [4, 5, 'Clauss/Wade', 'Ryan/Drew', '2025-05-06T18:00:00.000Z'],
-    
-    // Week 5 - May 13, 2025
-    [5, 1, 'Sketch/Rob', 'Ashley/Alli', '2025-05-13T18:00:00.000Z'],
-    [5, 2, 'Brew/Jake', 'Nick/Brent', '2025-05-13T18:00:00.000Z'],
-    [5, 3, 'Ryan/Drew', 'Brett/Tony', '2025-05-13T18:00:00.000Z'],
-    [5, 4, 'AP/JohnP', 'Clauss/Wade', '2025-05-13T18:00:00.000Z'],
-    [5, 5, 'Trev/Murph', 'Hot/Huerter', '2025-05-13T18:00:00.000Z'],
-    
-    // Week 6 - May 20, 2025
-    [6, 1, 'Nick/Brent', 'Clauss/Wade', '2025-05-20T18:00:00.000Z'],
-    [6, 2, 'Brett/Tony', 'AP/JohnP', '2025-05-20T18:00:00.000Z'],
-    [6, 3, 'Hot/Huerter', 'Ryan/Drew', '2025-05-20T18:00:00.000Z'],
-    [6, 4, 'Ashley/Alli', 'Trev/Murph', '2025-05-20T18:00:00.000Z'],
-    [6, 5, 'Brew/Jake', 'Sketch/Rob', '2025-05-20T18:00:00.000Z'],
-    
-    // Week 7 - May 27, 2025
-    [7, 1, 'Ryan/Drew', 'Ashley/Alli', '2025-05-27T18:00:00.000Z'],
-    [7, 2, 'Trev/Murph', 'Brew/Jake', '2025-05-27T18:00:00.000Z'],
-    [7, 3, 'AP/JohnP', 'Hot/Huerter', '2025-05-27T18:00:00.000Z'],
-    [7, 4, 'Clauss/Wade', 'Brett/Tony', '2025-05-27T18:00:00.000Z'],
-    [7, 5, 'Nick/Brent', 'Sketch/Rob', '2025-05-27T18:00:00.000Z'],
-    
-    // Week 8 - June 3, 2025
-    [8, 1, 'Brew/Jake', 'AP/JohnP', '2025-06-03T18:00:00.000Z'],
-    [8, 2, 'Sketch/Rob', 'Trev/Murph', '2025-06-03T18:00:00.000Z'],
-    [8, 3, 'Ashley/Alli', 'Clauss/Wade', '2025-06-03T18:00:00.000Z'],
-    [8, 4, 'Hot/Huerter', 'Brett/Tony', '2025-06-03T18:00:00.000Z'],
-    [8, 5, 'Nick/Brent', 'Ryan/Drew', '2025-06-03T18:00:00.000Z'],
-    
-    // Week 9 - June 10, 2025
-    [9, 1, 'AP/JohnP', 'Ashley/Alli', '2025-06-10T18:00:00.000Z'],
-    [9, 2, 'Clauss/Wade', 'Hot/Huerter', '2025-06-10T18:00:00.000Z'],
-    [9, 3, 'Brett/Tony', 'Nick/Brent', '2025-06-10T18:00:00.000Z'],
-    [9, 4, 'Ryan/Drew', 'Brew/Jake', '2025-06-10T18:00:00.000Z'],
-    [9, 5, 'Trev/Murph', 'Sketch/Rob', '2025-06-10T18:00:00.000Z'],
-    
-    // Week 10 - June 17, 2025
-    [10, 1, 'Hot/Huerter', 'AP/JohnP', '2025-06-17T18:00:00.000Z'],
-    [10, 2, 'Nick/Brent', 'Trev/Murph', '2025-06-17T18:00:00.000Z'],
-    [10, 3, 'Brew/Jake', 'Clauss/Wade', '2025-06-17T18:00:00.000Z'],
-    [10, 4, 'Sketch/Rob', 'Ryan/Drew', '2025-06-17T18:00:00.000Z'],
-    [10, 5, 'Ashley/Alli', 'Brett/Tony', '2025-06-17T18:00:00.000Z'],
-    
-    // Week 11 - June 24, 2025
-    [11, 1, 'Brett/Tony', 'Trev/Murph', '2025-06-24T18:00:00.000Z'],
-    [11, 2, 'Ryan/Drew', 'Clauss/Wade', '2025-06-24T18:00:00.000Z'],
-    [11, 3, 'AP/JohnP', 'Hot/Huerter', '2025-06-24T18:00:00.000Z'],
-    [11, 4, 'Ashley/Alli', 'Brew/Jake', '2025-06-24T18:00:00.000Z'],
-    [11, 5, 'Nick/Brent', 'Sketch/Rob', '2025-06-24T18:00:00.000Z'],
-    
-    // Week 12 - July 1, 2025
-    [12, 1, 'Hot/Huerter', 'Brew/Jake', '2025-07-01T18:00:00.000Z'],
-    [12, 2, 'Sketch/Rob', 'Trev/Murph', '2025-07-01T18:00:00.000Z'],
-    [12, 3, 'Ashley/Alli', 'Clauss/Wade', '2025-07-01T18:00:00.000Z'],
-    [12, 4, 'Nick/Brent', 'Ryan/Drew', '2025-07-01T18:00:00.000Z'],
-    [12, 5, 'AP/JohnP', 'Brett/Tony', '2025-07-01T18:00:00.000Z'],
-    
-    // Week 13 - July 8, 2025
-    [13, 1, 'Trev/Murph', 'Clauss/Wade', '2025-07-08T18:00:00.000Z'],
-    [13, 2, 'AP/JohnP', 'Ashley/Alli', '2025-07-08T18:00:00.000Z'],
-    [13, 3, 'Nick/Brent', 'Brew/Jake', '2025-07-08T18:00:00.000Z'],
-    [13, 4, 'Ryan/Drew', 'Hot/Huerter', '2025-07-08T18:00:00.000Z'],
-    [13, 5, 'Sketch/Rob', 'Brett/Tony', '2025-07-08T18:00:00.000Z'],
-    
-    // Week 14 - July 15, 2025
-    [14, 1, 'Hot/Huerter', 'Sketch/Rob', '2025-07-15T18:00:00.000Z'],
-    [14, 2, 'Nick/Brent', 'Clauss/Wade', '2025-07-15T18:00:00.000Z'],
-    [14, 3, 'Ashley/Alli', 'Ryan/Drew', '2025-07-15T18:00:00.000Z'],
-    [14, 4, 'Brew/Jake', 'Brett/Tony', '2025-07-15T18:00:00.000Z'],
-    [14, 5, 'Trev/Murph', 'AP/JohnP', '2025-07-15T18:00:00.000Z']
-  ];
-
-  // Process schedule data to create matches
-  scheduleData.forEach((matchData, index) => {
-    const [weekNumber, startingHole, homeTeamName, awayTeamName, dateString] = matchData;
-    
-    // Find team IDs based on names
-    const homeTeam = global.globalForPrisma.mockTeams.find(team => team.name === homeTeamName);
-    const awayTeam = global.globalForPrisma.mockTeams.find(team => team.name === awayTeamName);
-    
-    if (homeTeam && awayTeam) {
-      global.globalForPrisma.mockMatches.push({
-        id: `match${index + 1}`,
-        date: new Date(dateString),
-        weekNumber: weekNumber,
-        homeTeamId: homeTeam.id,
-        awayTeamId: awayTeam.id,
-        status: 'SCHEDULED',
-        startingHole: startingHole,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
+  // Create matches for the full season
+  const startDate = new Date('2025-04-15T18:00:00.000Z'); // Season start date (April 15, 2025)
+  
+  // Week 1
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match1',
+      date: new Date(startDate),
+      weekNumber: 1,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team2', // Hot/Huerter
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match2',
+      date: new Date(startDate),
+      weekNumber: 1,
+      homeTeamId: 'team3', // Ashley/Alli
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match3',
+      date: new Date(startDate),
+      weekNumber: 1,
+      homeTeamId: 'team5', // Sketch/Rob
+      awayTeamId: 'team6', // Trev/Murph
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match4',
+      date: new Date(startDate),
+      weekNumber: 1,
+      homeTeamId: 'team7', // Ryan/Drew
+      awayTeamId: 'team8', // AP/JohnP
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match5',
+      date: new Date(startDate),
+      weekNumber: 1,
+      homeTeamId: 'team9', // Clauss/Wade
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
     }
-  });
+  );
+  
+  // Week 2
+  const week2Date = new Date(startDate);
+  week2Date.setDate(week2Date.getDate() + 7); // April 22, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match6',
+      date: new Date(week2Date),
+      weekNumber: 2,
+      homeTeamId: 'team2', // Hot/Huerter
+      awayTeamId: 'team3', // Ashley/Alli
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match7',
+      date: new Date(week2Date),
+      weekNumber: 2,
+      homeTeamId: 'team4', // Brew/Jake
+      awayTeamId: 'team5', // Sketch/Rob
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match8',
+      date: new Date(week2Date),
+      weekNumber: 2,
+      homeTeamId: 'team6', // Trev/Murph
+      awayTeamId: 'team7', // Ryan/Drew
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match9',
+      date: new Date(week2Date),
+      weekNumber: 2,
+      homeTeamId: 'team8', // AP/JohnP
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match10',
+      date: new Date(week2Date),
+      weekNumber: 2,
+      homeTeamId: 'team10', // Brett/Tony
+      awayTeamId: 'team1', // Nick/Brent
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 3
+  const week3Date = new Date(week2Date);
+  week3Date.setDate(week3Date.getDate() + 7); // April 29, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match11',
+      date: new Date(week3Date),
+      weekNumber: 3,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team3', // Ashley/Alli
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match12',
+      date: new Date(week3Date),
+      weekNumber: 3,
+      homeTeamId: 'team2', // Hot/Huerter
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match13',
+      date: new Date(week3Date),
+      weekNumber: 3,
+      homeTeamId: 'team5', // Sketch/Rob
+      awayTeamId: 'team7', // Ryan/Drew
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match14',
+      date: new Date(week3Date),
+      weekNumber: 3,
+      homeTeamId: 'team6', // Trev/Murph
+      awayTeamId: 'team8', // AP/JohnP
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match15',
+      date: new Date(week3Date),
+      weekNumber: 3,
+      homeTeamId: 'team9', // Clauss/Wade
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+
+  // Week 4
+  const week4Date = new Date(week3Date);
+  week4Date.setDate(week4Date.getDate() + 7); // May 6, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match16',
+      date: new Date(week4Date),
+      weekNumber: 4,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team8', // AP/JohnP
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match17',
+      date: new Date(week4Date),
+      weekNumber: 4,
+      homeTeamId: 'team2', // Hot/Huerter
+      awayTeamId: 'team5', // Sketch/Rob
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match18',
+      date: new Date(week4Date),
+      weekNumber: 4,
+      homeTeamId: 'team3', // Ashley/Alli
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match19',
+      date: new Date(week4Date),
+      weekNumber: 4,
+      homeTeamId: 'team10', // Brett/Tony
+      awayTeamId: 'team6', // Trev/Murph
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match20',
+      date: new Date(week4Date),
+      weekNumber: 4,
+      homeTeamId: 'team9', // Clauss/Wade
+      awayTeamId: 'team7', // Ryan/Drew
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 5
+  const week5Date = new Date(week4Date);
+  week5Date.setDate(week5Date.getDate() + 7); // May 13, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match21',
+      date: new Date(week5Date),
+      weekNumber: 5,
+      homeTeamId: 'team5', // Sketch/Rob
+      awayTeamId: 'team3', // Ashley/Alli
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match22',
+      date: new Date(week5Date),
+      weekNumber: 5,
+      homeTeamId: 'team4', // Brew/Jake
+      awayTeamId: 'team1', // Nick/Brent
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match23',
+      date: new Date(week5Date),
+      weekNumber: 5,
+      homeTeamId: 'team7', // Ryan/Drew
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match24',
+      date: new Date(week5Date),
+      weekNumber: 5,
+      homeTeamId: 'team8', // AP/JohnP
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match25',
+      date: new Date(week5Date),
+      weekNumber: 5,
+      homeTeamId: 'team6', // Trev/Murph
+      awayTeamId: 'team2', // Hot/Huerter
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 6
+  const week6Date = new Date(week5Date);
+  week6Date.setDate(week6Date.getDate() + 7); // May 20, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match26',
+      date: new Date(week6Date),
+      weekNumber: 6,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match27',
+      date: new Date(week6Date),
+      weekNumber: 6,
+      homeTeamId: 'team10', // Brett/Tony
+      awayTeamId: 'team8', // AP/JohnP
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match28',
+      date: new Date(week6Date),
+      weekNumber: 6,
+      homeTeamId: 'team2', // Hot/Huerter
+      awayTeamId: 'team7', // Ryan/Drew
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match29',
+      date: new Date(week6Date),
+      weekNumber: 6,
+      homeTeamId: 'team3', // Ashley/Alli
+      awayTeamId: 'team6', // Trev/Murph
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match30',
+      date: new Date(week6Date),
+      weekNumber: 6,
+      homeTeamId: 'team4', // Brew/Jake
+      awayTeamId: 'team5', // Sketch/Rob
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 7
+  const week7Date = new Date(week6Date);
+  week7Date.setDate(week7Date.getDate() + 7); // May 27, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match31',
+      date: new Date(week7Date),
+      weekNumber: 7,
+      homeTeamId: 'team7', // Ryan/Drew
+      awayTeamId: 'team3', // Ashley/Alli
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match32',
+      date: new Date(week7Date),
+      weekNumber: 7,
+      homeTeamId: 'team6', // Trev/Murph
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match33',
+      date: new Date(week7Date),
+      weekNumber: 7,
+      homeTeamId: 'team8', // AP/JohnP
+      awayTeamId: 'team2', // Hot/Huerter
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match34',
+      date: new Date(week7Date),
+      weekNumber: 7,
+      homeTeamId: 'team9', // Clauss/Wade
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match35',
+      date: new Date(week7Date),
+      weekNumber: 7,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team5', // Sketch/Rob
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 8
+  const week8Date = new Date(week7Date);
+  week8Date.setDate(week8Date.getDate() + 7); // June 3, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match36',
+      date: new Date(week8Date),
+      weekNumber: 8,
+      homeTeamId: 'team4', // Brew/Jake
+      awayTeamId: 'team8', // AP/JohnP
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match37',
+      date: new Date(week8Date),
+      weekNumber: 8,
+      homeTeamId: 'team5', // Sketch/Rob
+      awayTeamId: 'team6', // Trev/Murph
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match38',
+      date: new Date(week8Date),
+      weekNumber: 8,
+      homeTeamId: 'team3', // Ashley/Alli
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match39',
+      date: new Date(week8Date),
+      weekNumber: 8,
+      homeTeamId: 'team2', // Hot/Huerter
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match40',
+      date: new Date(week8Date),
+      weekNumber: 8,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team7', // Ryan/Drew
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 9
+  const week9Date = new Date(week8Date);
+  week9Date.setDate(week9Date.getDate() + 7); // June 10, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match41',
+      date: new Date(week9Date),
+      weekNumber: 9,
+      homeTeamId: 'team8', // AP/JohnP
+      awayTeamId: 'team3', // Ashley/Alli
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match42',
+      date: new Date(week9Date),
+      weekNumber: 9,
+      homeTeamId: 'team9', // Clauss/Wade
+      awayTeamId: 'team2', // Hot/Huerter
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match43',
+      date: new Date(week9Date),
+      weekNumber: 9,
+      homeTeamId: 'team10', // Brett/Tony
+      awayTeamId: 'team1', // Nick/Brent
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match44',
+      date: new Date(week9Date),
+      weekNumber: 9,
+      homeTeamId: 'team7', // Ryan/Drew
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match45',
+      date: new Date(week9Date),
+      weekNumber: 9,
+      homeTeamId: 'team6', // Trev/Murph
+      awayTeamId: 'team5', // Sketch/Rob
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 11
+  const week11Date = new Date(week9Date);
+  week11Date.setDate(week11Date.getDate() + 14); // June 24, 2025 (Skip week 10)
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match46',
+      date: new Date(week11Date),
+      weekNumber: 11,
+      homeTeamId: 'team10', // Brett/Tony
+      awayTeamId: 'team6', // Trev/Murph
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match47',
+      date: new Date(week11Date),
+      weekNumber: 11,
+      homeTeamId: 'team7', // Ryan/Drew
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match48',
+      date: new Date(week11Date),
+      weekNumber: 11,
+      homeTeamId: 'team8', // AP/JohnP
+      awayTeamId: 'team2', // Hot/Huerter
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match49',
+      date: new Date(week11Date),
+      weekNumber: 11,
+      homeTeamId: 'team3', // Ashley/Alli
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match50',
+      date: new Date(week11Date),
+      weekNumber: 11,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team5', // Sketch/Rob
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 12
+  const week12Date = new Date(week11Date);
+  week12Date.setDate(week12Date.getDate() + 7); // July 1, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match51',
+      date: new Date(week12Date),
+      weekNumber: 12,
+      homeTeamId: 'team2', // Hot/Huerter
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match52',
+      date: new Date(week12Date),
+      weekNumber: 12,
+      homeTeamId: 'team5', // Sketch/Rob
+      awayTeamId: 'team6', // Trev/Murph
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match53',
+      date: new Date(week12Date),
+      weekNumber: 12,
+      homeTeamId: 'team3', // Ashley/Alli
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match54',
+      date: new Date(week12Date),
+      weekNumber: 12,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team7', // Ryan/Drew
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match55',
+      date: new Date(week12Date),
+      weekNumber: 12,
+      homeTeamId: 'team8', // AP/JohnP
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 13
+  const week13Date = new Date(week12Date);
+  week13Date.setDate(week13Date.getDate() + 7); // July 8, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match56',
+      date: new Date(week13Date),
+      weekNumber: 13,
+      homeTeamId: 'team6', // Trev/Murph
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match57',
+      date: new Date(week13Date),
+      weekNumber: 13,
+      homeTeamId: 'team8', // AP/JohnP
+      awayTeamId: 'team3', // Ashley/Alli
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match58',
+      date: new Date(week13Date),
+      weekNumber: 13,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team4', // Brew/Jake
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match59',
+      date: new Date(week13Date),
+      weekNumber: 13,
+      homeTeamId: 'team7', // Ryan/Drew
+      awayTeamId: 'team2', // Hot/Huerter
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match60',
+      date: new Date(week13Date),
+      weekNumber: 13,
+      homeTeamId: 'team5', // Sketch/Rob
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
+  
+  // Week 14
+  const week14Date = new Date(week13Date);
+  week14Date.setDate(week14Date.getDate() + 7); // July 15, 2025
+  
+  global.globalForPrisma.mockMatches.push(
+    {
+      id: 'match61',
+      date: new Date(week14Date),
+      weekNumber: 14,
+      homeTeamId: 'team2', // Hot/Huerter
+      awayTeamId: 'team5', // Sketch/Rob
+      status: 'SCHEDULED',
+      startingHole: 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match62',
+      date: new Date(week14Date),
+      weekNumber: 14,
+      homeTeamId: 'team1', // Nick/Brent
+      awayTeamId: 'team9', // Clauss/Wade
+      status: 'SCHEDULED',
+      startingHole: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match63',
+      date: new Date(week14Date),
+      weekNumber: 14,
+      homeTeamId: 'team3', // Ashley/Alli
+      awayTeamId: 'team7', // Ryan/Drew
+      status: 'SCHEDULED',
+      startingHole: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match64',
+      date: new Date(week14Date),
+      weekNumber: 14,
+      homeTeamId: 'team4', // Brew/Jake
+      awayTeamId: 'team10', // Brett/Tony
+      status: 'SCHEDULED',
+      startingHole: 7,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'match65',
+      date: new Date(week14Date),
+      weekNumber: 14,
+      homeTeamId: 'team6', // Trev/Murph
+      awayTeamId: 'team8', // AP/JohnP
+      status: 'SCHEDULED',
+      startingHole: 9,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  );
 
   global.globalForPrisma.isInitialized = true;
 }
@@ -796,6 +1479,44 @@ const mockPrismaClient = {
       return result;
     },
     
+    update: async (params: UpdateParams) => {
+      if (!params.where || !params.where.id) {
+        throw new Error('Match ID is required for update operation');
+      }
+      
+      console.log(`Mock: Updating match with ID ${params.where.id}`, params.data);
+      
+      const matchIndex = mockMatches.findIndex(m => m.id === params.where.id);
+      
+      if (matchIndex === -1) {
+        throw new Error(`Match with ID ${params.where.id} not found`);
+      }
+      
+      const updatedMatch = {
+        ...mockMatches[matchIndex],
+        ...params.data,
+        updatedAt: new Date()
+      };
+      
+      mockMatches[matchIndex] = updatedMatch;
+      // Update the global reference to ensure persistence
+      global.globalForPrisma.mockMatches = mockMatches;
+      
+      const result = deepClone(updatedMatch);
+      
+      if (params.include) {
+        if (params.include.homeTeam) {
+          result.homeTeam = deepClone(mockTeams.find(t => t.id === updatedMatch.homeTeamId) || null);
+        }
+        
+        if (params.include.awayTeam) {
+          result.awayTeam = deepClone(mockTeams.find(t => t.id === updatedMatch.awayTeamId) || null);
+        }
+      }
+      
+      return result;
+    },
+    
     count: async (params: FindManyParams = {}) => {
       console.log('Mock: Counting matches', params);
       
@@ -901,6 +1622,295 @@ const mockPrismaClient = {
       global.globalForPrisma.mockMatchPlayers.splice(index, 1)
       return deletedMatchPlayer
     },
+  },
+  matchScore: {
+    findMany: async (params: any = {}) => {
+      if (!global.globalForPrisma.mockMatchScores) {
+        global.globalForPrisma.mockMatchScores = [];
+      }
+
+      let results = [...global.globalForPrisma.mockMatchScores];
+
+      // Apply filtering if where clause is provided
+      if (params?.where) {
+        // Filter by matchId
+        if (params.where.matchId) {
+          results = results.filter(score => score.matchId === params.where.matchId);
+        }
+
+        // Filter by playerId
+        if (params.where.playerId) {
+          results = results.filter(score => score.playerId === params.where.playerId);
+        }
+
+        // Filter by teamId
+        if (params.where.teamId) {
+          results = results.filter(score => score.teamId === params.where.teamId);
+        }
+
+        // Filter by holeNumber
+        if (params.where.holeNumber) {
+          results = results.filter(score => score.holeNumber === params.where.holeNumber);
+        }
+
+        // Filter by OR conditions
+        if (params.where.OR) {
+          results = results.filter(score => {
+            return params.where.OR.some((condition: any) => {
+              // Check if all conditions in this OR branch match
+              return Object.entries(condition).every(([key, value]) => {
+                return score[key as keyof typeof score] === value;
+              });
+            });
+          });
+        }
+      }
+
+      // Handle includes
+      if (params?.include) {
+        results = results.map(score => {
+          const result = { ...score };
+
+          // Include player data if requested
+          if (params.include.player) {
+            const player = global.globalForPrisma.mockPlayers.find(
+              player => player.id === score.playerId
+            );
+            result.player = player || null;
+          }
+
+          // Include match data if requested
+          if (params.include.match) {
+            const match = global.globalForPrisma.mockMatches.find(
+              match => match.id === score.matchId
+            );
+            result.match = match || null;
+          }
+
+          return result;
+        });
+      }
+
+      // Handle orderBy
+      if (params?.orderBy) {
+        const orderByField = Object.keys(params.orderBy)[0];
+        const orderDirection = params.orderBy[orderByField];
+
+        results.sort((a, b) => {
+          if (a[orderByField as keyof typeof a] < b[orderByField as keyof typeof b]) {
+            return orderDirection === 'asc' ? -1 : 1;
+          }
+          if (a[orderByField as keyof typeof a] > b[orderByField as keyof typeof b]) {
+            return orderDirection === 'asc' ? 1 : -1;
+          }
+          return 0;
+        });
+      }
+
+      return results;
+    },
+
+    findUnique: async (params: any = {}) => {
+      if (!global.globalForPrisma.mockMatchScores) {
+        global.globalForPrisma.mockMatchScores = [];
+      }
+
+      if (!params?.where) {
+        return null;
+      }
+
+      // Find by ID
+      if (params.where.id) {
+        return global.globalForPrisma.mockMatchScores.find(score => score.id === params.where.id) || null;
+      }
+
+      // Find by unique combination of matchId, playerId, and holeNumber
+      if (params.where.matchId_playerId_hole) {
+        const { matchId, playerId, hole } = params.where.matchId_playerId_hole;
+        return global.globalForPrisma.mockMatchScores.find(
+          score => 
+            score.matchId === matchId && 
+            score.playerId === playerId && 
+            score.hole === hole
+        ) || null;
+      }
+
+      return null;
+    },
+
+    create: async (params: any = {}) => {
+      if (!global.globalForPrisma.mockMatchScores) {
+        global.globalForPrisma.mockMatchScores = [];
+      }
+
+      if (!params?.data) {
+        throw new Error('Data is required for creating a match score');
+      }
+
+      const newScore = {
+        id: `score${global.globalForPrisma.mockMatchScores.length + 1}`,
+        ...params.data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      global.globalForPrisma.mockMatchScores.push(newScore);
+      
+      // Log the creation for debugging
+      console.log(`Created match score: ${JSON.stringify(newScore)}`);
+      
+      return newScore;
+    },
+
+    update: async (params: any = {}) => {
+      if (!global.globalForPrisma.mockMatchScores) {
+        global.globalForPrisma.mockMatchScores = [];
+      }
+
+      if (!params?.where || !params?.data) {
+        throw new Error('Both where and data are required for updating a match score');
+      }
+
+      let scoreToUpdate;
+      let scoreIndex = -1;
+
+      // Find by ID
+      if (params.where.id) {
+        scoreIndex = global.globalForPrisma.mockMatchScores.findIndex(score => score.id === params.where.id);
+      }
+      
+      // Find by unique combination of matchId, playerId, and holeNumber
+      else if (params.where.matchId_playerId_hole) {
+        const { matchId, playerId, hole } = params.where.matchId_playerId_hole;
+        scoreIndex = global.globalForPrisma.mockMatchScores.findIndex(
+          score => 
+            score.matchId === matchId && 
+            score.playerId === playerId && 
+            score.hole === hole
+        );
+      }
+
+      if (scoreIndex === -1) {
+        throw new Error('Match score not found');
+      }
+
+      scoreToUpdate = global.globalForPrisma.mockMatchScores[scoreIndex];
+      
+      // Update the score
+      const updatedScore = {
+        ...scoreToUpdate,
+        ...params.data,
+        updatedAt: new Date()
+      };
+
+      global.globalForPrisma.mockMatchScores[scoreIndex] = updatedScore;
+      
+      // Log the update for debugging
+      console.log(`Updated match score: ${JSON.stringify(updatedScore)}`);
+      
+      return updatedScore;
+    },
+
+    upsert: async (params: any = {}) => {
+      if (!global.globalForPrisma.mockMatchScores) {
+        global.globalForPrisma.mockMatchScores = [];
+      }
+
+      if (!params?.where || !params?.create || !params?.update) {
+        throw new Error('where, create, and update are required for upserting a match score');
+      }
+
+      let existingScore;
+
+      // Find by ID
+      if (params.where.id) {
+        existingScore = global.globalForPrisma.mockMatchScores.find(score => score.id === params.where.id);
+      }
+      
+      // Find by unique combination of matchId, playerId, and holeNumber
+      else if (params.where.matchId_playerId_hole) {
+        const { matchId, playerId, hole } = params.where.matchId_playerId_hole;
+        existingScore = global.globalForPrisma.mockMatchScores.find(
+          score => 
+            score.matchId === matchId && 
+            score.playerId === playerId && 
+            score.hole === hole
+        );
+      }
+
+      // If score exists, update it
+      if (existingScore) {
+        return mockPrismaClient.matchScore.update({
+          where: params.where,
+          data: params.update
+        });
+      }
+      
+      // Otherwise, create a new score
+      return mockPrismaClient.matchScore.create({
+        data: params.create
+      });
+    },
+
+    deleteMany: async (params: any = {}) => {
+      if (!global.globalForPrisma.mockMatchScores) {
+        global.globalForPrisma.mockMatchScores = [];
+      }
+
+      const initialCount = global.globalForPrisma.mockMatchScores.length;
+
+      if (params?.where) {
+        // Delete by matchId
+        if (params.where.matchId) {
+          global.globalForPrisma.mockMatchScores = global.globalForPrisma.mockMatchScores.filter(
+            score => score.matchId !== params.where.matchId
+          );
+        }
+
+        // Delete by playerId
+        if (params.where.playerId) {
+          global.globalForPrisma.mockMatchScores = global.globalForPrisma.mockMatchScores.filter(
+            score => score.playerId !== params.where.playerId
+          );
+        }
+
+        // Delete by teamId
+        if (params.where.teamId) {
+          global.globalForPrisma.mockMatchScores = global.globalForPrisma.mockMatchScores.filter(
+            score => score.teamId !== params.where.teamId
+          );
+        }
+
+        // Delete by holeNumber
+        if (params.where.hole) {
+          global.globalForPrisma.mockMatchScores = global.globalForPrisma.mockMatchScores.filter(
+            score => score.hole !== params.where.hole
+          );
+        }
+
+        // Delete by OR conditions
+        if (params.where.OR) {
+          global.globalForPrisma.mockMatchScores = global.globalForPrisma.mockMatchScores.filter(score => {
+            return !params.where.OR.some((condition: any) => {
+              // Check if all conditions in this OR branch match
+              return Object.entries(condition).every(([key, value]) => {
+                return score[key as keyof typeof score] === value;
+              });
+            });
+          });
+        }
+      } else {
+        // If no where clause, delete all scores
+        global.globalForPrisma.mockMatchScores = [];
+      }
+
+      const deletedCount = initialCount - global.globalForPrisma.mockMatchScores.length;
+      
+      // Log the deletion for debugging
+      console.log(`Deleted ${deletedCount} match scores`);
+      
+      return { count: deletedCount };
+    }
   },
 };
 

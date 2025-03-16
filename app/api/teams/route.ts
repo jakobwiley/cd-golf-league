@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
 import { z } from 'zod'
+import { SocketEvents } from '../../../lib/socket'
 
 const PlayerSchema = z.object({
   id: z.string().optional(),
@@ -12,6 +13,32 @@ const TeamSchema = z.object({
   name: z.string().min(1, 'Team name is required'),
   players: z.array(PlayerSchema).min(2, 'Team must have at least 2 players'),
 })
+
+// Function to emit team updated event
+async function emitTeamUpdated(teamId: string) {
+  try {
+    // Get the Socket.io server instance
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/socket`, {
+      method: 'GET',
+    })
+    
+    if (!res.ok) {
+      console.error('Failed to get Socket.io server instance')
+      return
+    }
+    
+    // Emit the team updated event
+    const socketIo = (global as any).socketIo
+    if (socketIo) {
+      console.log(`Emitting ${SocketEvents.TEAM_UPDATED} event for team ${teamId}`)
+      socketIo.emit(SocketEvents.TEAM_UPDATED, { teamId })
+    } else {
+      console.warn('Socket.io server not initialized')
+    }
+  } catch (error) {
+    console.error('Error emitting team updated event:', error)
+  }
+}
 
 export async function GET() {
   try {
@@ -54,10 +81,10 @@ export async function POST(request: Request) {
       data: {
         name,
       },
-      include: {
-        players: true,
-      },
     })
+
+    // Emit Socket.IO event for real-time updates
+    await emitTeamUpdated(team.id)
 
     return NextResponse.json(team)
   } catch (error) {
@@ -71,27 +98,34 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { id, ...updateData } = await request.json()
-    const validatedData = TeamSchema.parse(updateData)
+    const body = await request.json()
+    const { id, name } = body
 
-    // Update team and handle player changes
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Team ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Team name is required' },
+        { status: 400 }
+      )
+    }
+
     const team = await prisma.team.update({
-      where: { id },
-      data: {
-        name: validatedData.name,
-        players: {
-          deleteMany: {}, // Remove existing players
-          create: validatedData.players.map(player => ({
-            name: player.name,
-            ghinNumber: player.ghinNumber,
-            ...(player.id && { id: player.id })
-          })), // Add new players with required fields
-        },
+      where: {
+        id,
       },
-      include: {
-        players: true,
+      data: {
+        name,
       },
     })
+
+    // Emit Socket.IO event for real-time updates
+    await emitTeamUpdated(team.id)
 
     return NextResponse.json(team)
   } catch (error) {
@@ -104,20 +138,28 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
-
-  if (!id) {
-    return NextResponse.json(
-      { error: 'Team ID is required' },
-      { status: 400 }
-    )
-  }
-
   try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Team ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Store the team ID before deletion
+    const teamId = id
+
     await prisma.team.delete({
-      where: { id },
+      where: {
+        id,
+      },
     })
+
+    // Emit Socket.IO event for real-time updates
+    await emitTeamUpdated(teamId)
 
     return NextResponse.json({ success: true })
   } catch (error) {
