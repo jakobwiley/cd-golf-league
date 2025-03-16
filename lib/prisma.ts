@@ -2,6 +2,14 @@
 // It uses in-memory arrays to store data
 
 import { PrismaClient } from '@prisma/client'
+import { 
+  loadMockData, 
+  saveMockData, 
+  updateMockCollection, 
+  getMockCollection,
+  setMockInitialized,
+  isMockInitialized
+} from './mock-storage';
 
 // Add MatchPlayer to the global type
 declare global {
@@ -20,15 +28,18 @@ declare global {
 
 // Initialize the global object if it doesn't exist
 if (!global.globalForPrisma) {
+  // Load data from file storage
+  const mockData = loadMockData();
+  
   global.globalForPrisma = {
-    mockTeams: [],
-    mockPlayers: [],
-    mockMatches: [],
-    mockScores: [],
-    mockPoints: [],
-    mockMatchPlayers: [], // Initialize empty matchPlayers array
-    mockMatchScores: [], // Initialize mockMatchScores array
-    isInitialized: false,
+    mockTeams: mockData.teams,
+    mockPlayers: mockData.players,
+    mockMatches: mockData.matches,
+    mockScores: mockData.scores,
+    mockPoints: mockData.points,
+    mockMatchPlayers: mockData.matchPlayers,
+    mockMatchScores: mockData.matchScores,
+    isInitialized: mockData.isInitialized,
   }
 }
 
@@ -958,7 +969,33 @@ if (!global.globalForPrisma.isInitialized) {
     }
   );
 
+  // After initialization, save the data to file storage
+  saveMockData({
+    teams: global.globalForPrisma.mockTeams,
+    players: global.globalForPrisma.mockPlayers,
+    matches: global.globalForPrisma.mockMatches,
+    scores: global.globalForPrisma.mockScores,
+    points: global.globalForPrisma.mockPoints,
+    matchPlayers: global.globalForPrisma.mockMatchPlayers,
+    matchScores: global.globalForPrisma.mockMatchScores,
+    isInitialized: true
+  });
+  
   global.globalForPrisma.isInitialized = true;
+}
+
+// Helper function to save changes to file storage
+function saveChanges() {
+  saveMockData({
+    teams: global.globalForPrisma.mockTeams,
+    players: global.globalForPrisma.mockPlayers,
+    matches: global.globalForPrisma.mockMatches,
+    scores: global.globalForPrisma.mockScores,
+    points: global.globalForPrisma.mockPoints,
+    matchPlayers: global.globalForPrisma.mockMatchPlayers,
+    matchScores: global.globalForPrisma.mockMatchScores,
+    isInitialized: global.globalForPrisma.isInitialized
+  });
 }
 
 // Access the global mock data
@@ -1119,6 +1156,8 @@ const mockPrismaClient = {
       mockTeams.push(newTeam);
       // Update the global reference to ensure persistence
       global.globalForPrisma.mockTeams = mockTeams;
+      // Save changes to file storage
+      saveChanges();
       console.log(`Added team to mock database. Total teams: ${mockTeams.length}`);
       
       return deepClone(newTeam);
@@ -1260,6 +1299,8 @@ const mockPrismaClient = {
       mockPlayers.push(newPlayer);
       // Update the global reference to ensure persistence
       global.globalForPrisma.mockPlayers = mockPlayers;
+      // Save changes to file storage
+      saveChanges();
       console.log(`Added player to mock database. Total players: ${mockPlayers.length}`);
       
       const result = deepClone(newPlayer);
@@ -1462,6 +1503,8 @@ const mockPrismaClient = {
       mockMatches.push(newMatch);
       // Update the global reference to ensure persistence
       global.globalForPrisma.mockMatches = mockMatches;
+      // Save changes to file storage
+      saveChanges();
       console.log(`Added match to mock database. Total matches: ${mockMatches.length}`);
       
       const result = deepClone(newMatch);
@@ -1755,6 +1798,8 @@ const mockPrismaClient = {
       };
 
       global.globalForPrisma.mockMatchScores.push(newScore);
+      // Save changes to file storage
+      saveChanges();
       
       // Log the creation for debugging
       console.log(`Created match score: ${JSON.stringify(newScore)}`);
