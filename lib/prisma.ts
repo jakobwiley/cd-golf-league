@@ -1,20 +1,16 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Team, Player } from '@prisma/client'
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
+// Define types for mock data
+type MockTeam = Team & {
+  players?: MockPlayer[];
+}
 
-// Check if we're using placeholder credentials
-const isUsingPlaceholders = 
-  !process.env.DATABASE_URL || 
-  process.env.DATABASE_URL.includes('placeholder') ||
-  !process.env.DATABASE_URL.startsWith('postgresql://');
-
-// Ensure DATABASE_URL has the correct format
-const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgresql://') 
-  ? process.env.DATABASE_URL 
-  : "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+type MockPlayer = Player & {
+  team?: MockTeam;
+}
 
 // Store teams in memory so they persist between requests
-let mockTeams = [
+let mockTeams: MockTeam[] = [
   {
     id: 'team1',
     name: 'Nick/Brent',
@@ -88,9 +84,7 @@ let mockTeams = [
 ];
 
 // Store players in memory so they persist between requests
-let mockPlayers = [
-  // Initial players can be added here if needed
-];
+let mockPlayers: MockPlayer[] = [];
 
 // Create a mock client for development with placeholder credentials
 const mockPrismaClient = {
@@ -129,6 +123,28 @@ const mockPrismaClient = {
     return await callback(txClient);
   },
   team: {
+    findFirst: async (options?: any) => {
+      console.log('Mock finding first team:', options);
+      
+      const teamName = options?.where?.name;
+      const team = mockTeams.find(t => t.name === teamName);
+      
+      if (team) {
+        // Create a deep copy
+        const teamCopy = JSON.parse(JSON.stringify(team));
+        
+        // If include is specified, handle it
+        if (options?.include?.players) {
+          teamCopy.players = mockPlayers
+            .filter(p => p.teamId === team.id)
+            .map(p => JSON.parse(JSON.stringify(p)));
+        }
+        
+        return teamCopy;
+      }
+      
+      return null;
+    },
     findMany: async (options?: any) => {
       console.log('Using mock team data');
       
@@ -332,10 +348,13 @@ const mockPrismaClient = {
         const id = playerData.id || `player${Math.floor(Math.random() * 10000)}`;
         
         // Create the player object with only the fields that are in the Prisma schema
-        const newPlayer = {
+        const newPlayer: MockPlayer = {
           id,
           name: playerData.name,
           teamId: playerData.teamId,
+          playerType: playerData.playerType || 'REGULAR',
+          handicapIndex: playerData.handicapIndex || 0,
+          handicap: playerData.handicap || null,
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -469,34 +488,31 @@ const mockPrismaClient = {
   }
 } as unknown as PrismaClient;
 
-// Create the real client with error handling
-let prismaClient: PrismaClient;
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
-try {
-  // Always use the mock client when using placeholder credentials
-  if (isUsingPlaceholders) {
-    console.log('Using mock Prisma client for development');
-    console.log('Database URL:', process.env.DATABASE_URL);
-    console.log('Is using placeholders:', isUsingPlaceholders);
-    prismaClient = mockPrismaClient;
-  } else {
-    console.log('Using real Prisma client');
-    console.log('Database URL:', process.env.DATABASE_URL);
-    prismaClient = globalForPrisma.prisma || new PrismaClient({
-      log: ['query'],
-      datasources: {
-        db: {
-          url: databaseUrl,
-        },
-      },
-    });
-    
-    if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prismaClient;
+// Check if we're using placeholder credentials
+const isUsingPlaceholders = 
+  !process.env.DATABASE_URL || 
+  process.env.DATABASE_URL.includes('placeholder') ||
+  !process.env.DATABASE_URL.startsWith('postgresql://');
+
+// Ensure DATABASE_URL has the correct format
+const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgresql://') 
+  ? process.env.DATABASE_URL 
+  : "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+
+// Initialize Prisma Client
+const prismaClient = globalForPrisma.prisma || new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl
+    }
   }
-} catch (error) {
-  console.error('Failed to initialize Prisma client:', error);
-  console.log('Falling back to mock Prisma client');
-  prismaClient = mockPrismaClient;
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prismaClient;
 }
 
-export const prisma = prismaClient; 
+// Export the appropriate client based on environment
+export const prisma = process.env.NODE_ENV === 'production' ? prismaClient : mockPrismaClient; 
