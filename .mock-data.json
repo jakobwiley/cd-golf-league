@@ -1,0 +1,978 @@
+{
+  "teams": [
+    {
+      "id": "team1",
+      "name": "Nick/Brent",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team2",
+      "name": "Hot/Huerter",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team3",
+      "name": "Ashley/Alli",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team4",
+      "name": "Brew/Jake",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team5",
+      "name": "Sketch/Rob",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team6",
+      "name": "Trev/Murph",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team7",
+      "name": "Ryan/Drew",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team8",
+      "name": "AP/JohnP",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team9",
+      "name": "Clauss/Wade",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "team10",
+      "name": "Brett/Tony",
+      "players": [],
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    }
+  ],
+  "players": [
+    {
+      "id": "player1",
+      "name": "AP",
+      "playerType": "PRIMARY",
+      "handicapIndex": 7.3,
+      "teamId": "team8",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player2",
+      "name": "JohnP",
+      "playerType": "PRIMARY",
+      "handicapIndex": 21.4,
+      "teamId": "team8",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player3",
+      "name": "Brett",
+      "playerType": "PRIMARY",
+      "handicapIndex": 10.3,
+      "teamId": "team10",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player4",
+      "name": "Tony",
+      "playerType": "PRIMARY",
+      "handicapIndex": 14.1,
+      "teamId": "team10",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player5",
+      "name": "Drew",
+      "playerType": "PRIMARY",
+      "handicapIndex": 10.6,
+      "teamId": "team7",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player6",
+      "name": "Ryan",
+      "playerType": "PRIMARY",
+      "handicapIndex": 13.9,
+      "teamId": "team7",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player7",
+      "name": "Nick",
+      "playerType": "PRIMARY",
+      "handicapIndex": 11.3,
+      "teamId": "team1",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player8",
+      "name": "Brent",
+      "playerType": "PRIMARY",
+      "handicapIndex": 12,
+      "teamId": "team1",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player9",
+      "name": "Huerter",
+      "playerType": "PRIMARY",
+      "handicapIndex": 11.8,
+      "teamId": "team2",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player10",
+      "name": "Hot",
+      "playerType": "PRIMARY",
+      "handicapIndex": 17.2,
+      "teamId": "team2",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player11",
+      "name": "Sketch",
+      "playerType": "PRIMARY",
+      "handicapIndex": 11.9,
+      "teamId": "team5",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player12",
+      "name": "Rob",
+      "playerType": "PRIMARY",
+      "handicapIndex": 18.1,
+      "teamId": "team5",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player13",
+      "name": "Clauss",
+      "playerType": "PRIMARY",
+      "handicapIndex": 12.5,
+      "teamId": "team9",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player14",
+      "name": "Wade",
+      "playerType": "PRIMARY",
+      "handicapIndex": 15,
+      "teamId": "team9",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player15",
+      "name": "Murph",
+      "playerType": "PRIMARY",
+      "handicapIndex": 12.6,
+      "teamId": "team6",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player16",
+      "name": "Trev",
+      "playerType": "PRIMARY",
+      "handicapIndex": 16,
+      "teamId": "team6",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player17",
+      "name": "Brew",
+      "playerType": "PRIMARY",
+      "handicapIndex": 13.4,
+      "teamId": "team4",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player18",
+      "name": "Jake",
+      "playerType": "PRIMARY",
+      "handicapIndex": 16.7,
+      "teamId": "team4",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player19",
+      "name": "Ashley",
+      "playerType": "PRIMARY",
+      "handicapIndex": 40.6,
+      "teamId": "team3",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "player20",
+      "name": "Alli",
+      "playerType": "PRIMARY",
+      "handicapIndex": 30,
+      "teamId": "team3",
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    }
+  ],
+  "matches": [
+    {
+      "id": "match1",
+      "date": "2025-04-15T18:00:00.000Z",
+      "weekNumber": 1,
+      "homeTeamId": "team1",
+      "awayTeamId": "team2",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match2",
+      "date": "2025-04-15T18:00:00.000Z",
+      "weekNumber": 1,
+      "homeTeamId": "team3",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match3",
+      "date": "2025-04-15T18:00:00.000Z",
+      "weekNumber": 1,
+      "homeTeamId": "team5",
+      "awayTeamId": "team6",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match4",
+      "date": "2025-04-15T18:00:00.000Z",
+      "weekNumber": 1,
+      "homeTeamId": "team7",
+      "awayTeamId": "team8",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match5",
+      "date": "2025-04-15T18:00:00.000Z",
+      "weekNumber": 1,
+      "homeTeamId": "team9",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match6",
+      "date": "2025-04-22T18:00:00.000Z",
+      "weekNumber": 2,
+      "homeTeamId": "team2",
+      "awayTeamId": "team3",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match7",
+      "date": "2025-04-22T18:00:00.000Z",
+      "weekNumber": 2,
+      "homeTeamId": "team4",
+      "awayTeamId": "team5",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match8",
+      "date": "2025-04-22T18:00:00.000Z",
+      "weekNumber": 2,
+      "homeTeamId": "team6",
+      "awayTeamId": "team7",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match9",
+      "date": "2025-04-22T18:00:00.000Z",
+      "weekNumber": 2,
+      "homeTeamId": "team8",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match10",
+      "date": "2025-04-22T18:00:00.000Z",
+      "weekNumber": 2,
+      "homeTeamId": "team10",
+      "awayTeamId": "team1",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match11",
+      "date": "2025-04-29T18:00:00.000Z",
+      "weekNumber": 3,
+      "homeTeamId": "team1",
+      "awayTeamId": "team3",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match12",
+      "date": "2025-04-29T18:00:00.000Z",
+      "weekNumber": 3,
+      "homeTeamId": "team2",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match13",
+      "date": "2025-04-29T18:00:00.000Z",
+      "weekNumber": 3,
+      "homeTeamId": "team5",
+      "awayTeamId": "team7",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match14",
+      "date": "2025-04-29T18:00:00.000Z",
+      "weekNumber": 3,
+      "homeTeamId": "team6",
+      "awayTeamId": "team8",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match15",
+      "date": "2025-04-29T18:00:00.000Z",
+      "weekNumber": 3,
+      "homeTeamId": "team9",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match16",
+      "date": "2025-05-06T18:00:00.000Z",
+      "weekNumber": 4,
+      "homeTeamId": "team1",
+      "awayTeamId": "team8",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match17",
+      "date": "2025-05-06T18:00:00.000Z",
+      "weekNumber": 4,
+      "homeTeamId": "team2",
+      "awayTeamId": "team5",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match18",
+      "date": "2025-05-06T18:00:00.000Z",
+      "weekNumber": 4,
+      "homeTeamId": "team3",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match19",
+      "date": "2025-05-06T18:00:00.000Z",
+      "weekNumber": 4,
+      "homeTeamId": "team10",
+      "awayTeamId": "team6",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match20",
+      "date": "2025-05-06T18:00:00.000Z",
+      "weekNumber": 4,
+      "homeTeamId": "team9",
+      "awayTeamId": "team7",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match21",
+      "date": "2025-05-13T18:00:00.000Z",
+      "weekNumber": 5,
+      "homeTeamId": "team5",
+      "awayTeamId": "team3",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match22",
+      "date": "2025-05-13T18:00:00.000Z",
+      "weekNumber": 5,
+      "homeTeamId": "team4",
+      "awayTeamId": "team1",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match23",
+      "date": "2025-05-13T18:00:00.000Z",
+      "weekNumber": 5,
+      "homeTeamId": "team7",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match24",
+      "date": "2025-05-13T18:00:00.000Z",
+      "weekNumber": 5,
+      "homeTeamId": "team8",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match25",
+      "date": "2025-05-13T18:00:00.000Z",
+      "weekNumber": 5,
+      "homeTeamId": "team6",
+      "awayTeamId": "team2",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match26",
+      "date": "2025-05-20T18:00:00.000Z",
+      "weekNumber": 6,
+      "homeTeamId": "team1",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match27",
+      "date": "2025-05-20T18:00:00.000Z",
+      "weekNumber": 6,
+      "homeTeamId": "team10",
+      "awayTeamId": "team8",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match28",
+      "date": "2025-05-20T18:00:00.000Z",
+      "weekNumber": 6,
+      "homeTeamId": "team2",
+      "awayTeamId": "team7",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match29",
+      "date": "2025-05-20T18:00:00.000Z",
+      "weekNumber": 6,
+      "homeTeamId": "team3",
+      "awayTeamId": "team6",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match30",
+      "date": "2025-05-20T18:00:00.000Z",
+      "weekNumber": 6,
+      "homeTeamId": "team4",
+      "awayTeamId": "team5",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match31",
+      "date": "2025-05-27T18:00:00.000Z",
+      "weekNumber": 7,
+      "homeTeamId": "team7",
+      "awayTeamId": "team3",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match32",
+      "date": "2025-05-27T18:00:00.000Z",
+      "weekNumber": 7,
+      "homeTeamId": "team6",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match33",
+      "date": "2025-05-27T18:00:00.000Z",
+      "weekNumber": 7,
+      "homeTeamId": "team8",
+      "awayTeamId": "team2",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match34",
+      "date": "2025-05-27T18:00:00.000Z",
+      "weekNumber": 7,
+      "homeTeamId": "team9",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match35",
+      "date": "2025-05-27T18:00:00.000Z",
+      "weekNumber": 7,
+      "homeTeamId": "team1",
+      "awayTeamId": "team5",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match36",
+      "date": "2025-06-03T18:00:00.000Z",
+      "weekNumber": 8,
+      "homeTeamId": "team4",
+      "awayTeamId": "team8",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match37",
+      "date": "2025-06-03T18:00:00.000Z",
+      "weekNumber": 8,
+      "homeTeamId": "team5",
+      "awayTeamId": "team6",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match38",
+      "date": "2025-06-03T18:00:00.000Z",
+      "weekNumber": 8,
+      "homeTeamId": "team3",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match39",
+      "date": "2025-06-03T18:00:00.000Z",
+      "weekNumber": 8,
+      "homeTeamId": "team2",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match40",
+      "date": "2025-06-03T18:00:00.000Z",
+      "weekNumber": 8,
+      "homeTeamId": "team1",
+      "awayTeamId": "team7",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match41",
+      "date": "2025-06-10T18:00:00.000Z",
+      "weekNumber": 9,
+      "homeTeamId": "team8",
+      "awayTeamId": "team3",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match42",
+      "date": "2025-06-10T18:00:00.000Z",
+      "weekNumber": 9,
+      "homeTeamId": "team9",
+      "awayTeamId": "team2",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match43",
+      "date": "2025-06-10T18:00:00.000Z",
+      "weekNumber": 9,
+      "homeTeamId": "team10",
+      "awayTeamId": "team1",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match44",
+      "date": "2025-06-10T18:00:00.000Z",
+      "weekNumber": 9,
+      "homeTeamId": "team7",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match45",
+      "date": "2025-06-10T18:00:00.000Z",
+      "weekNumber": 9,
+      "homeTeamId": "team6",
+      "awayTeamId": "team5",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match46",
+      "date": "2025-06-24T18:00:00.000Z",
+      "weekNumber": 11,
+      "homeTeamId": "team10",
+      "awayTeamId": "team6",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match47",
+      "date": "2025-06-24T18:00:00.000Z",
+      "weekNumber": 11,
+      "homeTeamId": "team7",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match48",
+      "date": "2025-06-24T18:00:00.000Z",
+      "weekNumber": 11,
+      "homeTeamId": "team8",
+      "awayTeamId": "team2",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match49",
+      "date": "2025-06-24T18:00:00.000Z",
+      "weekNumber": 11,
+      "homeTeamId": "team3",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match50",
+      "date": "2025-06-24T18:00:00.000Z",
+      "weekNumber": 11,
+      "homeTeamId": "team1",
+      "awayTeamId": "team5",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match51",
+      "date": "2025-07-01T18:00:00.000Z",
+      "weekNumber": 12,
+      "homeTeamId": "team2",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match52",
+      "date": "2025-07-01T18:00:00.000Z",
+      "weekNumber": 12,
+      "homeTeamId": "team5",
+      "awayTeamId": "team6",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match53",
+      "date": "2025-07-01T18:00:00.000Z",
+      "weekNumber": 12,
+      "homeTeamId": "team3",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match54",
+      "date": "2025-07-01T18:00:00.000Z",
+      "weekNumber": 12,
+      "homeTeamId": "team1",
+      "awayTeamId": "team7",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match55",
+      "date": "2025-07-01T18:00:00.000Z",
+      "weekNumber": 12,
+      "homeTeamId": "team8",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match56",
+      "date": "2025-07-08T18:00:00.000Z",
+      "weekNumber": 13,
+      "homeTeamId": "team6",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match57",
+      "date": "2025-07-08T18:00:00.000Z",
+      "weekNumber": 13,
+      "homeTeamId": "team8",
+      "awayTeamId": "team3",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match58",
+      "date": "2025-07-08T18:00:00.000Z",
+      "weekNumber": 13,
+      "homeTeamId": "team1",
+      "awayTeamId": "team4",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match59",
+      "date": "2025-07-08T18:00:00.000Z",
+      "weekNumber": 13,
+      "homeTeamId": "team7",
+      "awayTeamId": "team2",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match60",
+      "date": "2025-07-08T18:00:00.000Z",
+      "weekNumber": 13,
+      "homeTeamId": "team5",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match61",
+      "date": "2025-07-15T18:00:00.000Z",
+      "weekNumber": 14,
+      "homeTeamId": "team2",
+      "awayTeamId": "team5",
+      "status": "SCHEDULED",
+      "startingHole": 1,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match62",
+      "date": "2025-07-15T18:00:00.000Z",
+      "weekNumber": 14,
+      "homeTeamId": "team1",
+      "awayTeamId": "team9",
+      "status": "SCHEDULED",
+      "startingHole": 3,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match63",
+      "date": "2025-07-15T18:00:00.000Z",
+      "weekNumber": 14,
+      "homeTeamId": "team3",
+      "awayTeamId": "team7",
+      "status": "SCHEDULED",
+      "startingHole": 5,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match64",
+      "date": "2025-07-15T18:00:00.000Z",
+      "weekNumber": 14,
+      "homeTeamId": "team4",
+      "awayTeamId": "team10",
+      "status": "SCHEDULED",
+      "startingHole": 7,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    },
+    {
+      "id": "match65",
+      "date": "2025-07-15T18:00:00.000Z",
+      "weekNumber": 14,
+      "homeTeamId": "team6",
+      "awayTeamId": "team8",
+      "status": "SCHEDULED",
+      "startingHole": 9,
+      "createdAt": "2025-03-16T14:25:53.164Z",
+      "updatedAt": "2025-03-16T14:25:53.164Z"
+    }
+  ],
+  "scores": [],
+  "points": [],
+  "matchPlayers": [],
+  "matchScores": [],
+  "isInitialized": true
+}

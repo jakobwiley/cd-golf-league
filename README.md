@@ -1,57 +1,105 @@
 # Country Drive Golf League
 
-A web application for managing the Country Drive Golf League, including teams, players, matches, and standings.
+A web application for managing the Country Drive Golf League, including schedules, scores, and standings.
 
 ## Features
 
-- Team management (add, edit, delete teams)
-- Player management (add, edit, delete players)
-- Match scheduling and scoring
-- Standings and statistics
-- Mobile-friendly design
-- Offline support with PWA capabilities
+- View the league schedule
+- Enter and track match scores
+- View team standings
+- Manage teams and players
+- Real-time updates with Socket.io
 
-## Mock Data System
+## Local Development
 
-The application uses a mock data system when no database connection is available. This allows for development and testing without requiring a real database.
+### Prerequisites
 
-### Mock Teams
+- Node.js 18+ and npm
+- PostgreSQL (optional for production-like setup)
 
-The application comes pre-populated with the following teams:
-1. Nick/Brent
-2. Hot/Huerter
-3. Ashley/Alli
-4. Brew/Jake
-5. Sketch/Rob
-6. Trev/Murph
-7. Ryan/Drew
-8. AP/JohnP
-9. Clauss/Wade
-10. Brett/Tony
+### Setup
 
-### Mock Players
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/cd-golf-league.git
+   cd cd-golf-league
+   ```
 
-Players can be added to teams and will persist between page refreshes as long as the server is running.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Development
+3. Set up environment variables:
+   - Copy `.env.example` to `.env.local`
+   - Adjust the variables as needed
 
-```bash
-# Install dependencies
-npm install
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-# Run the development server
-npm run dev
-```
+5. Open [http://localhost:3007](http://localhost:3007) in your browser.
 
-## Deployment
+### Development Mode
 
-The application is deployed on Vercel. To deploy your own version:
+By default, the application uses mock data in development mode. The mock data is stored in a file (`.mock-data.json`) to persist between server restarts.
 
-```bash
-# Deploy to Vercel
-vercel
-```
+To use a real database in development:
+1. Set `USE_MOCK_DATA=false` in `.env.local`
+2. Ensure your PostgreSQL connection string is correct in `DATABASE_URL`
+3. Run database migrations: `npm run db:push`
+4. Initialize the database with sample data: `npm run db:init`
+
+## Production Deployment (Vercel)
+
+### Prerequisites
+
+- Vercel account
+- Vercel CLI installed: `npm i -g vercel`
+
+### Deployment Steps
+
+1. Login to Vercel:
+   ```bash
+   vercel login
+   ```
+
+2. Set up Vercel Postgres:
+   ```bash
+   npm run vercel:setup
+   ```
+
+3. Initialize the database:
+   ```bash
+   vercel env pull
+   npm run db:deploy
+   npm run db:init
+   ```
+
+4. Deploy to production:
+   ```bash
+   npm run vercel:deploy
+   ```
+
+## Database Schema
+
+The application uses Prisma ORM with the following models:
+- Team: Represents a team in the league
+- Player: Represents a player, associated with a team
+- Match: Represents a match between two teams
+- MatchScore: Stores scores for each hole for each player
+- MatchPoints: Tracks points earned by teams in matches
+- MatchPlayer: Tracks which players are assigned to which matches
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/my-new-feature`
+3. Commit your changes: `git commit -am 'Add some feature'`
+4. Push to the branch: `git push origin feature/my-new-feature`
+5. Submit a pull request
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
