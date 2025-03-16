@@ -49,23 +49,23 @@ const scheduleData = [
   // Week 7 - May 27, 2025
   [7, 1, 'Ryan/Drew', 'Ashley/Alli', '2025-05-27T18:00:00.000Z'],
   [7, 2, 'Trev/Murph', 'Brew/Jake', '2025-05-27T18:00:00.000Z'],
-  [7, 3, 'AP/JohnP', 'Hot/Huerter', '2025-05-27T18:00:00.000Z'],
-  [7, 4, 'Clauss/Wade', 'Brett/Tony', '2025-05-27T18:00:00.000Z'],
-  [7, 5, 'Nick/Brent', 'Sketch/Rob', '2025-05-27T18:00:00.000Z'],
+  [7, 3, 'Sketch/Rob', 'Nick/Brent', '2025-05-27T18:00:00.000Z'],
+  [7, 4, 'AP/JohnP', 'Hot/Huerter', '2025-05-27T18:00:00.000Z'],
+  [7, 5, 'Clauss/Wade', 'Brett/Tony', '2025-05-27T18:00:00.000Z'],
   
   // Week 8 - June 3, 2025
-  [8, 1, 'Brew/Jake', 'AP/JohnP', '2025-06-03T18:00:00.000Z'],
-  [8, 2, 'Sketch/Rob', 'Trev/Murph', '2025-06-03T18:00:00.000Z'],
-  [8, 3, 'Ashley/Alli', 'Clauss/Wade', '2025-06-03T18:00:00.000Z'],
-  [8, 4, 'Hot/Huerter', 'Brett/Tony', '2025-06-03T18:00:00.000Z'],
-  [8, 5, 'Nick/Brent', 'Ryan/Drew', '2025-06-03T18:00:00.000Z'],
+  [8, 1, 'Sketch/Rob', 'Trev/Murph', '2025-06-03T18:00:00.000Z'],
+  [8, 2, 'Ashley/Alli', 'AP/JohnP', '2025-06-03T18:00:00.000Z'],
+  [8, 3, 'Hot/Huerter', 'Clauss/Wade', '2025-06-03T18:00:00.000Z'],
+  [8, 4, 'Nick/Brent', 'Brett/Tony', '2025-06-03T18:00:00.000Z'],
+  [8, 5, 'Brew/Jake', 'Ryan/Drew', '2025-06-03T18:00:00.000Z'],
   
   // Week 9 - June 10, 2025
-  [9, 1, 'AP/JohnP', 'Ashley/Alli', '2025-06-10T18:00:00.000Z'],
-  [9, 2, 'Clauss/Wade', 'Hot/Huerter', '2025-06-10T18:00:00.000Z'],
-  [9, 3, 'Brett/Tony', 'Nick/Brent', '2025-06-10T18:00:00.000Z'],
-  [9, 4, 'Ryan/Drew', 'Brew/Jake', '2025-06-10T18:00:00.000Z'],
-  [9, 5, 'Trev/Murph', 'Sketch/Rob', '2025-06-10T18:00:00.000Z'],
+  [9, 1, 'Clauss/Wade', 'Ashley/Alli', '2025-06-10T18:00:00.000Z'],
+  [9, 2, 'Brett/Tony', 'Hot/Huerter', '2025-06-10T18:00:00.000Z'],
+  [9, 3, 'Trev/Murph', 'Nick/Brent', '2025-06-10T18:00:00.000Z'],
+  [9, 4, 'Ryan/Drew', 'Sketch/Rob', '2025-06-10T18:00:00.000Z'],
+  [9, 5, 'AP/JohnP', 'Brew/Jake', '2025-06-10T18:00:00.000Z'],
   
   // Week 11 - June 24, 2025
   [11, 1, 'Brett/Tony', 'Trev/Murph', '2025-06-24T18:00:00.000Z'],
@@ -119,9 +119,62 @@ export async function GET(request: Request) {
   try {
     console.log('Starting direct schedule setup...');
     
-    // Instead of creating new matches, we'll just return the existing mock matches
-    // This ensures we don't have duplicate data
+    // First, ensure all teams exist
+    const teamNames = Array.from(new Set([
+      ...scheduleData.map(entry => entry[2] as string),
+      ...scheduleData.map(entry => entry[3] as string)
+    ]));
+
+    const teams = new Map<string, any>();
     
+    for (const teamName of teamNames) {
+      // Try to find existing team
+      let team = await prisma.team.findFirst({
+        where: { name: teamName }
+      });
+      
+      // Create if doesn't exist
+      if (!team) {
+        team = await prisma.team.create({
+          data: { name: teamName }
+        });
+        console.log(`Created team: ${teamName}`);
+      }
+      
+      teams.set(teamName, team);
+    }
+
+    // Delete any existing matches
+    await prisma.match.deleteMany({});
+    console.log('Cleared existing matches');
+    
+    // Create all matches
+    for (const entry of scheduleData) {
+      const weekNumber = entry[0] as number;
+      const startingHole = entry[1] as number;
+      const homeTeamName = entry[2] as string;
+      const awayTeamName = entry[3] as string;
+      const dateStr = entry[4] as string;
+
+      const homeTeam = teams.get(homeTeamName);
+      const awayTeam = teams.get(awayTeamName);
+      
+      if (!homeTeam || !awayTeam) {
+        throw new Error(`Missing team reference for match: ${homeTeamName} vs ${awayTeamName}`);
+      }
+
+      await prisma.match.create({
+        data: {
+          weekNumber,
+          startingHole,
+          date: new Date(dateStr),
+          homeTeamId: homeTeam.id,
+          awayTeamId: awayTeam.id,
+          status: 'SCHEDULED'
+        }
+      });
+    }
+
     // Get all matches
     const matches = await prisma.match.findMany({
       include: {
