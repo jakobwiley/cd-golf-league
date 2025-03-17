@@ -72,5 +72,10 @@
       "source": "/api/(.*)",
       "destination": "/api/$1"
     }
-  ]
+  ],
+  "security": {
+    "authentication": {
+      "enabled": false
+    }
+  }
 } 
