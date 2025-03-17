@@ -456,52 +456,46 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
   // Save scores to the database
   const saveScores = async () => {
     try {
-      setSaving(true)
-      setError(null)
+      setSaving(true);
+      setError(null);
       
       // Format scores for API
-      const scoresToSave = Object.entries(playerScores).flatMap(([playerId, holeScores]) => 
-        holeScores
-          .filter(holeScore => holeScore.score > 0) // Only save scores that have been entered
-          .map(holeScore => ({
+      const formattedScores = Object.entries(playerScores).flatMap(([playerId, scores]) =>
+        scores
+          .filter(score => score && score.score > 0)
+          .map(score => ({
             matchId: match.id,
             playerId,
-            hole: holeScore.hole,
-            score: holeScore.score
+            hole: score.hole,
+            score: score.score
           }))
-      )
-      
-      if (scoresToSave.length === 0) {
-        setError('Please enter at least one score')
-        setSaving(false)
-        return
-      }
+      );
       
       const response = await fetch('/api/scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ scores: scoresToSave }),
-      })
+        body: JSON.stringify({ scores: formattedScores }),
+      });
       
       if (!response.ok) {
-        throw new Error('Failed to save scores')
+        throw new Error('Failed to save scores');
       }
       
-      setSuccess('Scores saved successfully!')
+      setSuccess('Scores saved successfully!');
       
       // Clear success message after 3 seconds
       setTimeout(() => {
-        setSuccess(null)
-      }, 3000)
+        setSuccess(null);
+      }, 3000);
     } catch (err) {
-      console.error('Error saving scores:', err)
-      setError('Failed to save scores')
+      console.error('Error saving scores:', err);
+      setError('Failed to save scores');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   // Navigate to next hole
   const goToNextHole = () => {
