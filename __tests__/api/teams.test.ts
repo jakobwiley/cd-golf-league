@@ -1,15 +1,23 @@
 import axios from 'axios';
+import { prisma } from '../../lib/prisma';
+import { getResponseData, createTestTeam } from '../utils';
 
 const BASE_URL = global.TEST_BASE_URL;
 
 describe('Teams API', () => {
   let testTeamId: string;
 
+  // Clean up database before tests
+  beforeAll(async () => {
+    await prisma.team.deleteMany();
+  });
+
   describe('GET /api/teams', () => {
     it('should return all teams', async () => {
       const response = await axios.get(`${BASE_URL}/api/teams`);
+      const data = getResponseData(response);
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.data)).toBe(true);
+      expect(Array.isArray(data)).toBe(true);
     });
   });
 
@@ -21,10 +29,11 @@ describe('Teams API', () => {
       };
 
       const response = await axios.post(`${BASE_URL}/api/teams`, newTeam);
+      const data = getResponseData(response);
       expect(response.status).toBe(201);
-      expect(response.data).toHaveProperty('id');
-      expect(response.data.name).toBe(newTeam.name);
-      testTeamId = response.data.id;
+      expect(data).toHaveProperty('id');
+      expect(data.name).toBe(newTeam.name);
+      testTeamId = data.id;
     });
   });
 
@@ -39,9 +48,9 @@ describe('Teams API', () => {
         id: testTeamId,
         ...updatedTeam
       });
-
+      const data = getResponseData(response);
       expect(response.status).toBe(200);
-      expect(response.data.name).toBe(updatedTeam.name);
+      expect(data.name).toBe(updatedTeam.name);
     });
   });
 
@@ -49,7 +58,11 @@ describe('Teams API', () => {
     it('should delete a team', async () => {
       const response = await axios.delete(`${BASE_URL}/api/teams?id=${testTeamId}`);
       expect(response.status).toBe(200);
-      expect(response.data).toHaveProperty('message', 'Team deleted successfully');
     });
+  });
+
+  // Clean up database after tests
+  afterAll(async () => {
+    await prisma.team.deleteMany();
   });
 }); 

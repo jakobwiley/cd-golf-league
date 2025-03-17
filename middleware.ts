@@ -20,7 +20,29 @@ export function middleware(request: NextRequest) {
     })
   }
 
-  // For all other routes, check authentication
+  // Skip authentication in development mode
+  if (process.env.NODE_ENV === 'development') {
+    return NextResponse.next()
+  }
+
+  // List of protected routes that require authentication
+  const protectedRoutes = [
+    '/admin',
+    '/profile',
+    '/settings'
+  ]
+
+  // Check if the current path is a protected route
+  const isProtectedRoute = protectedRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route)
+  )
+
+  // If it's not a protected route, allow access
+  if (!isProtectedRoute) {
+    return NextResponse.next()
+  }
+
+  // For protected routes, check authentication
   const token = request.cookies.get('__Secure-next-auth.session-token')
   if (!token) {
     return NextResponse.redirect(new URL('/auth/signin', request.url))

@@ -4,13 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { calculateNetScore, holeHandicaps } from '../lib/handicap'
 import { useWebSocket } from '../hooks/useWebSocket'
-
-interface Player {
-  id: string
-  name: string
-  handicapIndex: number
-  teamId: string
-}
+import { Match, Player } from '@prisma/client'
+import { calculateCourseHandicap, getStrokesGivenForMatchup } from '../lib/handicap'
+import MatchScoreCard from './MatchScoreCard'
 
 interface Team {
   id: string
@@ -18,16 +14,21 @@ interface Team {
   players?: Player[]
 }
 
-interface Match {
-  id: string
-  date: string
-  weekNumber: number
-  homeTeamId: string
-  awayTeamId: string
-  homeTeam: Team
-  awayTeam: Team
-  startingHole: number
-  status: string
+interface MatchScoringProps {
+  match: Match & {
+    homeTeam: {
+      id: string
+      name: string
+      createdAt: Date
+      updatedAt: Date
+    }
+    awayTeam: {
+      id: string
+      name: string
+      createdAt: Date
+      updatedAt: Date
+    }
+  }
 }
 
 interface Score {
@@ -39,8 +40,8 @@ interface Score {
   player?: Player
 }
 
-interface MatchScoringProps {
-  match?: Match
+interface PlayerScores {
+  [playerId: string]: { hole: number; score: number }[]
 }
 
 export default function MatchScoring({ match }: MatchScoringProps) {
