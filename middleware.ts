@@ -3,7 +3,19 @@ import type { NextRequest } from 'next/server'
 
 // This middleware ensures that the mock data is initialized for each request
 export function middleware(request: NextRequest) {
-  // Allow public access to API endpoints
+  // Handle CORS preflight requests
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    })
+  }
+
+  // Allow all API requests without authentication
   if (request.nextUrl.pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
