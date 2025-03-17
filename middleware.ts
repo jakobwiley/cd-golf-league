@@ -3,8 +3,12 @@ import type { NextRequest } from 'next/server'
 
 // This middleware ensures that the mock data is initialized for each request
 export function middleware(request: NextRequest) {
-  // Just pass through the request, the import of prisma.ts in API routes
-  // will trigger the initialization of mock data
+  // Allow public access to API endpoints
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
+  // For all other routes, just pass through the request
   return NextResponse.next()
 }
 
