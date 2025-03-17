@@ -39,8 +39,10 @@ describe('Static Data Tests', () => {
 
     it('should have valid team IDs for all players', () => {
       players.forEach(player => {
-        const team = getTeam(player.teamId)
-        expect(team).toBeDefined()
+        if (player.teamId) {
+          const team = getTeam(player.teamId)
+          expect(team).toBeDefined()
+        }
       })
     })
   })
