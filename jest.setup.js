@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'; 
+require('@testing-library/jest-dom'); 
 
 // Load environment variables from .env file
 require('dotenv').config();

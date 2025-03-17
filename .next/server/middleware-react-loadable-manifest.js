@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST='{"lib/useSocket.ts -> socket.io-client":{"id":730,"files":["static/chunks/730.f16113b62dff2a3b.js"]}}';
+self.__REACT_LOADABLE_MANIFEST="{}"
