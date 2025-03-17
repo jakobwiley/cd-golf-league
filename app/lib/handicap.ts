@@ -1,5 +1,3 @@
-import { Player } from '@prisma/client';
-
 // Hole handicaps (difficulty rating) for Country Drive Golf Course
 export const holeHandicaps = {
   1: 1,  // hardest hole
@@ -14,13 +12,25 @@ export const holeHandicaps = {
 }
 
 // Country Drive Golf Course (Ashland, NE) - Official 9-hole Ratings
-const COURSE_RATING = 71.2;
-const SLOPE_RATING = 125;
-const PAR = 36             // 9-hole par
+const COURSE_RATING = 34.0;  // 9-hole course rating
+const SLOPE_RATING = 107;    // 9-hole slope rating
+const PAR = 36;             // 9-hole par
 
-// Calculate course handicap for a player
+// Calculate course handicap for a player using USGA 9-hole formula
 export function calculateCourseHandicap(handicapIndex: number): number {
-  return Math.round(handicapIndex * (SLOPE_RATING / 113));
+  if (typeof handicapIndex !== 'number' || isNaN(handicapIndex)) {
+    return 0;
+  }
+  
+  // First, take half of the 18-hole Handicap Index and round to one decimal
+  const halfHandicapIndex = Math.round((handicapIndex / 2) * 10) / 10;
+  
+  // Calculate 9-hole Course Handicap using the USGA formula:
+  // (Handicap Index / 2) × (9-hole Slope Rating / 113) + (9-hole Course Rating - 9-hole Par)
+  const nineHoleCH = halfHandicapIndex * (SLOPE_RATING / 113) + (COURSE_RATING - PAR);
+  
+  // Round to nearest whole number per USGA recommendation
+  return Math.round(nineHoleCH);
 }
 
 export function calculateStrokesReceived(playerHandicap: number, opponentHandicap: number) {
@@ -30,37 +40,6 @@ export function calculateStrokesReceived(playerHandicap: number, opponentHandica
   // In match play, the better player gives strokes to the higher handicap player
   // The number of strokes given is 100% of the difference in handicaps
   return Math.round(Math.max(0, handicapDiff))
-}
-
-// Get strokes given for a player on a specific hole
-export function getStrokesGivenForMatchup(handicapIndex: number, hole: number, allPlayers: Player[]): number {
-  const courseHandicap = calculateCourseHandicap(handicapIndex);
-  
-  // Find the lowest handicap in the match
-  const lowestHandicap = Math.min(...allPlayers.map(p => calculateCourseHandicap(p.handicapIndex)));
-  
-  // Calculate strokes given (difference between player's handicap and lowest handicap)
-  const strokesGiven = courseHandicap - lowestHandicap;
-  
-  // Hole handicaps (1-9, where 1 is the hardest hole and 9 is the easiest)
-  const holeHandicaps = {
-    1: 4, // 4th hardest hole
-    2: 7, // 7th hardest hole
-    3: 2, // 2nd hardest hole
-    4: 5, // 5th hardest hole
-    5: 1, // Hardest hole
-    6: 9, // Easiest hole
-    7: 3, // 3rd hardest hole
-    8: 6, // 6th hardest hole
-    9: 8  // 8th hardest hole
-  };
-  
-  // If player gets strokes on this hole
-  if (strokesGiven > 0 && holeHandicaps[hole as keyof typeof holeHandicaps] <= strokesGiven) {
-    return 1;
-  }
-  
-  return 0;
 }
 
 export function getStrokesOnHole(playerHandicap: number, opponentHandicap: number, holeNumber: number) {
