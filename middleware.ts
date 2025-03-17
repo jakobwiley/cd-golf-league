@@ -3,6 +3,11 @@ import type { NextRequest } from 'next/server'
 
 // This middleware ensures that the mock data is initialized for each request
 export function middleware(request: NextRequest) {
+  // Allow all API routes without authentication
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
     return new NextResponse(null, {
@@ -15,26 +20,24 @@ export function middleware(request: NextRequest) {
     })
   }
 
-  // Allow all API requests without authentication
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    const response = NextResponse.next()
-    // Add headers to bypass Vercel's authentication
-    response.headers.set('Access-Control-Allow-Origin', '*')
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    return response
+  // For all other routes, check authentication
+  const token = request.cookies.get('__Secure-next-auth.session-token')
+  if (!token) {
+    return NextResponse.redirect(new URL('/auth/signin', request.url))
   }
 
-  // For all other routes, just pass through the request
   return NextResponse.next()
 }
 
 // See: https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
 export const config = {
   matcher: [
-    // Match all API routes
-    '/api/:path*',
-    // Match all page routes
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 } 
