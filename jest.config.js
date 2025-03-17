@@ -1,29 +1,22 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
+/** @type {import('jest').Config} */
+const config = {
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  testMatch: ['**/__tests__/**/*.test.ts'],
+  setupFilesAfterEnv: ['./jest.setup.js'],
+  testTimeout: 30000,
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: 'tsconfig.json'
+    }]
   },
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
+    '^@/(.*)$': '<rootDir>/$1'
   },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testTimeout: 30000,
-  verbose: true,
-  maxWorkers: 1,
-  workerIdleMemoryLimit: '512MB',
   testEnvironmentOptions: {
-    url: 'https://cd-gl-2025-cxskfmups-jakes-projects-9070cd0b.vercel.app',
-    customExportConditions: ['node', 'node-addons'],
+    url: 'http://localhost:3000'
   },
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.json',
-    },
-  },
-  // Run tests serially to avoid database conflicts
-  maxConcurrency: 1,
-  // Add a custom test environment
-  testEnvironment: 'node'
-}; 
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node']
+};
+
+module.exports = config; 

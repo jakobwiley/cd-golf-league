@@ -294,11 +294,11 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                         </div>
                         
                         {expandedMatch === match.id && (
-                          <div className="p-4 bg-[#030f0f]/80 border-t border-[#00df82]/20 relative z-10">
-                            <HoleByHoleScorecard 
-                              match={match} 
-                              onClose={() => toggleMatch(match.id)} 
-                            />
+                          <div className="p-6 border-t border-[#00df82]/10">
+                            {/* Single full-width scorecard */}
+                            <div className="w-full">
+                              <HoleByHoleScorecard match={match} />
+                            </div>
                           </div>
                         )}
                       </div>

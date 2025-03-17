@@ -161,6 +161,15 @@ const getStrokesGivenForMatchup = (playerHandicapIndex: number, hole: number, al
   return strokesGiven;
 }
 
+// Add this function before the component
+const calculateGrossTotal = (playerId: string, playerScores: PlayerScores): number => {
+  let total = 0;
+  for (let hole = 1; hole <= 9; hole++) {
+    total += playerScores[playerId]?.[hole - 1]?.score || 0;
+  }
+  return total;
+};
+
 export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorecardProps) {
   const [homeTeamPlayers, setHomeTeamPlayers] = useState<Player[]>([])
   const [awayTeamPlayers, setAwayTeamPlayers] = useState<Player[]>([])
@@ -657,17 +666,11 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
                       })}
                       <td className="p-2 text-center">
                         <div className="text-white font-bold">
-                          {calculateTotal(player.id) || '-'}
+                          {calculateGrossTotal(player.id, playerScores)}
                         </div>
-                        {calculateTotal(player.id) ? (
-                          <div className="text-xs text-[#00df82]/70">
-                            Strokes: {holes.reduce((sum, hole) => 
-                              sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
-                          </div>
-                        ) : null}
                       </td>
                       <td className="p-2 text-center text-[#00df82] font-bold">
-                        {calculateTotal(player.id) ? calculateNetTotal(player.id) : '-'}
+                        {calculateNetTotal(player.id)}
                       </td>
                     </tr>
                   </React.Fragment>
@@ -732,17 +735,11 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
                       })}
                       <td className="p-2 text-center">
                         <div className="text-white font-bold">
-                          {calculateTotal(player.id) || '-'}
+                          {calculateGrossTotal(player.id, playerScores)}
                         </div>
-                        {calculateTotal(player.id) ? (
-                          <div className="text-xs text-[#00df82]/70">
-                            Strokes: {holes.reduce((sum, hole) => 
-                              sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
-                          </div>
-                        ) : null}
                       </td>
                       <td className="p-2 text-center text-[#00df82] font-bold">
-                        {calculateTotal(player.id) ? calculateNetTotal(player.id) : '-'}
+                        {calculateNetTotal(player.id)}
                       </td>
                     </tr>
                   </React.Fragment>
@@ -1072,17 +1069,11 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
                             })}
                             <td className="p-2 text-center">
                               <div className="text-white font-bold">
-                                {calculateTotal(player.id) || '-'}
+                                {calculateGrossTotal(player.id, playerScores)}
                               </div>
-                              {calculateTotal(player.id) ? (
-                                <div className="text-xs text-[#00df82]/70">
-                                  Strokes: {holes.reduce((sum, hole) => 
-                                    sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
-                                </div>
-                              ) : null}
                             </td>
                             <td className="p-2 text-center text-[#00df82] font-bold">
-                              {calculateTotal(player.id) ? calculateNetTotal(player.id) : '-'}
+                              {calculateNetTotal(player.id)}
                             </td>
                           </tr>
                         </React.Fragment>
@@ -1147,17 +1138,11 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
                             })}
                             <td className="p-2 text-center">
                               <div className="text-white font-bold">
-                                {calculateTotal(player.id) || '-'}
+                                {calculateGrossTotal(player.id, playerScores)}
                               </div>
-                              {calculateTotal(player.id) ? (
-                                <div className="text-xs text-[#00df82]/70">
-                                  Strokes: {holes.reduce((sum, hole) => 
-                                    sum + getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers), 0)}
-                                </div>
-                              ) : null}
                             </td>
                             <td className="p-2 text-center text-[#00df82] font-bold">
-                              {calculateTotal(player.id) ? calculateNetTotal(player.id) : '-'}
+                              {calculateNetTotal(player.id)}
                             </td>
                           </tr>
                         </React.Fragment>

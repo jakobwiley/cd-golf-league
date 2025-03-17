@@ -6,57 +6,52 @@ require('dotenv').config();
 // Set default timeout for all tests
 jest.setTimeout(30000);
 
-// Mock environment variables
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://neondb_owner:***REMOVED***@ep-orange-wind-a5qu7eeg-pooler.us-east-2.aws.neon.tech/neondb_test?sslmode=require';
-process.env.NODE_ENV = 'test';
+// Mock environment variables for testing
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/neondb_test';
+process.env.TEST_BASE_URL = 'http://localhost:3000';
+global.TEST_BASE_URL = process.env.TEST_BASE_URL;
 
-// Global test variables
-global.TEST_BASE_URL = process.env.TEST_BASE_URL || 'https://cd-gl-2025-cxskfmups-jakes-projects-9070cd0b.vercel.app';
+const { PrismaClient } = require('@prisma/client');
+const { execSync } = require('child_process');
 
-// Handle circular references in JSON
-const originalJSONStringify = JSON.stringify;
-JSON.stringify = function(value, replacer, space) {
-  const seen = new WeakSet();
-  return originalJSONStringify(value, (key, value) => {
-    if (typeof value === 'object' && value !== null) {
-      if (seen.has(value)) {
-        return '[Circular]';
-      }
-      seen.add(value);
-      value = replacer ? replacer(key, value) : value;
-    }
-    return value;
-  }, space);
-};
+const prisma = new PrismaClient();
 
-// Add a custom serializer for Jest
-const { expect } = require('@jest/globals');
-expect.extend({
-  toBeCircularFree(received) {
-    const seen = new WeakSet();
-    const stringified = JSON.stringify(received, (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        if (seen.has(value)) {
-          return '[Circular]';
-        }
-        seen.add(value);
-      }
-      return value;
-    });
-    return {
-      message: () => `expected ${received} to be circular-free`,
-      pass: true,
-    };
-  },
+beforeAll(async () => {
+  try {
+    // Reset database using db push
+    execSync('npx prisma db push --force-reset', { stdio: 'inherit' });
+    
+    // Run seed script
+    await require('./prisma/seed.ts')();
+  } catch (error) {
+    console.error('Error setting up test database:', error);
+  }
+});
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
+
+// Reset database state between tests
+afterEach(async () => {
+  try {
+    // Clean up data after each test
+    await prisma.$transaction([
+      prisma.matchScore.deleteMany(),
+      prisma.matchPoints.deleteMany(),
+      prisma.matchPlayer.deleteMany(),
+      prisma.match.deleteMany(),
+      prisma.player.deleteMany(),
+      prisma.team.deleteMany(),
+    ]);
+  } catch (error) {
+    console.error('Error cleaning up test database:', error);
+  }
 });
 
 // Export test configuration
 module.exports = {
-  TEST_BASE_URL,
-  TEST_DATABASE_URL: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL
-};
-
-// Clean up after all tests
-afterAll(async () => {
-  // Add any global cleanup here
-}); 
+  TEST_BASE_URL: process.env.TEST_BASE_URL,
+  TEST_DATABASE_URL: process.env.TEST_DATABASE_URL,
+  // Add any other test configuration here
+}; 
