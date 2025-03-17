@@ -1,5 +1,5 @@
 import { PrismaClient, Team, Player, Prisma } from '@prisma/client'
-import { teams, players, matches, getTeam, getPlayer, getTeamPlayers, getTeamMatches, getWeekMatches } from './data'
+import { teams, players, matches, getTeam, getPlayer, getMatch, getTeamPlayers, getTeamMatches, getWeekMatches } from './data'
 
 // Define types for mock data
 type MockTeam = Team & {
@@ -13,6 +13,14 @@ type MockPlayer = Player & {
 // Define the extended PrismaClient type
 type ExtendedPrismaClient = PrismaClient & {
   playerSubstitution: {
+    findMany: (args: { where: { matchId: string } }) => Promise<any[]>;
+    findUnique: (args: { where: { id: string } }) => Promise<any | null>;
+    create: (args: { data: any }) => Promise<any>;
+    update: (args: { where: { id: string }; data: any }) => Promise<any>;
+    delete: (args: { where: { id: string } }) => Promise<any>;
+    deleteMany: (args: { where: { matchId: string } }) => Promise<{ count: number }>;
+  };
+  matchPlayer: {
     findMany: (args: { where: { matchId: string } }) => Promise<any[]>;
     findUnique: (args: { where: { id: string } }) => Promise<any | null>;
     create: (args: { data: any }) => Promise<any>;
@@ -649,6 +657,65 @@ const mockPrismaClient = {
       mockPlayerSubstitutions = mockPlayerSubstitutions.filter(sub => sub.matchId !== where.matchId);
       return { count: initialCount - mockPlayerSubstitutions.length };
     }
+  },
+  matchPlayer: {
+    findMany: async ({ where }: { where: { matchId: string } }) => {
+      return mockPlayerSubstitutions.filter(sub => sub.matchId === where.matchId);
+    },
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      return mockPlayerSubstitutions.find(sub => sub.id === where.id) || null;
+    },
+    create: async ({ data }: { data: any }) => {
+      const id = `sub${Math.floor(Math.random() * 10000)}`;
+      const sub = {
+        id,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // Check for unique constraint
+      const existing = mockPlayerSubstitutions.find(s => 
+        s.matchId === data.matchId && 
+        s.originalPlayerId === data.originalPlayerId
+      );
+      
+      if (existing) {
+        throw new Error('Substitution already exists for this player in this match');
+      }
+      
+      mockPlayerSubstitutions.push(sub);
+      return sub;
+    },
+    update: async ({ where, data }: { where: { id: string }, data: any }) => {
+      const index = mockPlayerSubstitutions.findIndex(sub => sub.id === where.id);
+      if (index === -1) {
+        throw new Error('Substitution not found');
+      }
+      
+      mockPlayerSubstitutions[index] = {
+        ...mockPlayerSubstitutions[index],
+        ...data,
+        updatedAt: new Date()
+      };
+      
+      return mockPlayerSubstitutions[index];
+    },
+    delete: async ({ where }: { where: { id: string } }) => {
+      const index = mockPlayerSubstitutions.findIndex(sub => sub.id === where.id);
+      if (index === -1) {
+        throw new Error('Substitution not found');
+      }
+      
+      const deleted = mockPlayerSubstitutions[index];
+      mockPlayerSubstitutions.splice(index, 1);
+      return deleted;
+    },
+    deleteMany: async ({ where }: { where: { matchId: string } }) => {
+      const initialCount = mockPlayerSubstitutions.length;
+      mockPlayerSubstitutions = mockPlayerSubstitutions.filter(sub => sub.matchId !== where.matchId);
+      return { count: initialCount - mockPlayerSubstitutions.length };
+    }
   }
 } as unknown as ExtendedPrismaClient;
 
@@ -665,44 +732,34 @@ const databaseUrl = process.env.DATABASE_URL && process.env.DATABASE_URL.startsW
   ? process.env.DATABASE_URL 
   : "postgresql://placeholder:placeholder@localhost:5432/placeholder";
 
-// Initialize Prisma Client
-const prismaClient = globalForPrisma.prisma || new PrismaClient({
-  datasources: {
-    db: {
-      url: databaseUrl
-    }
-  }
-});
+// Initialize Prisma client
+const prismaClient = new PrismaClient()
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prismaClient;
-}
-
-// Export the appropriate client based on environment
-export const prisma = process.env.NODE_ENV === 'production' ? 
-  (prismaClient as ExtendedPrismaClient) : 
-  mockPrismaClient;
+// Export the real Prisma client for all environments
+export const prisma = prismaClient as ExtendedPrismaClient;
 
 // Create a wrapper that combines static and dynamic data
 const prismaWrapper = {
   team: {
     findMany: async () => teams,
     findUnique: async ({ where }: { where: { id: string } }) => getTeam(where.id),
-    findFirst: async ({ where }: { where: { name: string } }) => 
-      teams.find(team => team.name === where.name) || null,
+    create: async (data: any) => prismaClient.team.create(data),
+    update: async (data: any) => prismaClient.team.update(data),
+    delete: async ({ where }: { where: { id: string } }) => prismaClient.team.delete({ where }),
   },
   player: {
     findMany: async () => players,
     findUnique: async ({ where }: { where: { id: string } }) => getPlayer(where.id),
-    findFirst: async ({ where }: { where: { name: string } }) => 
-      players.find(player => player.name === where.name) || null,
+    create: async (data: any) => prismaClient.player.create(data),
+    update: async (data: any) => prismaClient.player.update(data),
+    delete: async ({ where }: { where: { id: string } }) => prismaClient.player.delete({ where }),
   },
   match: {
     findMany: async () => matches,
-    findUnique: async ({ where }: { where: { id: string } }) => 
-      matches.find(match => match.id === where.id) || null,
-    findFirst: async ({ where }: { where: { id: string } }) => 
-      matches.find(match => match.id === where.id) || null,
+    findUnique: async ({ where }: { where: { id: string } }) => getMatch(where.id),
+    create: async (data: any) => prismaClient.match.create(data),
+    update: async (data: any) => prismaClient.match.update(data),
+    delete: async ({ where }: { where: { id: string } }) => prismaClient.match.delete({ where }),
   },
   matchScore: {
     findMany: async ({ where }: { where: { matchId: string } }) => 
@@ -737,6 +794,19 @@ const prismaWrapper = {
     delete: async ({ where }: { where: { id: string } }) => 
       prismaClient.playerSubstitution.delete({ where }),
   },
+  matchPlayer: {
+    findMany: async ({ where }: { where: { matchId: string } }) => 
+      prismaClient.matchPlayer.findMany({ where }),
+    findUnique: async ({ where }: { where: { id: string } }) => 
+      prismaClient.matchPlayer.findUnique({ where }),
+    create: async (data: any) => prismaClient.matchPlayer.create({ data }),
+    update: async ({ where, data }: { where: { id: string }, data: any }) => 
+      prismaClient.matchPlayer.update({ where, data }),
+    delete: async ({ where }: { where: { id: string } }) => 
+      prismaClient.matchPlayer.delete({ where }),
+    deleteMany: async ({ where }: { where: { matchId: string } }) => 
+      prismaClient.matchPlayer.deleteMany({ where }),
+  }
 } as unknown as ExtendedPrismaClient;
 
 export { prismaWrapper } 

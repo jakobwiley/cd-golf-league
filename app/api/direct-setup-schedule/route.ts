@@ -197,6 +197,41 @@ export async function GET() {
           }
         });
         console.log(`Created match: ${homeTeamName} vs ${awayTeamName} (Week ${weekNumber}, Hole ${startingHole})`);
+
+        // Get players for both teams
+        const homePlayers = await prisma.player.findMany({
+          where: { teamId: homeTeam.id }
+        });
+
+        const awayPlayers = await prisma.player.findMany({
+          where: { teamId: awayTeam.id }
+        });
+
+        // Create MatchPlayer records for home team players
+        for (const player of homePlayers) {
+          await prisma.matchPlayer.create({
+            data: {
+              id: crypto.randomUUID(),
+              matchId: match.id,
+              playerId: player.id,
+              isSubstitute: false
+            }
+          });
+          console.log(`Created MatchPlayer record for home team player: ${player.name}`);
+        }
+
+        // Create MatchPlayer records for away team players
+        for (const player of awayPlayers) {
+          await prisma.matchPlayer.create({
+            data: {
+              id: crypto.randomUUID(),
+              matchId: match.id,
+              playerId: player.id,
+              isSubstitute: false
+            }
+          });
+          console.log(`Created MatchPlayer record for away team player: ${player.name}`);
+        }
       } catch (error) {
         console.error(`Error creating match for entry ${entry}:`, error);
         throw error;
