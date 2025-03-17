@@ -9,7 +9,7 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "DATABASE_URL": "@database_url",
+    "DATABASE_URL": "placeholder",
     "CI": "false",
     "USE_MOCK_DATA": "false",
     "PORT": "3007"
