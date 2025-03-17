@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
 import { z } from 'zod'
 import { SocketEvents } from '../../../lib/socket'
+import { corsResponse, corsOptionsResponse } from '../../../lib/api-utils'
 
 const PlayerSchema = z.object({
   id: z.string().optional(),
@@ -40,6 +41,10 @@ async function emitTeamUpdated(teamId: string) {
   }
 }
 
+export async function OPTIONS() {
+  return corsOptionsResponse()
+}
+
 export async function GET() {
   try {
     const teams = await prisma.team.findMany({
@@ -55,12 +60,12 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json(teams)
+    return corsResponse(teams)
   } catch (error) {
     console.error('Error fetching teams:', error)
-    return NextResponse.json(
+    return corsResponse(
       { error: 'Failed to fetch teams' },
-      { status: 500 }
+      500
     )
   }
 }
@@ -71,9 +76,9 @@ export async function POST(request: Request) {
     const { name } = body
 
     if (!name) {
-      return NextResponse.json(
+      return corsResponse(
         { error: 'Team name is required' },
-        { status: 400 }
+        400
       )
     }
 
@@ -86,12 +91,12 @@ export async function POST(request: Request) {
     // Emit Socket.IO event for real-time updates
     await emitTeamUpdated(team.id)
 
-    return NextResponse.json(team)
+    return corsResponse(team)
   } catch (error) {
     console.error('Error creating team:', error)
-    return NextResponse.json(
+    return corsResponse(
       { error: 'Failed to create team' },
-      { status: 500 }
+      500
     )
   }
 }
@@ -102,16 +107,16 @@ export async function PUT(request: Request) {
     const { id, name } = body
 
     if (!id) {
-      return NextResponse.json(
+      return corsResponse(
         { error: 'Team ID is required' },
-        { status: 400 }
+        400
       )
     }
 
     if (!name) {
-      return NextResponse.json(
+      return corsResponse(
         { error: 'Team name is required' },
-        { status: 400 }
+        400
       )
     }
 
@@ -127,12 +132,12 @@ export async function PUT(request: Request) {
     // Emit Socket.IO event for real-time updates
     await emitTeamUpdated(team.id)
 
-    return NextResponse.json(team)
+    return corsResponse(team)
   } catch (error) {
     console.error('Error updating team:', error)
-    return NextResponse.json(
+    return corsResponse(
       { error: 'Failed to update team' },
-      { status: 500 }
+      500
     )
   }
 }
@@ -143,9 +148,9 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json(
+      return corsResponse(
         { error: 'Team ID is required' },
-        { status: 400 }
+        400
       )
     }
 
@@ -161,12 +166,12 @@ export async function DELETE(request: Request) {
     // Emit Socket.IO event for real-time updates
     await emitTeamUpdated(teamId)
 
-    return NextResponse.json({ success: true })
+    return corsResponse({ success: true })
   } catch (error) {
     console.error('Error deleting team:', error)
-    return NextResponse.json(
+    return corsResponse(
       { error: 'Failed to delete team' },
-      { status: 500 }
+      500
     )
   }
 } 
