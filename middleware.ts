@@ -17,7 +17,12 @@ export function middleware(request: NextRequest) {
 
   // Allow all API requests without authentication
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    // Add headers to bypass Vercel's authentication
+    response.headers.set('Access-Control-Allow-Origin', '*')
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return response
   }
 
   // For all other routes, just pass through the request
