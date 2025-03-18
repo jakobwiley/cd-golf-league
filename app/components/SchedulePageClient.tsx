@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react'
-import { Match, Team } from '@prisma/client'
+import React from 'react'
+import type { Team, Match } from '../../types'
+import { format } from 'date-fns'
+import { utcToZonedTime } from 'date-fns-tz'
 import ScheduleForm from './ScheduleForm'
 import WeeklySchedule from './WeeklySchedule'
 
 interface ScheduleFormData {
   date: string
   weekNumber: number
+  startingHole: number
   homeTeamId: string
   awayTeamId: string
-  startingHole: number
   status: string
 }
 
@@ -50,11 +52,12 @@ const GolfSpinner = () => (
 )
 
 export default function SchedulePageClient() {
-  const [matches, setMatches] = useState<Match[]>([])
-  const [teams, setTeams] = useState<Team[]>([])
-  const [loading, setLoading] = useState(false)
-  
-  useEffect(() => {
+  const [matches, setMatches] = React.useState<Match[]>([])
+  const [teams, setTeams] = React.useState<Team[]>([])
+  const [loading, setLoading] = React.useState(false)
+  const [showForm, setShowForm] = React.useState(false)
+
+  React.useEffect(() => {
     fetchMatches()
     fetchTeams()
   }, [])
@@ -63,12 +66,7 @@ export default function SchedulePageClient() {
     try {
       const response = await fetch('/api/schedule')
       const data = await response.json()
-      // Ensure dates are properly formatted when receiving from API
-      const formattedData = data.map((match: any) => ({
-        ...match,
-        date: new Date(match.date).toISOString().split('T')[0]
-      }))
-      setMatches(formattedData)
+      setMatches(data.matches || [])
     } catch (error) {
       console.error('Error fetching matches:', error)
     }
@@ -78,51 +76,56 @@ export default function SchedulePageClient() {
     try {
       const response = await fetch('/api/teams')
       const data = await response.json()
-      setTeams(data)
+      setTeams(data.teams || [])
     } catch (error) {
       console.error('Error fetching teams:', error)
     }
   }
 
-  const handleScheduleMatch = async (data: ScheduleFormData) => {
+  const handleSubmit = async (formData: ScheduleFormData) => {
     setLoading(true)
     try {
-      // Format the date before sending to API
-      const formattedData = {
-        ...data,
-        date: formatDateForAPI(data.date)
-      }
-
       const response = await fetch('/api/schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formattedData),
+        body: JSON.stringify(formData),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to schedule match')
+        throw new Error('Failed to create match')
       }
 
-      await response.json()
       await fetchMatches()
+      setShowForm(false)
     } catch (error) {
-      console.error('Error scheduling match:', error)
+      console.error('Error creating match:', error)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="space-y-6">
-      <ScheduleForm 
-        teams={teams} 
-        onSubmit={handleScheduleMatch} 
-        onCancel={() => {}} 
-      />
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Schedule</h1>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          {showForm ? 'Cancel' : 'Add Match'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mb-8">
+          <ScheduleForm teams={teams} onSubmit={handleSubmit} />
+        </div>
+      )}
+
       {loading && <GolfSpinner />}
-      <WeeklySchedule matches={matches as any} />
+      <WeeklySchedule matches={matches} teams={teams} />
     </div>
   )
-} 
+}

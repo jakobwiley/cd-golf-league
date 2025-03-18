@@ -9,7 +9,10 @@ export default async function SchedulePageServer() {
     // Fetch data from the API endpoint with explicit no-cache options
     console.log('Fetching data from API endpoint...');
     
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3007';
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3007';
+    
     const apiUrl = `${baseUrl}/api/schedule`;
     console.log('Using API URL:', apiUrl);
     
@@ -46,4 +49,4 @@ export default async function SchedulePageServer() {
     console.error('Error fetching data:', error);
     return <SchedulePage initialMatches={[]} initialTeams={[]} />;
   }
-} 
+}

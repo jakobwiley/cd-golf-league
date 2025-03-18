@@ -146,4 +146,3 @@ ALTER TABLE "PlayerSubstitution" ADD CONSTRAINT "PlayerSubstitution_originalPlay
 
 -- AddForeignKey
 ALTER TABLE "PlayerSubstitution" ADD CONSTRAINT "PlayerSubstitution_substitutePlayerId_fkey" FOREIGN KEY ("substitutePlayerId") REFERENCES "Player"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-

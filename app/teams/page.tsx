@@ -1,4 +1,4 @@
-import { prisma } from '../../lib/prisma'
+import { supabase } from '../../lib/supabase'
 import { calculateCourseHandicap } from '../../lib/handicap'
 
 // Fallback player data in case the API doesn't return players
@@ -52,18 +52,21 @@ export default async function TeamsPage() {
   let teams = [];
   
   try {
-    teams = await prisma.team.findMany({
-      include: {
-        players: {
-          orderBy: {
-            name: 'asc'
-          }
-        }
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    // Get teams with players
+    const { data: teamsData, error: teamsError } = await supabase
+      .from('Team')
+      .select(`
+        *,
+        players:Player(*)
+      `)
+      .order('name');
+      
+    if (teamsError) {
+      console.error('Error fetching teams:', teamsError);
+      throw teamsError;
+    }
+    
+    teams = teamsData;
     
     // Check if teams have players, if not, use fallback data
     const hasPlayers = teams.some(team => team.players && team.players.length > 0);

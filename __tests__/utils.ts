@@ -1,4 +1,6 @@
 import { Response } from 'supertest';
+import { supabase } from '../lib/supabase'
+import { v4 as uuidv4 } from 'uuid'
 
 // Helper function to get response data
 export const getResponseData = (response: Response | null): any => {
@@ -14,27 +16,77 @@ export const createTestTeams = () => {
   ];
 };
 
-/**
- * Helper function to create a test team
- */
-export async function createTestTeam(prisma: any, name?: string) {
-  try {
-    const uniqueName = name || `Test Team ${Date.now()}`
-    console.log('Creating test team with name:', uniqueName)
-    
-    console.log('Prisma client:', prisma)
-    console.log('Prisma team model:', prisma.team)
-    
-    const team = await prisma.team.create({
-      data: {
-        name: uniqueName
-      }
-    })
-    
-    console.log('Created test team:', team)
-    return team
-  } catch (error) {
-    console.error('Error creating test team:', error)
+// Helper function to create a test team
+export async function createTestTeam(name: string = 'Test Team') {
+  const { data: team, error } = await supabase
+    .from('Team')
+    .insert([{ id: uuidv4(), name }])
+    .select()
+    .single()
+
+  if (error) {
     throw error
   }
-} 
+
+  return team
+}
+
+// Helper function to create a test player
+export async function createTestPlayer(teamId: string, name: string = 'Test Player', handicapIndex: number = 10) {
+  const { data: player, error } = await supabase
+    .from('Player')
+    .insert([{
+      id: uuidv4(),
+      name,
+      handicapIndex,
+      teamId,
+      playerType: 'PRIMARY'
+    }])
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return player
+}
+
+// Helper function to create a test match
+export async function createTestMatch(
+  homeTeamId: string,
+  awayTeamId: string,
+  date: string = '2025-04-15T18:00:00.000Z',
+  weekNumber: number = 1,
+  startingHole: number = 1
+) {
+  const { data: match, error } = await supabase
+    .from('Match')
+    .insert([{
+      id: uuidv4(),
+      date,
+      weekNumber,
+      homeTeamId,
+      awayTeamId,
+      startingHole,
+      status: 'SCHEDULED'
+    }])
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return match
+}
+
+// Helper function to clear the database
+export async function clearDatabase() {
+  await supabase.from('MatchScore').delete().neq('id', '')
+  await supabase.from('MatchPoints').delete().neq('id', '')
+  await supabase.from('MatchPlayer').delete().neq('id', '')
+  await supabase.from('Match').delete().neq('id', '')
+  await supabase.from('Player').delete().neq('id', '')
+  await supabase.from('Team').delete().neq('id', '')
+}

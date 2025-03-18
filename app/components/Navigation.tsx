@@ -27,7 +27,6 @@ export default function Navigation() {
             </Link>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
-                <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Schedule</Link>
                 <Link href="/teams" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Teams</Link>
                 <Link href="/matches" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Matches</Link>
                 <Link href="/standings" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Standings</Link>
@@ -56,7 +55,6 @@ export default function Navigation() {
       {isMobileMenuOpen && (
         <div className="md:hidden" id="mobile-menu">
           <div className="space-y-1 px-2 pb-3 pt-2">
-            <Link href="/schedule" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Schedule</Link>
             <Link href="/teams" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Teams</Link>
             <Link href="/matches" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Matches</Link>
             <Link href="/standings" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Standings</Link>
@@ -65,4 +63,4 @@ export default function Navigation() {
       )}
     </nav>
   )
-} 
+}

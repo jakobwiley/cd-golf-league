@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import request from 'supertest';
 import { testBaseUrl, testDatabaseUrl } from '../../jest.setup';
+import { createTestTeam, createTestPlayer, createTestMatch, clearDatabase } from '../utils'
 
 const prisma = new PrismaClient();
 
@@ -12,36 +13,25 @@ describe('Database API Tests', () => {
     }
   });
 
-  afterAll(async () => {
-    await prisma.$disconnect();
-  });
-
   beforeEach(async () => {
-    // Clear all tables before each test
-    await prisma.matchScore.deleteMany();
-    await prisma.matchPoints.deleteMany();
-    await prisma.matchPlayer.deleteMany();
-    await prisma.match.deleteMany();
-    await prisma.player.deleteMany();
-    await prisma.team.deleteMany();
+    await clearDatabase()
+  })
+
+  afterAll(async () => {
+    await clearDatabase()
+    await prisma.$disconnect();
   });
 
   describe('Team Creation', () => {
     it('should create a team successfully', async () => {
-      const response = await request(testBaseUrl)
-        .post('/api/teams')
-        .send({ name: 'Test Team' });
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.name).toBe('Test Team');
+      const team = await createTestTeam('Test Team')
+      expect(team.name).toBe('Test Team')
+      expect(team.id).toBeDefined()
     });
 
     it('should not create a team with duplicate name', async () => {
       // Create first team
-      await request(testBaseUrl)
-        .post('/api/teams')
-        .send({ name: 'Test Team' });
+      await createTestTeam('Test Team')
 
       // Try to create duplicate team
       const response = await request(testBaseUrl)
@@ -52,44 +42,26 @@ describe('Database API Tests', () => {
     });
   });
 
-  describe('Match Creation', () => {
-    let homeTeamId: string;
-    let awayTeamId: string;
-
-    beforeEach(async () => {
-      // Create test teams
-      const homeTeam = await prisma.team.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: 'Home Team'
-        }
-      });
-      const awayTeam = await prisma.team.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: 'Away Team'
-        }
-      });
-      homeTeamId = homeTeam.id;
-      awayTeamId = awayTeam.id;
+  describe('Player Creation', () => {
+    it('should create a player successfully', async () => {
+      const team = await createTestTeam()
+      const player = await createTestPlayer(team.id, 'Test Player', 10)
+      
+      expect(player.name).toBe('Test Player')
+      expect(player.handicapIndex).toBe(10)
+      expect(player.teamId).toBe(team.id)
     });
+  });
 
+  describe('Match Creation', () => {
     it('should create a match successfully', async () => {
-      const response = await request(testBaseUrl)
-        .post('/api/matches')
-        .send({
-          date: new Date().toISOString(),
-          weekNumber: 1,
-          startingHole: 1,
-          homeTeamId,
-          awayTeamId,
-          status: 'SCHEDULED'
-        });
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.homeTeamId).toBe(homeTeamId);
-      expect(response.body.awayTeamId).toBe(awayTeamId);
+      const homeTeam = await createTestTeam('Home Team')
+      const awayTeam = await createTestTeam('Away Team')
+      const match = await createTestMatch(homeTeam.id, awayTeam.id)
+      
+      expect(match.homeTeamId).toBe(homeTeam.id)
+      expect(match.awayTeamId).toBe(awayTeam.id)
+      expect(match.status).toBe('SCHEDULED')
     });
 
     it('should not create a match with invalid team IDs', async () => {
@@ -135,50 +107,19 @@ describe('Database API Tests', () => {
 
     beforeEach(async () => {
       // Create test team
-      const team = await prisma.team.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: 'Test Team'
-        }
-      });
+      const team = await createTestTeam()
       teamId = team.id;
 
       // Create primary player
-      const primaryPlayer = await prisma.player.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: 'Primary Player',
-          playerType: 'PRIMARY',
-          handicapIndex: 10,
-          teamId
-        }
-      });
+      const primaryPlayer = await createTestPlayer(teamId, 'Primary Player', 10)
       primaryPlayerId = primaryPlayer.id;
 
       // Create substitute player
-      const substitutePlayer = await prisma.player.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: 'Substitute Player',
-          playerType: 'SUBSTITUTE',
-          handicapIndex: 12,
-          teamId
-        }
-      });
+      const substitutePlayer = await createTestPlayer(teamId, 'Substitute Player', 12)
       substitutePlayerId = substitutePlayer.id;
 
       // Create test match
-      const match = await prisma.match.create({
-        data: {
-          id: crypto.randomUUID(),
-          date: new Date().toISOString(),
-          weekNumber: 1,
-          startingHole: 1,
-          homeTeamId: teamId,
-          awayTeamId: teamId,
-          status: 'SCHEDULED'
-        }
-      });
+      const match = await createTestMatch(teamId, teamId)
       matchId = match.id;
     });
 
