@@ -1,24 +1,40 @@
-import { prisma } from '../../../lib/prisma'
+import { supabase } from '../../../lib/supabase'
 import AdminMatchesClient from './AdminMatchesClient'
+import { Match } from '../../../types'
 
 export default async function AdminPage() {
-  let matches = []
-  
-  try {
-    matches = await prisma.match.findMany({
-      include: {
-        homeTeam: true,
-        awayTeam: true,
-      },
-      orderBy: [
-        { weekNumber: 'asc' },
-        { startingHole: 'asc' }
-      ]
-    })
-  } catch (error) {
+  const { data: matchesData, error } = await supabase
+    .from('Match')
+    .select(`
+      id,
+      date,
+      weekNumber,
+      startingHole,
+      status,
+      homeTeamId,
+      awayTeamId,
+      homeTeam:homeTeamId (
+        id,
+        name
+      ),
+      awayTeam:awayTeamId (
+        id,
+        name
+      )
+    `)
+    .order('date', { ascending: true })
+
+  if (error) {
     console.error('Error fetching matches:', error)
     // We'll handle the empty matches array in the client component
   }
+
+  // Transform Supabase response to match Match type
+  const matches: Match[] = (matchesData || []).map(match => ({
+    ...match,
+    homeTeam: Array.isArray(match.homeTeam) ? match.homeTeam[0] : match.homeTeam,
+    awayTeam: Array.isArray(match.awayTeam) ? match.awayTeam[0] : match.awayTeam
+  }))
 
   return (
     <div className="min-h-screen bg-[#030f0f] relative overflow-hidden">
@@ -52,4 +68,4 @@ export default async function AdminPage() {
       </div>
     </div>
   )
-} 
+}

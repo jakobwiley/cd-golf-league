@@ -3,6 +3,8 @@ export interface Team {
   name: string
   createdAt?: Date
   updatedAt?: Date
+  players?: Player[]
+  Player?: Player[] // For Supabase response
 }
 
 export interface Player {
@@ -13,34 +15,38 @@ export interface Player {
   playerType: 'PRIMARY' | 'SUBSTITUTE'
   createdAt?: Date
   updatedAt?: Date
+  team?: Team
 }
 
 export interface Match {
   id: string
   date: string
   weekNumber: number
+  startingHole: number
   homeTeamId: string
   awayTeamId: string
-  startingHole: number
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   createdAt?: Date
   updatedAt?: Date
+  homeTeam: Team
+  awayTeam: Team
 }
 
 export interface MatchScore {
   id: string
   matchId: string
   playerId: string
-  hole: number
   score: number
   createdAt?: Date
   updatedAt?: Date
+  match?: Match
+  player?: Player
 }
 
 export interface MatchPoints {
   id: string
   matchId: string
-  playerId: string
+  teamId: string
   points: number
   createdAt?: Date
   updatedAt?: Date

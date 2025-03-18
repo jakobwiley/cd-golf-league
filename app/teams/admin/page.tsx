@@ -1,4 +1,4 @@
-import { prisma } from '../../../lib/prisma'
+import { supabase } from '../../../lib/supabase'
 import TeamsList from '../../components/TeamsList'
 import Link from 'next/link'
 
@@ -50,48 +50,23 @@ const fallbackTeamData = [
 ];
 
 export default async function TeamsAdminPage() {
-  let teams = [];
-  
-  try {
-    teams = await prisma.team.findMany({
-      include: {
-        players: {
-          orderBy: {
-            name: 'asc'
-          }
-        }
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
-    
-    // Check if teams have players, if not, use fallback data
-    const hasPlayers = teams.some(team => team.players && team.players.length > 0);
-    
-    if (!hasPlayers) {
-      console.log('No players found in teams, using fallback data');
-      
-      // Create teams with players from fallback data
-      teams = fallbackTeamData.map(team => {
-        const teamPlayers = fallbackPlayerData.filter(player => player.teamId === team.id);
-        return {
-          ...team,
-          players: teamPlayers
-        };
-      });
-    }
-  } catch (error) {
-    console.error('Error fetching teams:', error);
-    
-    // Use fallback data in case of error
-    teams = fallbackTeamData.map(team => {
-      const teamPlayers = fallbackPlayerData.filter(player => player.teamId === team.id);
-      return {
-        ...team,
-        players: teamPlayers
-      };
-    });
+  const { data: teams, error } = await supabase
+    .from('Team')
+    .select(`
+      id,
+      name,
+      Player (
+        id,
+        name,
+        handicapIndex,
+        playerType
+      )
+    `)
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching teams:', error)
+    return <div>Error loading teams</div>
   }
 
   return (
@@ -129,8 +104,25 @@ export default async function TeamsAdminPage() {
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
         </div>
 
-        <TeamsList teams={teams} />
+        <div className="container max-w-6xl py-6">
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold mb-4">Teams Admin</h1>
+              <Link
+                href="/teams/new"
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+              >
+                Add Team
+              </Link>
+            </div>
+
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-xl transform translate-x-1/3 -translate-y-1/3"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
+
+            <TeamsList teams={teams || []} />
+          </div>
+        </div>
       </div>
     </div>
   )
-} 
+}
