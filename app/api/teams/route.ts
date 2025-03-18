@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
+import { supabase } from '../../../lib/supabase'
 
 // Helper function to add CORS headers
 function corsResponse(data: any, status = 200) {
@@ -27,12 +27,25 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
-    const teams = await prisma.team.findMany({
-      include: {
-        players: true,
-      },
-    })
-    return corsResponse(teams)
+    const { data, error } = await supabase
+      .from('Team')
+      .select(`
+        id,
+        name,
+        Player (
+          id,
+          name,
+          handicapIndex,
+          playerType
+        )
+      `)
+      .order('name', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    return corsResponse(data)
   } catch (error) {
     console.error('Error fetching teams:', error)
     return corsResponse({ error: 'Failed to fetch teams' }, 500)
@@ -41,19 +54,38 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json()
-    const team = await prisma.team.create({
-      data: {
-        name: data.name,
-        players: {
-          create: data.players || [],
-        },
-      },
-      include: {
-        players: true,
-      },
-    })
-    return corsResponse(team, 201)
+    const body = await request.json()
+
+    // Validate required fields
+    if (!body.name) {
+      return corsResponse({ error: 'Team name is required' }, 400)
+    }
+
+    // Create team
+    const { data, error } = await supabase
+      .from('Team')
+      .insert([{
+        name: body.name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }])
+      .select(`
+        id,
+        name,
+        Player (
+          id,
+          name,
+          handicapIndex,
+          playerType
+        )
+      `)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return corsResponse(data, 201)
   } catch (error) {
     console.error('Error creating team:', error)
     return corsResponse({ error: 'Failed to create team' }, 500)
@@ -63,19 +95,52 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const data = await request.json()
-    const team = await prisma.team.update({
-      where: { id: data.id },
-      data: {
-        name: data.name,
-        players: {
-          deleteMany: {},
-          create: data.players || [],
-        },
-      },
-      include: {
-        players: true,
-      },
-    })
+    const { id, name, players } = data
+
+    // Validate required fields
+    if (!id || !name) {
+      return corsResponse({ error: 'Team ID and name are required' }, 400)
+    }
+
+    // Update team
+    const { data: team, error } = await supabase
+      .from('Team')
+      .update([{
+        id,
+        name,
+        updatedAt: new Date().toISOString()
+      }])
+      .select(`
+        id,
+        name,
+        Player (
+          id,
+          name,
+          handicapIndex,
+          playerType
+        )
+      `)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    // Update players
+    if (players) {
+      await supabase
+        .from('Player')
+        .delete()
+        .eq('teamId', id)
+
+      await supabase
+        .from('Player')
+        .insert(players.map(player => ({
+          ...player,
+          teamId: id
+        })))
+    }
+
     return corsResponse(team)
   } catch (error) {
     console.error('Error updating team:', error)
@@ -90,12 +155,13 @@ export async function DELETE(request: Request) {
     if (!id) {
       return corsResponse({ error: 'Team ID is required' }, 400)
     }
-    await prisma.team.delete({
-      where: { id },
-    })
+    await supabase
+      .from('Team')
+      .delete()
+      .eq('id', id)
     return corsResponse({ message: 'Team deleted successfully' })
   } catch (error) {
     console.error('Error deleting team:', error)
     return corsResponse({ error: 'Failed to delete team' }, 500)
   }
-} 
+}
