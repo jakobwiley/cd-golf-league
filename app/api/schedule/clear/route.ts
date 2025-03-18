@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../../lib/prisma'
+import { supabase } from '../../../../lib/supabase'
 
 export async function DELETE() {
   try {
-    const result = await prisma.match.deleteMany({})
-    
-    return NextResponse.json({ 
-      message: 'All matches deleted successfully',
-      count: result.count
-    })
+    // Delete all matches
+    const { error } = await supabase
+      .from('Match')
+      .delete()
+      .neq('id', '')
+
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting matches:', error)
+    console.error('Error clearing schedule:', error)
     return NextResponse.json(
-      { error: 'Failed to delete matches' },
+      { error: 'Failed to clear schedule' },
       { status: 500 }
     )
   }
-} 
+}

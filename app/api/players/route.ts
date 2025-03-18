@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
+import { supabase } from '../../../lib/supabase'
 import { z } from 'zod'
 
 // Validation schema for player data
@@ -45,12 +45,26 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
-    const players = await prisma.player.findMany({
-      include: {
-        team: true
-      }
-    })
-    return NextResponse.json(players)
+    const { data, error } = await supabase
+      .from('Player')
+      .select(`
+        id,
+        name,
+        handicapIndex,
+        teamId,
+        playerType,
+        Team (
+          id,
+          name
+        )
+      `)
+      .order('name', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error fetching players:', error)
     return NextResponse.json(
@@ -63,29 +77,66 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, handicapIndex, teamId, playerType } = body
 
-    if (!name || handicapIndex === undefined || !teamId) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Missing required fields' }),
+    // Validate required fields
+    if (!body.name || !body.teamId) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    const player = await prisma.player.create({
-      data: {
-        name,
-        handicapIndex: parseFloat(handicapIndex),
-        teamId,
-        playerType: playerType || 'PRIMARY'
-      }
-    })
+    // Check if team exists
+    const { data: team, error: teamError } = await supabase
+      .from('Team')
+      .select('id')
+      .eq('id', body.teamId)
+      .single()
 
-    return new NextResponse(JSON.stringify(player), { status: 200 })
+    if (teamError) {
+      throw teamError
+    }
+
+    if (!team) {
+      return NextResponse.json(
+        { error: 'Team not found' },
+        { status: 404 }
+      )
+    }
+
+    // Create player
+    const { data, error } = await supabase
+      .from('Player')
+      .insert([{
+        name: body.name,
+        handicapIndex: body.handicapIndex || 0,
+        teamId: body.teamId,
+        playerType: body.playerType || 'PRIMARY',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }])
+      .select(`
+        id,
+        name,
+        handicapIndex,
+        teamId,
+        playerType,
+        Team (
+          id,
+          name
+        )
+      `)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error creating player:', error)
-    return new NextResponse(
-      JSON.stringify({ error: 'Failed to create player' }),
+    return NextResponse.json(
+      { error: 'Failed to create player' },
       { status: 500 }
     )
   }
@@ -107,15 +158,28 @@ export async function PUT(request: Request) {
       updateData.handicapIndex = parseFloat(updateData.handicapIndex);
     }
 
-    const player = await prisma.player.update({
-      where: { id },
-      data: updateData,
-      include: {
-        team: true
-      }
-    })
+    const { data, error } = await supabase
+      .from('Player')
+      .update([updateData])
+      .eq('id', id)
+      .select(`
+        id,
+        name,
+        handicapIndex,
+        teamId,
+        playerType,
+        Team (
+          id,
+          name
+        )
+      `)
+      .single()
 
-    return NextResponse.json(player)
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error updating player:', error)
     return NextResponse.json(
@@ -137,9 +201,14 @@ export async function DELETE(request: Request) {
       );
     }
     
-    await prisma.player.delete({
-      where: { id }
-    });
+    const { error } = await supabase
+      .from('Player')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      throw error
+    }
     
     return NextResponse.json({ message: 'Player deleted successfully' });
   } catch (error) {
