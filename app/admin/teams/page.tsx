@@ -1,17 +1,26 @@
 import React from 'react';
 import Link from 'next/link';
-import { prisma } from '../../../lib/prisma';
+import { supabase } from '../../../lib/supabase';
 
 export default async function TeamsPage() {
-  // Fetch teams with their players
-  const teams = await prisma.team.findMany({
-    include: {
-      players: true
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  });
+  const { data: teams, error } = await supabase
+    .from('Team')
+    .select(`
+      id,
+      name,
+      createdAt,
+      Player (
+        id,
+        name,
+        handicapIndex
+      )
+    `)
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching teams:', error);
+    return <div>Error loading teams</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -35,7 +44,7 @@ export default async function TeamsPage() {
             </div>
             <div className="p-4">
               <h3 className="text-lg font-medium mb-2">Players</h3>
-              {team.players && team.players.length > 0 ? (
+              {team.Player && team.Player.length > 0 ? (
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -48,7 +57,7 @@ export default async function TeamsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {team.players.map((player) => (
+                    {team.Player.map((player) => (
                       <tr key={player.id}>
                         <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                           {player.name}
@@ -78,4 +87,4 @@ export default async function TeamsPage() {
       </div>
     </div>
   );
-} 
+}

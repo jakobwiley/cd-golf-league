@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
+import { supabase } from '../../../lib/supabase'
 
 // Player data with names and handicaps
 const playerData = [
@@ -36,26 +36,31 @@ const playerData = [
 
 // Direct access to the global mock data
 // This is a workaround to ensure data persistence
-const globalForPrisma = global as unknown as { 
+const globalForSupabase = global as unknown as { 
   mockTeams: any[],
   mockPlayers: any[]
 }
 
-export async function GET() {
+export async function POST(request: Request) {
   try {
     console.log('Starting direct player addition...');
     
     // First, clear existing players from the global mock data
     console.log('Clearing existing players...');
-    if (globalForPrisma.mockPlayers) {
-      globalForPrisma.mockPlayers.length = 0;
+    if (globalForSupabase.mockPlayers) {
+      globalForSupabase.mockPlayers.length = 0;
     } else {
-      globalForPrisma.mockPlayers = [];
+      globalForSupabase.mockPlayers = [];
     }
     
     // Get all teams
     console.log('Fetching existing teams...');
-    const teams = await prisma.team.findMany();
+    const { data: teams, error } = await supabase
+      .from('Team')
+      .select('id, name')
+    if (error) {
+      throw error
+    }
     console.log(`Found ${teams.length} existing teams:`, teams.map(t => t.name).join(', '));
     
     // Create a map of team names to IDs
@@ -66,50 +71,38 @@ export async function GET() {
     });
     
     // Create players
-    const createdPlayers = [];
+    const players = playerData.map(player => ({
+      name: player.name,
+      teamId: teamMap.get(player.teamName),
+      handicapIndex: player.handicap || 0,
+      playerType: 'PRIMARY'
+    }));
     
-    for (const player of playerData) {
-      const teamId = teamMap.get(player.teamName);
-      
-      if (!teamId) {
-        console.log(`Could not find team ID for ${player.teamName}`);
-        continue;
-      }
-      
-      try {
-        // Create player using Prisma
-        const newPlayer = await prisma.player.create({
-          data: {
-            name: player.name,
-            handicapIndex: player.handicap || 0, // Use 0 as default if handicap is null
-            teamId: teamId
-          },
-          include: {
-            team: true
-          }
-        });
-        
-        // Also directly add to the global mock data to ensure persistence
-        if (globalForPrisma.mockPlayers) {
-          const mockPlayer = {
-            id: `player${globalForPrisma.mockPlayers.length + 1}`,
-            name: player.name,
-            playerType: 'PRIMARY',
-            handicapIndex: player.handicap || 0,
-            teamId: teamId,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
-          
-          globalForPrisma.mockPlayers.push(mockPlayer);
-        }
-        
-        console.log(`Created player: ${player.name} with handicap ${player.handicap || 'N/A'} for team ${player.teamName} (ID: ${teamId})`);
-        createdPlayers.push(newPlayer);
-      } catch (error) {
-        console.error(`Error creating player ${player.name}:`, error);
-      }
+    // Insert all players
+    const { data, error: insertError } = await supabase
+      .from('Player')
+      .insert(players)
+
+    if (insertError) {
+      throw insertError
     }
+
+    // Also directly add to the global mock data to ensure persistence
+    if (globalForSupabase.mockPlayers) {
+      const mockPlayers = players.map((player, index) => ({
+        id: `player${globalForSupabase.mockPlayers.length + index + 1}`,
+        name: player.name,
+        playerType: player.playerType,
+        handicapIndex: player.handicapIndex,
+        teamId: player.teamId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+      
+      globalForSupabase.mockPlayers.push(...mockPlayers);
+    }
+    
+    console.log(`Created ${players.length} players`);
     
     // Return HTML response for better user experience
     const html = `
@@ -169,13 +162,13 @@ export async function GET() {
         <body>
           <div class="card">
             <h1>Players Setup Complete</h1>
-            <p class="success">Successfully added ${createdPlayers.length} players to the database.</p>
+            <p class="success">Successfully added ${players.length} players to the database.</p>
             
             <div class="player-list">
               <h2>Added Players:</h2>
-              ${createdPlayers.map(player => `
+              ${players.map(player => `
                 <div class="player-item">
-                  <strong>${player.name}</strong> - Handicap: ${player.handicapIndex || 'N/A'} - Team: ${player.team?.name || 'Unknown'}
+                  <strong>${player.name}</strong> - Handicap: ${player.handicapIndex || 'N/A'} - Team: ${teamMap.get(player.teamId)}
                 </div>
               `).join('')}
             </div>
@@ -195,4 +188,4 @@ export async function GET() {
     console.error('Error in direct player addition:', error);
     return NextResponse.json({ error: 'Failed to add players' }, { status: 500 });
   }
-} 
+}

@@ -1,17 +1,37 @@
 import React from 'react';
 import Link from 'next/link';
-import { prisma } from '../../../lib/prisma';
+import { supabase } from '../../../lib/supabase';
+
+interface Player {
+  id: string;
+  name: string;
+  handicapIndex: number;
+  playerType: string;
+  teamId: string;
+  Team?: {
+    name: string;
+  };
+}
 
 export default async function PlayersPage() {
-  // Fetch all players with their teams
-  const players = await prisma.player.findMany({
-    include: {
-      team: true
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  });
+  const { data: players, error } = await supabase
+    .from('Player')
+    .select(`
+      id,
+      name,
+      handicapIndex,
+      playerType,
+      teamId,
+      Team (
+        name
+      )
+    `)
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching players:', error);
+    return <div>Error loading players</div>;
+  }
 
   return (
     <div className="p-4">
@@ -27,31 +47,25 @@ export default async function PlayersPage() {
         </div>
       </div>
 
-      {players.length > 0 ? (
+      {(players as Player[]).length > 0 ? (
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border">
             <thead className="bg-gray-100">
               <tr>
                 <th className="py-2 px-4 border text-left">Name</th>
-                <th className="py-2 px-4 border text-left">Handicap</th>
                 <th className="py-2 px-4 border text-left">Team</th>
+                <th className="py-2 px-4 border text-left">Handicap</th>
+                <th className="py-2 px-4 border text-left">Type</th>
                 <th className="py-2 px-4 border text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {players.map((player) => (
+              {(players as Player[]).map((player) => (
                 <tr key={player.id} className="hover:bg-gray-50">
                   <td className="py-2 px-4 border">{player.name}</td>
-                  <td className="py-2 px-4 border">{player.handicapIndex ?? 'N/A'}</td>
-                  <td className="py-2 px-4 border">
-                    {player.team ? (
-                      <Link href={`/admin/teams/${player.team.id}`} className="text-blue-500 hover:underline">
-                        {player.team.name}
-                      </Link>
-                    ) : (
-                      'No Team'
-                    )}
-                  </td>
+                  <td className="py-2 px-4 border">{player.Team?.name || 'No Team'}</td>
+                  <td className="py-2 px-4 border">{player.handicapIndex}</td>
+                  <td className="py-2 px-4 border">{player.playerType}</td>
                   <td className="py-2 px-4 border">
                     <div className="flex gap-2">
                       <Link
@@ -86,4 +100,4 @@ export default async function PlayersPage() {
       )}
     </div>
   );
-} 
+}
