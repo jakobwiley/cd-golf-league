@@ -1,15 +1,31 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../../lib/prisma'
+import { supabase } from '../../../../lib/supabase'
 import { z } from 'zod'
 
+interface Match {
+  id: string
+  date: string
+  weekNumber: number
+  startingHole: number
+  status: string
+  homeTeamId: string
+  awayTeamId: string
+  homeTeam: {
+    id: string
+    name: string
+  }
+  awayTeam: {
+    id: string
+    name: string
+  }
+}
+
 const matchUpdateSchema = z.object({
-  date: z.string().refine(str => !isNaN(Date.parse(str)), {
-    message: "Invalid date format"
-  }).optional(),
-  weekNumber: z.number().int().positive().optional(),
-  homeTeamId: z.string().uuid().optional(),
-  awayTeamId: z.string().uuid().optional(),
-  startingHole: z.number().int().min(1).max(9).optional(),
+  date: z.string().optional(),
+  weekNumber: z.number().optional(),
+  startingHole: z.number().optional(),
+  homeTeamId: z.string().optional(),
+  awayTeamId: z.string().optional(),
   status: z.enum(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']).optional()
 })
 
@@ -18,22 +34,40 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const match = await prisma.match.findUnique({
-      where: { id: params.id },
-      include: {
-        homeTeam: true,
-        awayTeam: true
-      }
-    })
+    const { data, error } = await supabase
+      .from('Match')
+      .select(`
+        id,
+        date,
+        weekNumber,
+        startingHole,
+        status,
+        homeTeamId,
+        awayTeamId,
+        homeTeam:homeTeamId (
+          id,
+          name
+        ),
+        awayTeam:awayTeamId (
+          id,
+          name
+        )
+      `)
+      .eq('id', params.id)
+      .single()
 
-    if (!match) {
+    if (error) {
+      throw error
+    }
+
+    if (!data) {
       return NextResponse.json(
         { error: 'Match not found' },
         { status: 404 }
       )
     }
 
-    return NextResponse.json(match)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error fetching match:', error)
     return NextResponse.json(
@@ -48,13 +82,19 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const data = await request.json()
-    const validatedData = matchUpdateSchema.parse(data)
+    const body = await request.json()
+    const validatedData = matchUpdateSchema.parse(body)
 
     // Check if match exists
-    const existingMatch = await prisma.match.findUnique({
-      where: { id: params.id }
-    })
+    const { data: existingMatch, error: existingMatchError } = await supabase
+      .from('Match')
+      .select('id, homeTeamId, awayTeamId')
+      .eq('id', params.id)
+      .single()
+
+    if (existingMatchError) {
+      throw existingMatchError
+    }
 
     if (!existingMatch) {
       return NextResponse.json(
@@ -63,51 +103,65 @@ export async function PATCH(
       )
     }
 
-    // If teams are being updated, validate them
+    // If teams are being updated, check if they exist
     if (validatedData.homeTeamId || validatedData.awayTeamId) {
       const homeTeamId = validatedData.homeTeamId || existingMatch.homeTeamId
       const awayTeamId = validatedData.awayTeamId || existingMatch.awayTeamId
 
       // Check if teams exist
-      const [homeTeam, awayTeam] = await Promise.all([
-        prisma.team.findUnique({ where: { id: homeTeamId } }),
-        prisma.team.findUnique({ where: { id: awayTeamId } })
-      ])
+      const { data: teams, error: teamsError } = await supabase
+        .from('Team')
+        .select('id')
+        .in('id', [homeTeamId, awayTeamId])
 
-      if (!homeTeam || !awayTeam) {
+      if (teamsError) {
+        throw teamsError
+      }
+
+      if (!teams || teams.length !== 2) {
         return NextResponse.json(
           { error: 'One or both teams not found' },
           { status: 404 }
         )
       }
-
-      // Check if teams are different
-      if (homeTeamId === awayTeamId) {
-        return NextResponse.json(
-          { error: 'Home team and away team must be different' },
-          { status: 400 }
-        )
-      }
     }
 
-    // Update match
-    const updatedMatch = await prisma.match.update({
-      where: { id: params.id },
-      data: {
-        ...(validatedData.date && { date: new Date(validatedData.date) }),
+    const { data, error } = await supabase
+      .from('Match')
+      .update({
+        ...(validatedData.date && { date: validatedData.date }),
         ...(validatedData.weekNumber && { weekNumber: validatedData.weekNumber }),
         ...(validatedData.homeTeamId && { homeTeamId: validatedData.homeTeamId }),
         ...(validatedData.awayTeamId && { awayTeamId: validatedData.awayTeamId }),
         ...(validatedData.startingHole && { startingHole: validatedData.startingHole }),
-        ...(validatedData.status && { status: validatedData.status })
-      },
-      include: {
-        homeTeam: true,
-        awayTeam: true
-      }
-    })
+        ...(validatedData.status && { status: validatedData.status }),
+        updatedAt: new Date().toISOString()
+      })
+      .eq('id', params.id)
+      .select(`
+        id,
+        date,
+        weekNumber,
+        startingHole,
+        status,
+        homeTeamId,
+        awayTeamId,
+        homeTeam:homeTeamId (
+          id,
+          name
+        ),
+        awayTeam:awayTeamId (
+          id,
+          name
+        )
+      `)
+      .single()
 
-    return NextResponse.json(updatedMatch)
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -130,9 +184,15 @@ export async function DELETE(
 ) {
   try {
     // Check if match exists
-    const match = await prisma.match.findUnique({
-      where: { id: params.id }
-    })
+    const { data: match, error: matchError } = await supabase
+      .from('Match')
+      .select('id, status')
+      .eq('id', params.id)
+      .single()
+
+    if (matchError) {
+      throw matchError
+    }
 
     if (!match) {
       return NextResponse.json(
@@ -141,18 +201,23 @@ export async function DELETE(
       )
     }
 
-    // Don't allow deletion of completed matches
-    if (match.status === 'COMPLETED') {
+    // Don't allow deletion of matches that are in progress or completed
+    if (match.status !== 'SCHEDULED') {
       return NextResponse.json(
-        { error: 'Cannot delete completed matches' },
+        { error: 'Cannot delete a match that is in progress or completed' },
         { status: 400 }
       )
     }
 
     // Delete match
-    await prisma.match.delete({
-      where: { id: params.id }
-    })
+    const { error: deleteError } = await supabase
+      .from('Match')
+      .delete()
+      .eq('id', params.id)
+
+    if (deleteError) {
+      throw deleteError
+    }
 
     return NextResponse.json({ message: 'Match deleted successfully' })
   } catch (error) {
@@ -162,4 +227,4 @@ export async function DELETE(
       { status: 500 }
     )
   }
-} 
+}
