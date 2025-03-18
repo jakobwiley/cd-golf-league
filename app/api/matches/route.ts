@@ -1,157 +1,129 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
-import { z } from 'zod'
-import { Prisma } from '@prisma/client'
+import { supabase } from '../../../lib/supabase'
 
-// Validation schemas
-const matchCreateSchema = z.object({
-  date: z.string().refine(str => !isNaN(Date.parse(str)), {
-    message: "Invalid date format"
-  }),
-  weekNumber: z.number().int().positive(),
-  homeTeamId: z.string(),
-  awayTeamId: z.string(),
-  startingHole: z.number().int().min(1).max(9),
-  status: z.enum(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']).optional()
-})
+interface Match {
+  id: string
+  date: string
+  weekNumber: number
+  startingHole: number
+  status: string
+  homeTeamId: string
+  awayTeamId: string
+  homeTeam: {
+    id: string
+    name: string
+  }
+  awayTeam: {
+    id: string
+    name: string
+  }
+}
 
-const matchUpdateSchema = matchCreateSchema.partial().extend({
-  id: z.string()
-})
-
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    console.log('Fetching matches...');
-    
-    const matches = await prisma.match.findMany({
-      include: {
-        homeTeam: true,
-        awayTeam: true,
-      },
-      orderBy: [
-        { weekNumber: 'asc' },
-        { startingHole: 'asc' }
-      ]
-    });
-    
-    // Log match statistics
-    console.log(`Found ${matches.length} matches`);
-    
-    // Group matches by week for debugging
-    const weekCounts = matches.reduce((acc, match) => {
-      acc[match.weekNumber] = (acc[match.weekNumber] || 0) + 1;
-      return acc;
-    }, {} as Record<number, number>);
-    
-    console.log('Matches per week:', weekCounts);
-    
-    // Log unique week numbers
-    const uniqueWeeks = Array.from(new Set(matches.map(m => m.weekNumber))).sort((a, b) => a - b);
-    console.log('Unique weeks:', uniqueWeeks);
-    
-    return NextResponse.json(matches)
+    const { data, error } = await supabase
+      .from('Match')
+      .select(`
+        id,
+        date,
+        weekNumber,
+        startingHole,
+        status,
+        homeTeamId,
+        awayTeamId,
+        homeTeam:homeTeamId (
+          id,
+          name
+        ),
+        awayTeam:awayTeamId (
+          id,
+          name
+        )
+      `)
+      .order('weekNumber', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error fetching matches:', error)
-    return NextResponse.json({ error: 'Failed to fetch matches' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to fetch matches' },
+      { status: 500 }
+    )
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json()
-    
-    // Validate request data
-    const validatedData = matchCreateSchema.parse(data)
+    const body = await request.json()
+
+    // Validate required fields
+    if (!body.homeTeamId || !body.awayTeamId || !body.weekNumber || !body.startingHole) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
 
     // Check if teams exist
-    const [homeTeam, awayTeam] = await Promise.all([
-      prisma.team.findUnique({ where: { id: validatedData.homeTeamId } }),
-      prisma.team.findUnique({ where: { id: validatedData.awayTeamId } })
-    ])
+    const { data: teams, error: teamsError } = await supabase
+      .from('Team')
+      .select('id')
+      .in('id', [body.homeTeamId, body.awayTeamId])
 
-    if (!homeTeam || !awayTeam) {
+    if (teamsError) {
+      throw teamsError
+    }
+
+    if (!teams || teams.length !== 2) {
       return NextResponse.json(
         { error: 'One or both teams not found' },
         { status: 404 }
       )
     }
 
-    // Check if teams are different
-    if (validatedData.homeTeamId === validatedData.awayTeamId) {
-      return NextResponse.json(
-        { error: 'Home team and away team must be different' },
-        { status: 400 }
-      )
+    // Create match
+    const { data, error } = await supabase
+      .from('Match')
+      .insert([{
+        date: body.date || new Date().toISOString(),
+        weekNumber: body.weekNumber,
+        startingHole: body.startingHole,
+        homeTeamId: body.homeTeamId,
+        awayTeamId: body.awayTeamId,
+        status: 'SCHEDULED',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }])
+      .select(`
+        id,
+        date,
+        weekNumber,
+        startingHole,
+        status,
+        homeTeamId,
+        awayTeamId,
+        homeTeam:homeTeamId (
+          id,
+          name
+        ),
+        awayTeam:awayTeamId (
+          id,
+          name
+        )
+      `)
+      .single()
+
+    if (error) {
+      throw error
     }
 
-    // Check for existing match on same date with same teams
-    const existingMatch = await prisma.match.findFirst({
-      where: {
-        date: new Date(validatedData.date),
-        OR: [
-          {
-            AND: [
-              { homeTeamId: validatedData.homeTeamId },
-              { awayTeamId: validatedData.awayTeamId }
-            ]
-          },
-          {
-            AND: [
-              { homeTeamId: validatedData.awayTeamId },
-              { awayTeamId: validatedData.homeTeamId }
-            ]
-          }
-        ]
-      }
-    })
-
-    if (existingMatch) {
-      return NextResponse.json(
-        { error: 'A match between these teams already exists on this date' },
-        { status: 400 }
-      )
-    }
-
-    const match = await prisma.match.create({
-      data: {
-        date: new Date(validatedData.date),
-        weekNumber: validatedData.weekNumber,
-        homeTeamId: validatedData.homeTeamId,
-        awayTeamId: validatedData.awayTeamId,
-        startingHole: validatedData.startingHole,
-        status: validatedData.status || 'SCHEDULED'
-      },
-      include: {
-        homeTeam: true,
-        awayTeam: true
-      }
-    })
-
-    return NextResponse.json(match)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error creating match:', error)
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid data', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      return NextResponse.json(
-        { error: 'Database error', code: error.code },
-        { status: 500 }
-      )
-    }
-    
-    if (error instanceof Prisma.PrismaClientInitializationError) {
-      return NextResponse.json(
-        { error: 'Failed to connect to database' },
-        { status: 500 }
-      )
-    }
-
     return NextResponse.json(
       { error: 'Failed to create match' },
       { status: 500 }
@@ -161,17 +133,27 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const data = await request.json()
-    
-    // Validate request data
-    const validatedData = matchUpdateSchema.parse(data)
+    const body = await request.json()
+
+    // Validate required fields
+    if (!body.id) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
 
     // Check if match exists
-    const existingMatch = await prisma.match.findUnique({
-      where: { id: validatedData.id }
-    })
+    const { data: match, error: matchError } = await supabase
+      .from('Match')
+      .select('id')
+      .eq('id', body.id)
 
-    if (!existingMatch) {
+    if (matchError) {
+      throw matchError
+    }
+
+    if (!match || match.length === 0) {
       return NextResponse.json(
         { error: 'Match not found' },
         { status: 404 }
@@ -179,17 +161,17 @@ export async function PUT(request: Request) {
     }
 
     // If teams are being updated, check if they exist
-    if (validatedData.homeTeamId || validatedData.awayTeamId) {
-      const [homeTeam, awayTeam] = await Promise.all([
-        validatedData.homeTeamId
-          ? prisma.team.findUnique({ where: { id: validatedData.homeTeamId } })
-          : Promise.resolve(true),
-        validatedData.awayTeamId
-          ? prisma.team.findUnique({ where: { id: validatedData.awayTeamId } })
-          : Promise.resolve(true)
-      ])
+    if (body.homeTeamId || body.awayTeamId) {
+      const { data: teams, error: teamsError } = await supabase
+        .from('Team')
+        .select('id')
+        .in('id', [body.homeTeamId, body.awayTeamId])
 
-      if (!homeTeam || !awayTeam) {
+      if (teamsError) {
+        throw teamsError
+      }
+
+      if (!teams || teams.length !== 2) {
         return NextResponse.json(
           { error: 'One or both teams not found' },
           { status: 404 }
@@ -198,35 +180,47 @@ export async function PUT(request: Request) {
     }
 
     // Update match
-    const { id, ...updateData } = validatedData
-    const match = await prisma.match.update({
-      where: { id },
-      data: updateData,
-      include: {
-        homeTeam: true,
-        awayTeam: true
-      }
-    })
+    const { data, error } = await supabase
+      .from('Match')
+      .update([{
+        id: body.id,
+        date: body.date,
+        weekNumber: body.weekNumber,
+        startingHole: body.startingHole,
+        homeTeamId: body.homeTeamId,
+        awayTeamId: body.awayTeamId,
+        status: body.status,
+        updatedAt: new Date().toISOString()
+      }])
+      .select(`
+        id,
+        date,
+        weekNumber,
+        startingHole,
+        status,
+        homeTeamId,
+        awayTeamId,
+        homeTeam:homeTeamId (
+          id,
+          name
+        ),
+        awayTeam:awayTeamId (
+          id,
+          name
+        )
+      `)
+      .single()
 
-    return NextResponse.json(match)
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      return NextResponse.json(
-        { error: 'Database error', code: error.code },
-        { status: 500 }
-      )
-    }
-
+    console.error('Error updating match:', error)
     return NextResponse.json(
       { error: 'Failed to update match' },
       { status: 500 }
     )
   }
-} 
+}

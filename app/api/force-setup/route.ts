@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
+import { supabase } from '../../../lib/supabase'
 
 // Team data
 const teams = [
@@ -142,35 +142,40 @@ const scheduleData = [
   [14, 5, 'Trev/Murph', 'AP/JohnP', '2025-07-15T18:00:00.000Z']
 ];
 
-export async function GET() {
+export async function POST() {
   try {
-    console.log('Starting force setup...');
+    // Delete all existing data
+    const tables = ['Score', 'MatchPlayer', 'Match', 'Player', 'Team']
     
-    // Clear existing data
-    await prisma.matchScore.deleteMany();
-    await prisma.matchPoints.deleteMany();
-    await prisma.matchPlayer.deleteMany();
-    await prisma.match.deleteMany();
-    await prisma.player.deleteMany();
-    await prisma.team.deleteMany();
-    
-    console.log('Cleared existing data');
-    
+    for (const table of tables) {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .neq('id', '') // Delete all rows
+      
+      if (error) {
+        throw error
+      }
+    }
+
     // Create teams
     const teamMap = new Map();
     for (let i = 0; i < teams.length; i++) {
       const teamName = teams[i];
       
       // Create team
-      const team = await prisma.team.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: teamName
-        }
-      });
+      const { data, error } = await supabase
+        .from('Team')
+        .insert([
+          { name: teamName }
+        ])
       
-      teamMap.set(teamName, team.id);
-      console.log(`Created team: ${teamName} with ID: ${team.id}`);
+      if (error) {
+        throw error
+      }
+      
+      teamMap.set(teamName, data[0].id);
+      console.log(`Created team: ${teamName} with ID: ${data[0].id}`);
     }
     
     // Create players
@@ -183,15 +188,19 @@ export async function GET() {
       }
       
       // Create player
-      const newPlayer = await prisma.player.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: player.name,
-          playerType: 'PRIMARY',
-          handicapIndex: player.handicap,
-          teamId: teamId
-        }
-      });
+      const { data, error } = await supabase
+        .from('Player')
+        .insert([
+          {
+            name: player.name,
+            handicapIndex: player.handicap,
+            teamId: teamId
+          }
+        ])
+      
+      if (error) {
+        throw error
+      }
       
       console.log(`Created player: ${player.name} with handicap ${player.handicap} for team ${player.teamName} (ID: ${teamId})`);
     }
@@ -207,24 +216,32 @@ export async function GET() {
       }
       
       // Create match
-      const match = await prisma.match.create({
-        data: {
-          id: crypto.randomUUID(),
-          date: new Date(date),
-          weekNumber: Number(weekNumber),
-          homeTeamId,
-          awayTeamId,
-          startingHole: Number(startingHole),
-          status: 'SCHEDULED'
-        }
-      });
+      const { data, error } = await supabase
+        .from('Match')
+        .insert([
+          {
+            date: new Date(date),
+            weekNumber: Number(weekNumber),
+            homeTeamId,
+            awayTeamId,
+            startingHole: Number(startingHole),
+            status: 'SCHEDULED'
+          }
+        ])
+      
+      if (error) {
+        throw error
+      }
       
       console.log(`Created match: Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}, Starting Hole: ${startingHole}`);
     }
     
-    return NextResponse.json({ message: 'Force setup completed successfully' });
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error in force setup:', error);
-    return NextResponse.json({ error: 'Failed to complete force setup' }, { status: 500 });
+    console.error('Error in force setup:', error)
+    return NextResponse.json(
+      { error: 'Failed to force setup' },
+      { status: 500 }
+    )
   }
-} 
+}
