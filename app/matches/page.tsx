@@ -11,7 +11,7 @@ export default async function MatchesPageServer() {
   
   try {
     console.log('Fetching data from API endpoint...');
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3007'}/api/schedule`, { 
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/schedule`, { 
       cache: 'no-store'
     });
     
