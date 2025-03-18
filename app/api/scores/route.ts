@@ -122,7 +122,7 @@ export async function GET(request: Request) {
     
     // Fetch scores for the specified match
     const { data, error } = await supabase
-      .from('Score')
+      .from('MatchScore')
       .select('*')
       .eq('matchId', matchId)
       .order('hole', { ascending: true })
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       validatedData.scores.map(async (score) => {
         // Insert the score
         const { data, error } = await supabase
-          .from('Score')
+          .from('MatchScore')
           .insert({
             matchId: score.matchId,
             playerId: score.playerId,
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
 
     // Check if all players have scores for all 9 holes
     const { data: scores, error: scoresError } = await supabase
-      .from('Score')
+      .from('MatchScore')
       .select('*')
       .eq('matchId', validatedData.scores[0].matchId)
 
