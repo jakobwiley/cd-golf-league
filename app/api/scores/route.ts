@@ -1,15 +1,57 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
+import { supabase } from '../../../lib/supabase'
 import { z } from 'zod'
-import { Prisma } from '@prisma/client'
 import { SocketEvents } from '../../../lib/socket'
+
+interface Score {
+  id: string
+  matchId: string
+  playerId: string
+  hole: number
+  score: number
+  putts?: number
+  fairway?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+interface Match {
+  id: string
+  date: string
+  weekNumber: number
+  startingHole: number
+  status: string
+  homeTeamId: string
+  awayTeamId: string
+  homeTeam: {
+    id: string
+    name: string
+  }
+  awayTeam: {
+    id: string
+    name: string
+  }
+}
+
+interface Player {
+  id: string
+  name: string
+  handicapIndex: number
+  teamId: string
+  Team: {
+    id: string
+    name: string
+  }
+}
 
 // Validation schema for score
 const scoreSchema = z.object({
   matchId: z.string(),
   playerId: z.string(),
-  hole: z.number().int().min(1).max(9),
-  score: z.number().int().min(1).max(12)
+  hole: z.number(),
+  score: z.number(),
+  putts: z.number().optional(),
+  fairway: z.boolean().optional()
 })
 
 // Validation schema for batch score submission
@@ -78,27 +120,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Match ID is required' }, { status: 400 })
     }
     
-    // Check if matchScore is available in the prisma client
-    if (!prisma.matchScore) {
-      console.log('Mock matchScore not available, returning empty array');
-      return NextResponse.json([]);
-    }
-    
     // Fetch scores for the specified match
-    const scores = await prisma.matchScore.findMany({
-      where: {
-        matchId
-      },
-      include: {
-        player: true
-      },
-      orderBy: [
-        { playerId: 'asc' },
-        { hole: 'asc' }
-      ]
-    })
-    
-    return NextResponse.json(scores)
+    const { data, error } = await supabase
+      .from('Score')
+      .select('*')
+      .eq('matchId', matchId)
+      .order('hole', { ascending: true })
+      .order('playerId', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching scores:', error)
+      return NextResponse.json({ error: 'Failed to fetch scores' }, { status: 500 })
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error fetching scores:', error)
     return NextResponse.json({ error: 'Failed to fetch scores' }, { status: 500 })
@@ -107,132 +142,113 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json()
-    
-    // Validate request data
-    const validatedData = batchScoreSchema.parse(data)
-    
-    // Check if matchScore is available in the prisma client
-    if (!prisma.matchScore) {
-      console.log('Mock matchScore not available, returning success without saving');
-      return NextResponse.json({ success: true, count: validatedData.scores.length });
-    }
-    
+    const body = await request.json()
+    const validatedData = batchScoreSchema.parse(body)
+
     // Process each score
     const results = await Promise.all(
       validatedData.scores.map(async (score) => {
-        // Check if a score already exists for this player and hole
-        const existingScore = await prisma.matchScore.findUnique({
-          where: {
-            matchId_playerId_hole: {
-              matchId: score.matchId,
-              playerId: score.playerId,
-              hole: score.hole
-            }
-          }
-        })
-        
-        if (existingScore) {
-          // Update existing score
-          return prisma.matchScore.update({
-            where: {
-              id: existingScore.id
-            },
-            data: {
-              score: score.score
-            }
+        // Insert the score
+        const { data, error } = await supabase
+          .from('Score')
+          .insert({
+            matchId: score.matchId,
+            playerId: score.playerId,
+            hole: score.hole,
+            score: score.score,
+            putts: score.putts,
+            fairway: score.fairway,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           })
-        } else {
-          // Create new score
-          return prisma.matchScore.create({
-            data: {
-              matchId: score.matchId,
-              playerId: score.playerId,
-              hole: score.hole,
-              score: score.score
-            }
-          })
+          .select()
+          .single()
+
+        if (error) {
+          throw error
         }
+
+        return data
       })
     )
-    
+
     // Update match status to IN_PROGRESS if it's currently SCHEDULED
-    const match = await prisma.match.findUnique({
-      where: {
-        id: validatedData.scores[0].matchId
-      }
-    })
-    
+    const { data: match, error: matchError } = await supabase
+      .from('Match')
+      .select(`
+        id,
+        status,
+        homeTeamId,
+        awayTeamId
+      `)
+      .eq('id', validatedData.scores[0].matchId)
+      .single()
+
+    if (matchError) {
+      throw matchError
+    }
+
     if (match && match.status === 'SCHEDULED') {
-      await prisma.match.update({
-        where: {
-          id: match.id
-        },
-        data: {
-          status: 'IN_PROGRESS'
-        }
-      })
-    }
-    
-    let allScores = [];
-    let matchPlayers = [];
-    
-    // Check if all players have scores for all 9 holes
-    if (prisma.matchScore) {
-      allScores = await prisma.matchScore.findMany({
-        where: {
-          matchId: validatedData.scores[0].matchId
-        }
-      })
-      
-      matchPlayers = await prisma.player.findMany({
-        where: {
-          OR: [
-            { teamId: match?.homeTeamId },
-            { teamId: match?.awayTeamId }
-          ]
-        }
-      })
-      
-      // If all players have scores for all 9 holes, update match status to COMPLETED
-      if (matchPlayers.length > 0 && allScores.length === matchPlayers.length * 9) {
-        await prisma.match.update({
-          where: {
-            id: match!.id
-          },
-          data: {
-            status: 'COMPLETED'
-          }
-        })
+      const { error: updateError } = await supabase
+        .from('Match')
+        .update({ status: 'IN_PROGRESS' })
+        .eq('id', validatedData.scores[0].matchId)
+
+      if (updateError) {
+        throw updateError
       }
     }
-    
+
+    // Check if all players have scores for all 9 holes
+    const { data: scores, error: scoresError } = await supabase
+      .from('Score')
+      .select('*')
+      .eq('matchId', validatedData.scores[0].matchId)
+
+    if (scoresError) {
+      throw scoresError
+    }
+
+    const { data: players, error: playersError } = await supabase
+      .from('Player')
+      .select('*')
+      .in('teamId', [match.homeTeamId, match.awayTeamId])
+
+    if (playersError) {
+      throw playersError
+    }
+
+    // If all players have scores for all 9 holes, update match status to COMPLETED
+    if (players && scores && players.length > 0 && scores.length === players.length * 9) {
+      const { error: updateError } = await supabase
+        .from('Match')
+        .update({ status: 'COMPLETED' })
+        .eq('id', validatedData.scores[0].matchId)
+
+      if (updateError) {
+        throw updateError
+      }
+    }
+
     // Emit Socket.IO events for real-time updates
     await emitScoreUpdated(validatedData.scores[0].matchId)
-    
+
     // If the match status changed to COMPLETED, also update standings
-    if (matchPlayers.length > 0 && allScores.length === matchPlayers.length * 9) {
+    if (players && scores && players.length > 0 && scores.length === players.length * 9) {
       await emitStandingsUpdated()
     }
-    
+
     return NextResponse.json({ success: true, count: results.length })
   } catch (error) {
     console.error('Error saving scores:', error)
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid data', details: error.errors },
         { status: 400 }
       )
     }
-    
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      return NextResponse.json(
-        { error: 'Database error', code: error.code },
-        { status: 500 }
-      )
-    }
-    
+
     return NextResponse.json({ error: 'Failed to save scores' }, { status: 500 })
   }
-} 
+}
