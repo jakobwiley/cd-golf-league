@@ -95,19 +95,18 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
       if (initialMatches.length === 0) {
         try {
           setLoading(true);
-          // Call the direct-setup-schedule API to ensure matches are created
-          await fetch('/api/direct-setup-schedule');
           
-          // Then fetch the matches
-          const response = await fetch('/api/matches');
+          // Fetch matches from the schedule API instead
+          const response = await fetch('/api/schedule');
           if (!response.ok) {
             throw new Error('Failed to fetch matches');
           }
           
           const data = await response.json();
-          if (data && Array.isArray(data) && data.length > 0) {
-            console.log(`Fetched ${data.length} matches from API`);
-            setMatches(data);
+          if (data && data.matches && data.teams) {
+            console.log(`Fetched ${data.matches.length} matches from API`);
+            setMatches(data.matches);
+            setTeams(data.teams);
           } else {
             // If no matches are returned, use fallback data
             console.log('No matches returned from API, using fallback data');

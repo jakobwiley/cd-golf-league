@@ -162,6 +162,48 @@ class MockWebSocket {
 
 global.WebSocket = MockWebSocket;
 
+// Mock the next/router
+jest.mock('next/router', () => ({
+  useRouter() {
+    return {
+      route: '/',
+      pathname: '',
+      query: {},
+      asPath: '',
+      push: jest.fn(),
+      events: {
+        on: jest.fn(),
+        off: jest.fn()
+      },
+      beforePopState: jest.fn(() => null),
+      prefetch: jest.fn(() => null)
+    };
+  },
+}));
+
+// Mock next/image
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: (props) => {
+    // eslint-disable-next-line jsx-a11y/alt-text
+    return <img {...props} />;
+  },
+}));
+
+// Suppress console warnings and errors during tests
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+beforeAll(() => {
+  console.warn = jest.fn();
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.warn = originalConsoleWarn;
+  console.error = originalConsoleError;
+});
+
 // Export test configuration
 module.exports = {
   testDatabaseUrl: process.env.TEST_DATABASE_URL,

@@ -4,6 +4,7 @@ import { parseISO } from 'date-fns'
 import { zonedTimeToUtc } from 'date-fns-tz'
 import { z } from 'zod'
 import { formatDateForAPI } from '../../lib/date-utils'
+import { supabase } from '../../../lib/supabase'
 
 // Central Time Zone
 const CT_TIMEZONE = 'America/Chicago'
@@ -21,22 +22,48 @@ const scheduleSchema = z.object({
 
 export async function GET() {
   try {
-    const matches = await prisma.match.findMany({
-      include: {
-        homeTeam: true,
-        awayTeam: true
-      },
-      orderBy: [
-        { weekNumber: 'asc' },
-        { date: 'asc' }
-      ]
-    });
+    console.log('API route: Fetching schedule data from Supabase...');
     
-    return NextResponse.json(matches);
+    // Get teams
+    const { data: teams, error: teamsError } = await supabase
+      .from('Team')
+      .select('*')
+      .order('name');
+      
+    if (teamsError) {
+      console.error('API route: Supabase teams error:', teamsError);
+      return NextResponse.json(
+        { error: 'Failed to fetch teams', details: teamsError.message },
+        { status: 500 }
+      );
+    }
+    
+    // Get matches with team data
+    const { data: matches, error: matchesError } = await supabase
+      .from('Match')
+      .select(`
+        *,
+        homeTeam:homeTeamId(id, name),
+        awayTeam:awayTeamId(id, name)
+      `)
+      .order('weekNumber')
+      .order('startingHole');
+      
+    if (matchesError) {
+      console.error('API route: Supabase matches error:', matchesError);
+      return NextResponse.json(
+        { error: 'Failed to fetch matches', details: matchesError.message },
+        { status: 500 }
+      );
+    }
+    
+    console.log(`API route: Found ${teams.length} teams and ${matches.length} matches`);
+    
+    return NextResponse.json({ teams, matches });
   } catch (error) {
-    console.error('Error fetching matches:', error);
+    console.error('API route: Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch matches' },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }
