@@ -1,8 +1,9 @@
 {
-  "/matches/page": "app/matches/page.js",
   "/page": "app/page.js",
-  "/standings/page": "app/standings/page.js",
   "/teams/page": "app/teams/page.js",
+  "/matches/page": "app/matches/page.js",
+  "/standings/page": "app/standings/page.js",
   "/api/schedule/route": "app/api/schedule/route.js",
-  "/schedule/page": "app/schedule/page.js"
+  "/api/scores/route": "app/api/scores/route.js",
+  "/api/matches/[id]/players/route": "app/api/matches/[id]/players/route.js"
 }

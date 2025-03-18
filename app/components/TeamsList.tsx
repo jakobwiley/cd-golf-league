@@ -1,20 +1,18 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Team, Player } from '@prisma/client'
+import { Team, Player } from '../types'
 import { calculateCourseHandicap } from '../lib/handicap'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 type TeamsListProps = {
-  teams: (Team & {
-    players: Player[]
-  })[]
+  teams: Team[]
 }
 
 type PlayerFormData = {
   name: string
   handicapIndex: string
-  playerType: 'PRIMARY' | 'SUB'
+  playerType: 'PRIMARY' | 'SUBSTITUTE'
 }
 
 export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
@@ -85,7 +83,7 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
       
       setTeams(teams.map(team => ({
         ...team,
-        players: team.players.map(player => 
+        players: (team.players || []).map(player => 
           player.id === playerId ? updatedPlayer : player
         )
       })))
@@ -120,7 +118,7 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
         if (team.id === teamId) {
           return {
             ...team,
-            players: team.players.filter(p => p.id !== playerId)
+            players: (team.players || []).filter(p => p.id !== playerId)
           }
         }
         return team
@@ -159,7 +157,7 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
       }
 
       const newTeam = await response.json()
-      setTeams([...teams, newTeam])
+      setTeams([...teams, { ...newTeam, players: [] }])
       setNewTeamName('')
       setIsCreating(false)
     } catch (error) {
@@ -215,26 +213,22 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
       }
 
       const newPlayer = await response.json()
-      
-      // Update the teams state with the new player
       setTeams(teams.map(team => {
         if (team.id === teamId) {
           return {
             ...team,
-            players: [...team.players, newPlayer]
+            players: [...(team.players || []), newPlayer]
           }
         }
         return team
       }))
 
-      // Reset form
+      setIsAddingPlayer(false)
       setPlayerFormData({
         name: '',
         handicapIndex: '',
         playerType: 'PRIMARY'
       })
-      setIsAddingPlayer(false)
-      setSelectedTeam(null)
       setError('')
     } catch (error) {
       console.error('Error adding player:', error)
@@ -243,15 +237,13 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
   }
 
   const toggleSubstitutes = (teamId: string) => {
-    setExpandedSubstitutes(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(teamId)) {
-        newSet.delete(teamId)
-      } else {
-        newSet.add(teamId)
-      }
-      return newSet
-    })
+    const newExpandedSubstitutes = new Set(expandedSubstitutes)
+    if (expandedSubstitutes.has(teamId)) {
+      newExpandedSubstitutes.delete(teamId)
+    } else {
+      newExpandedSubstitutes.add(teamId)
+    }
+    setExpandedSubstitutes(newExpandedSubstitutes)
   }
 
   const getPrimaryPlayers = (players: Player[]) => {
@@ -259,15 +251,15 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
   }
 
   const getSubstitutePlayers = (players: Player[]) => {
-    return players.filter(p => p.playerType === 'SUB')
+    return players.filter(p => p.playerType === 'SUBSTITUTE')
   }
 
   return (
     <>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         {teams.map((team) => {
-          const primaryPlayers = getPrimaryPlayers(team.players)
-          const substitutePlayers = getSubstitutePlayers(team.players)
+          const primaryPlayers = getPrimaryPlayers(team.players || [])
+          const substitutePlayers = getSubstitutePlayers(team.players || [])
           
           return (
             <div key={team.id} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
@@ -315,7 +307,7 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                             setPlayerFormData({
                               name: player.name,
                               handicapIndex: player.handicapIndex.toString(),
-                              playerType: player.playerType as 'PRIMARY' | 'SUB'
+                              playerType: player.playerType
                             })
                             setIsEditingPlayer(true)
                           }}
@@ -372,7 +364,7 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                                   setPlayerFormData({
                                     name: player.name,
                                     handicapIndex: player.handicapIndex.toString(),
-                                    playerType: player.playerType as 'PRIMARY' | 'SUB'
+                                    playerType: player.playerType
                                   })
                                   setIsEditingPlayer(true)
                                 }}
@@ -577,11 +569,11 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                   <select
                     id="playerType"
                     value={playerFormData.playerType}
-                    onChange={(e) => setPlayerFormData({...playerFormData, playerType: e.target.value as 'PRIMARY' | 'SUB'})}
+                    onChange={(e) => setPlayerFormData({...playerFormData, playerType: e.target.value as 'PRIMARY' | 'SUBSTITUTE'})}
                     className="w-full px-4 py-2 bg-[#030f0f]/70 text-white border border-[#00df82]/30 rounded-lg focus:outline-none focus:border-[#00df82]/60 backdrop-blur-sm"
                   >
                     <option value="PRIMARY">Primary Player</option>
-                    <option value="SUB">Substitute Player</option>
+                    <option value="SUBSTITUTE">Substitute Player</option>
                   </select>
                 </div>
               </div>
