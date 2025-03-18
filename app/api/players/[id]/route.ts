@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../../lib/prisma'
-import { Prisma } from '@prisma/client'
+import { supabase } from '../../../../lib/supabase'
 
 // Helper function to handle errors
 function handleError(error: any, message: string) {
@@ -39,23 +38,34 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id
-    console.log(`Fetching player with ID: ${id}`)
+    const { data, error } = await supabase
+      .from('Player')
+      .select(`
+        id,
+        name,
+        handicapIndex,
+        teamId,
+        playerType,
+        Team (
+          id,
+          name
+        )
+      `)
+      .eq('id', params.id)
+      .single()
 
-    const player = await prisma.player.findUnique({
-      where: { id },
-      include: { team: true }
-    })
+    if (error) {
+      throw error
+    }
 
-    if (!player) {
-      console.log(`Player with ID ${id} not found`)
+    if (!data) {
       return NextResponse.json(
         { error: 'Player not found' },
         { status: 404 }
       )
     }
 
-    return NextResponse.json(player)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error fetching player:', error)
     return NextResponse.json(
@@ -65,31 +75,57 @@ export async function GET(
   }
 }
 
-export async function PUT(
+export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const body = await request.json()
-    const { name, handicapIndex, playerType } = body
 
-    if (!name || !handicapIndex) {
+    // Check if player exists
+    const { data: existingPlayer, error: existingPlayerError } = await supabase
+      .from('Player')
+      .select('id')
+      .eq('id', params.id)
+      .single()
+
+    if (existingPlayerError) {
+      throw existingPlayerError
+    }
+
+    if (!existingPlayer) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
+        { error: 'Player not found' },
+        { status: 404 }
       )
     }
 
-    const player = await prisma.player.update({
-      where: { id: params.id },
-      data: {
+    // Update player
+    const { data, error } = await supabase
+      .from('Player')
+      .update({
+        ...body,
+        updatedAt: new Date().toISOString()
+      })
+      .eq('id', params.id)
+      .select(`
+        id,
         name,
-        handicapIndex: parseFloat(handicapIndex),
-        playerType: playerType || 'PRIMARY'
-      }
-    })
+        handicapIndex,
+        teamId,
+        playerType,
+        Team (
+          id,
+          name
+        )
+      `)
+      .single()
 
-    return NextResponse.json(player)
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Error updating player:', error)
     return NextResponse.json(
@@ -104,9 +140,14 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.player.delete({
-      where: { id: params.id }
-    })
+    const { error } = await supabase
+      .from('Player')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) {
+      throw error
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -116,4 +157,4 @@ export async function DELETE(
       { status: 500 }
     )
   }
-} 
+}
