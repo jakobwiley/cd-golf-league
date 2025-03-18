@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
+import { v4 as uuidv4 } from 'uuid'
 
 // Helper function to add CORS headers
 function corsResponse(data: any, status = 200) {
@@ -61,10 +62,14 @@ export async function POST(request: Request) {
       return corsResponse({ error: 'Team name is required' }, 400)
     }
 
+    // Generate UUID for team ID
+    const teamId = uuidv4()
+
     // Create team
     const { data, error } = await supabase
       .from('Team')
       .insert([{
+        id: teamId,
         name: body.name,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()

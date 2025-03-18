@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabase'
 import TeamsList from '../../components/TeamsList'
 import Link from 'next/link'
+import { Team, Player } from '../../../types'
 
 // Fallback player data in case the API doesn't return players
 const fallbackPlayerData = [
@@ -50,7 +51,7 @@ const fallbackTeamData = [
 ];
 
 export default async function TeamsAdminPage() {
-  const { data: teams, error } = await supabase
+  const { data: teamsData, error } = await supabase
     .from('Team')
     .select(`
       id,
@@ -59,7 +60,8 @@ export default async function TeamsAdminPage() {
         id,
         name,
         handicapIndex,
-        playerType
+        playerType,
+        teamId
       )
     `)
     .order('name', { ascending: true })
@@ -68,6 +70,19 @@ export default async function TeamsAdminPage() {
     console.error('Error fetching teams:', error)
     return <div>Error loading teams</div>
   }
+
+  // Transform Supabase response to match Team type
+  const teams: Team[] = (teamsData || []).map(team => ({
+    id: team.id,
+    name: team.name,
+    players: (team.Player || []).map((player): Player => ({
+      id: player.id,
+      name: player.name,
+      handicapIndex: player.handicapIndex,
+      playerType: player.playerType,
+      teamId: player.teamId
+    }))
+  }))
 
   return (
     <div className="min-h-screen bg-[#030f0f] relative overflow-hidden">
@@ -119,7 +134,7 @@ export default async function TeamsAdminPage() {
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-xl transform translate-x-1/3 -translate-y-1/3"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
 
-            <TeamsList teams={teams || []} />
+            <TeamsList teams={teams} />
           </div>
         </div>
       </div>
