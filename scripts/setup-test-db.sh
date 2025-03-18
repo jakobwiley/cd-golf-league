@@ -23,13 +23,13 @@ wait_for_db() {
 # Wait for database to be ready
 wait_for_db
 
-# Reset Prisma migrations
-echo "Resetting Prisma migrations..."
-rm -rf prisma/migrations
+# Reset database
+echo "Resetting database..."
+npx prisma migrate reset --force
 
-# Initialize Prisma with fresh migration
-echo "Initializing Prisma with fresh migration..."
-npx prisma migrate dev --name init
+# Run migrations
+echo "Running migrations..."
+npx prisma migrate deploy
 
 # Run seed script
 echo "Running seed script..."

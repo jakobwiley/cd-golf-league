@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { TEST_BASE_URL } from '../jest.setup';
+import { testBaseUrl } from '../jest.setup';
 
 describe('Weekly Schedule API', () => {
   it('should return the correct weekly schedule', async () => {
-    const response = await axios.get(`${TEST_BASE_URL}/api/schedule`);
+    const response = await axios.get(`${testBaseUrl}/api/schedule`);
     
     expect(response.status).toBe(200);
     expect(response.data).toBeDefined();
@@ -28,7 +28,7 @@ describe('Weekly Schedule API', () => {
 
   it('should return matches for a specific week', async () => {
     const week = 1; // Test with week 1
-    const response = await axios.get(`${TEST_BASE_URL}/api/schedule?week=${week}`);
+    const response = await axios.get(`${testBaseUrl}/api/schedule?week=${week}`);
     
     expect(response.status).toBe(200);
     expect(response.data.week).toBe(week);
@@ -36,7 +36,7 @@ describe('Weekly Schedule API', () => {
 
   it('should handle invalid week numbers', async () => {
     try {
-      await axios.get(`${TEST_BASE_URL}/api/schedule?week=999`);
+      await axios.get(`${testBaseUrl}/api/schedule?week=999`);
       fail('Should have thrown an error');
     } catch (error) {
       expect(error.response.status).toBe(400);

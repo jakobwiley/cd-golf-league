@@ -1,13 +1,13 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import request from 'supertest';
-import { TEST_BASE_URL, TEST_DATABASE_URL } from '../../jest.setup';
+import { testBaseUrl, testDatabaseUrl } from '../../jest.setup';
 
 const prisma = new PrismaClient();
 
 describe('Database API Tests', () => {
   beforeAll(async () => {
     // Ensure we're using the test database
-    if (!TEST_DATABASE_URL?.includes('test')) {
+    if (!testDatabaseUrl?.includes('test')) {
       throw new Error('Test database URL must contain "test" to prevent accidental data loss');
     }
   });
@@ -28,7 +28,7 @@ describe('Database API Tests', () => {
 
   describe('Team Creation', () => {
     it('should create a team successfully', async () => {
-      const response = await request(TEST_BASE_URL)
+      const response = await request(testBaseUrl)
         .post('/api/teams')
         .send({ name: 'Test Team' });
 
@@ -39,12 +39,12 @@ describe('Database API Tests', () => {
 
     it('should not create a team with duplicate name', async () => {
       // Create first team
-      await request(TEST_BASE_URL)
+      await request(testBaseUrl)
         .post('/api/teams')
         .send({ name: 'Test Team' });
 
       // Try to create duplicate team
-      const response = await request(TEST_BASE_URL)
+      const response = await request(testBaseUrl)
         .post('/api/teams')
         .send({ name: 'Test Team' });
 
@@ -75,7 +75,7 @@ describe('Database API Tests', () => {
     });
 
     it('should create a match successfully', async () => {
-      const response = await request(TEST_BASE_URL)
+      const response = await request(testBaseUrl)
         .post('/api/matches')
         .send({
           date: new Date().toISOString(),
@@ -93,7 +93,7 @@ describe('Database API Tests', () => {
     });
 
     it('should not create a match with invalid team IDs', async () => {
-      const response = await request(TEST_BASE_URL)
+      const response = await request(testBaseUrl)
         .post('/api/matches')
         .send({
           date: new Date().toISOString(),
@@ -110,7 +110,7 @@ describe('Database API Tests', () => {
 
   describe('Schedule Setup', () => {
     it('should set up the complete schedule', async () => {
-      const response = await request(TEST_BASE_URL)
+      const response = await request(testBaseUrl)
         .get('/api/direct-setup-schedule');
 
       expect(response.status).toBe(200);
@@ -183,7 +183,7 @@ describe('Database API Tests', () => {
     });
 
     it('should create a player substitution', async () => {
-      const response = await request(TEST_BASE_URL)
+      const response = await request(testBaseUrl)
         .post('/api/match-players')
         .send({
           matchId,
@@ -200,7 +200,7 @@ describe('Database API Tests', () => {
 
     it('should not allow duplicate player assignments', async () => {
       // Create first assignment
-      await request(TEST_BASE_URL)
+      await request(testBaseUrl)
         .post('/api/match-players')
         .send({
           matchId,
@@ -210,7 +210,7 @@ describe('Database API Tests', () => {
         });
 
       // Try to create duplicate assignment
-      const response = await request(TEST_BASE_URL)
+      const response = await request(testBaseUrl)
         .post('/api/match-players')
         .send({
           matchId,

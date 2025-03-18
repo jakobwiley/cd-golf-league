@@ -43,20 +43,14 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const players = await prisma.player.findMany({
       include: {
-        team: true,
-      },
-      orderBy: {
-        name: 'asc',
-      },
+        team: true
+      }
     })
-
-    return NextResponse.json({
-      players,
-    })
+    return NextResponse.json(players)
   } catch (error) {
     console.error('Error fetching players:', error)
     return NextResponse.json(
@@ -68,56 +62,32 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
-    console.log('Creating player with data:', data);
-    
-    // Validate required fields
-    if (!data.name) {
-      return NextResponse.json(
-        { error: 'Player name is required' },
+    const body = await request.json()
+    const { name, handicapIndex, teamId, playerType } = body
+
+    if (!name || handicapIndex === undefined || !teamId) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Missing required fields' }),
         { status: 400 }
-      );
+      )
     }
-    
-    if (!data.teamId) {
-      return NextResponse.json(
-        { error: 'Team ID is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Check if team exists
-    const team = await prisma.team.findUnique({
-      where: { id: data.teamId }
-    });
-    
-    if (!team) {
-      return NextResponse.json(
-        { error: `Team with ID ${data.teamId} not found` },
-        { status: 404 }
-      );
-    }
-    
-    // Create the player
+
     const player = await prisma.player.create({
       data: {
-        name: data.name,
-        handicapIndex: parseFloat(data.handicapIndex) || 0, // Ensure handicapIndex is a number
-        playerType: data.playerType || 'PRIMARY',
-        teamId: data.teamId
-      },
-      include: {
-        team: true
+        name,
+        handicapIndex: parseFloat(handicapIndex),
+        teamId,
+        playerType: playerType || 'PRIMARY'
       }
-    });
-    
-    return NextResponse.json(player);
+    })
+
+    return new NextResponse(JSON.stringify(player), { status: 200 })
   } catch (error) {
-    console.error('Error creating player:', error);
-    return NextResponse.json(
-      { error: 'Failed to create player' },
+    console.error('Error creating player:', error)
+    return new NextResponse(
+      JSON.stringify({ error: 'Failed to create player' }),
       { status: 500 }
-    );
+    )
   }
 }
 
@@ -179,4 +149,13 @@ export async function DELETE(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// Export handlers for testing
+export const handler = {
+  GET,
+  POST,
+  PUT,
+  DELETE,
+  OPTIONS
 } 
