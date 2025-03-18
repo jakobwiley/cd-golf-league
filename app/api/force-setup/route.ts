@@ -148,14 +148,17 @@ export async function POST() {
     const tables = ['Score', 'MatchPlayer', 'Match', 'Player', 'Team']
     
     for (const table of tables) {
+      console.log(`Deleting all rows from ${table}...`);
       const { error } = await supabase
         .from(table)
         .delete()
         .neq('id', '') // Delete all rows
       
       if (error) {
-        throw error
+        console.error(`Error deleting from ${table}:`, error);
+        throw error;
       }
+      console.log(`Successfully deleted all rows from ${table}`);
     }
 
     // Create teams
@@ -164,14 +167,17 @@ export async function POST() {
       const teamName = teams[i];
       
       // Create team
+      console.log(`Creating team ${teamName}...`);
       const { data, error } = await supabase
         .from('Team')
         .insert([
           { name: teamName }
         ])
+        .select()
       
       if (error) {
-        throw error
+        console.error(`Error creating team ${teamName}:`, error);
+        throw error;
       }
       
       teamMap.set(teamName, data[0].id);
@@ -183,11 +189,12 @@ export async function POST() {
       const teamId = teamMap.get(player.teamName);
       
       if (!teamId) {
-        console.log(`Could not find team ID for ${player.teamName}`);
+        console.error(`Could not find team ID for ${player.teamName}`);
         continue;
       }
       
       // Create player
+      console.log(`Creating player ${player.name}...`);
       const { data, error } = await supabase
         .from('Player')
         .insert([
@@ -197,9 +204,11 @@ export async function POST() {
             teamId: teamId
           }
         ])
+        .select()
       
       if (error) {
-        throw error
+        console.error(`Error creating player ${player.name}:`, error);
+        throw error;
       }
       
       console.log(`Created player: ${player.name} with handicap ${player.handicap} for team ${player.teamName} (ID: ${teamId})`);
@@ -211,11 +220,12 @@ export async function POST() {
       const awayTeamId = teamMap.get(awayTeamName);
       
       if (!homeTeamId || !awayTeamId) {
-        console.log(`Could not find team IDs for ${homeTeamName} vs ${awayTeamName}`);
+        console.error(`Could not find team IDs for ${homeTeamName} vs ${awayTeamName}`);
         continue;
       }
       
       // Create match
+      console.log(`Creating match: Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}, Starting Hole: ${startingHole}...`);
       const { data, error } = await supabase
         .from('Match')
         .insert([
@@ -228,9 +238,11 @@ export async function POST() {
             status: 'SCHEDULED'
           }
         ])
+        .select()
       
       if (error) {
-        throw error
+        console.error(`Error creating match: Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}:`, error);
+        throw error;
       }
       
       console.log(`Created match: Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}, Starting Hole: ${startingHole}`);
@@ -240,7 +252,7 @@ export async function POST() {
   } catch (error) {
     console.error('Error in force setup:', error)
     return NextResponse.json(
-      { error: 'Failed to force setup' },
+      { error: 'Failed to force setup', details: error },
       { status: 500 }
     )
   }
