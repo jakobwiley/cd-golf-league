@@ -1,15 +1,20 @@
 {
   "pages": {
-    "/page": [
+    "/matches/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/matches/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
+    ],
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/page.js"
     ],
     "/schedule/page": [
       "static/chunks/webpack.js",
@@ -21,15 +26,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/teams/page.js"
     ],
-    "/matches/page": [
+    "/standings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/matches/page.js"
-    ],
-    "/teams/admin/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/teams/admin/page.js"
+      "static/chunks/app/standings/page.js"
     ]
   }
 }

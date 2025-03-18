@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { get } from '@vercel/edge-config';
 
-// This middleware ensures that the mock data is initialized for each request
-export function middleware(request: NextRequest) {
+// This middleware handles both edge config and authentication
+export async function middleware(request: NextRequest) {
+  // Handle edge config for /welcome route
+  if (request.nextUrl.pathname === '/welcome') {
+    const greeting = await get('greeting');
+    return NextResponse.json(greeting);
+  }
+
   // Allow all API routes without authentication
   if (request.nextUrl.pathname.startsWith('/api/')) {
     return NextResponse.next()
@@ -54,13 +61,7 @@ export function middleware(request: NextRequest) {
 // See: https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
+    '/welcome',
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 } 

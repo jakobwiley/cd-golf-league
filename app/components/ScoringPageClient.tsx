@@ -21,8 +21,10 @@ interface Match {
   id: string
   date: string
   weekNumber: number
-  homeTeam: Team
-  awayTeam: Team
+  homeTeamId: string
+  awayTeamId: string
+  homeTeam: { id: string, name: string }
+  awayTeam: { id: string, name: string }
   startingHole: number
   status: string
 }
@@ -37,12 +39,12 @@ export default function ScoringPageClient() {
   useEffect(() => {
     const loadMatches = async () => {
       try {
-        const response = await fetch('/api/matches')
+        const response = await fetch('/api/schedule')
         if (!response.ok) {
           throw new Error('Failed to load matches')
         }
         const data = await response.json()
-        setMatches(data)
+        setMatches(data.matches || [])
       } catch (error) {
         console.error('Error loading matches:', error)
         setError('Failed to load matches')

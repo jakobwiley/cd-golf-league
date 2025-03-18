@@ -81,10 +81,10 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
   // Fetch all matches
   const fetchMatches = async () => {
     try {
-      const response = await fetch('/api/matches')
+      const response = await fetch('/api/schedule')
       if (!response.ok) throw new Error('Failed to fetch matches')
       const data = await response.json()
-      setMatches(data.matches)
+      setMatches(data.matches || [])
     } catch (error) {
       console.error('Error fetching matches:', error)
       toast.error('Failed to load matches')

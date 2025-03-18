@@ -21,8 +21,10 @@ interface Match {
   id: string
   date: string
   weekNumber: number
-  homeTeam: Team
-  awayTeam: Team
+  homeTeamId: string
+  awayTeamId: string
+  homeTeam: { id: string, name: string }
+  awayTeam: { id: string, name: string }
   startingHole: number
   status: string
 }
@@ -145,14 +147,14 @@ export default function MatchesPageClient() {
   useEffect(() => {
     const loadMatches = async () => {
       try {
-        const response = await fetch('/api/matches')
+        const response = await fetch('/api/schedule')
         if (!response.ok) {
           throw new Error('Failed to load matches')
         }
         const data = await response.json()
         
         // Filter to only show scheduled matches
-        const scheduledMatches = data.filter((match: Match) => match.status === 'SCHEDULED')
+        const scheduledMatches = (data.matches || []).filter((match: Match) => match.status === 'SCHEDULED')
         
         // Check if we have matches for all weeks (1-14, excluding week 10)
         const weeks = Array.from(new Set(scheduledMatches.map((match: Match) => match.weekNumber))).sort((a: number, b: number) => a - b);
