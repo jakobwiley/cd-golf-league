@@ -69,6 +69,17 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Get the match first to get team IDs
+    const { data: matchData, error: matchError } = await supabase
+      .from('Match')
+      .select('homeTeamId, awayTeamId')
+      .eq('id', params.id)
+      .single()
+
+    if (matchError) {
+      throw matchError
+    }
+
     const { data, error } = await supabase
       .from('MatchPlayer')
       .select(`
@@ -98,12 +109,12 @@ export async function GET(
 
     // Filter home players to get only the active ones (max 2)
     const homePlayers = matchPlayers
-      .filter(mp => mp.Player.teamId === 'homeTeamId' && !mp.isSubstitute)
+      .filter(mp => mp.Player.teamId === matchData.homeTeamId && !mp.isSubstitute)
       .slice(0, 2)
 
     // Filter away players to get only the active ones (max 2)
     const awayPlayers = matchPlayers
-      .filter(mp => mp.Player.teamId === 'awayTeamId' && !mp.isSubstitute)
+      .filter(mp => mp.Player.teamId === matchData.awayTeamId && !mp.isSubstitute)
       .slice(0, 2)
 
     // Map home players with substitution info

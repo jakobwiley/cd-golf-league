@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
+import { v4 as uuidv4 } from 'uuid'
 
 // Team data
 const teams = [
@@ -145,7 +146,7 @@ const scheduleData = [
 export async function POST() {
   try {
     // Delete all existing data
-    const tables = ['Score', 'MatchPlayer', 'Match', 'Player', 'Team']
+    const tables = ['MatchScore', 'MatchPlayer', 'Match', 'Player', 'Team']
     
     for (const table of tables) {
       console.log(`Deleting all rows from ${table}...`);
@@ -165,13 +166,19 @@ export async function POST() {
     const teamMap = new Map();
     for (let i = 0; i < teams.length; i++) {
       const teamName = teams[i];
+      const teamId = uuidv4();
       
       // Create team
       console.log(`Creating team ${teamName}...`);
       const { data, error } = await supabase
         .from('Team')
         .insert([
-          { name: teamName }
+          { 
+            id: teamId,
+            name: teamName,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
         ])
         .select()
       
@@ -180,8 +187,8 @@ export async function POST() {
         throw error;
       }
       
-      teamMap.set(teamName, data[0].id);
-      console.log(`Created team: ${teamName} with ID: ${data[0].id}`);
+      teamMap.set(teamName, teamId);
+      console.log(`Created team: ${teamName} with ID: ${teamId}`);
     }
     
     // Create players
@@ -194,14 +201,19 @@ export async function POST() {
       }
       
       // Create player
+      const playerId = uuidv4();
       console.log(`Creating player ${player.name}...`);
       const { data, error } = await supabase
         .from('Player')
         .insert([
           {
+            id: playerId,
             name: player.name,
             handicapIndex: player.handicap,
-            teamId: teamId
+            teamId: teamId,
+            playerType: 'PRIMARY',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           }
         ])
         .select()
@@ -211,7 +223,7 @@ export async function POST() {
         throw error;
       }
       
-      console.log(`Created player: ${player.name} with handicap ${player.handicap} for team ${player.teamName} (ID: ${teamId})`);
+      console.log(`Created player: ${player.name} with handicap ${player.handicap} for team ${player.teamName} (ID: ${playerId})`);
     }
     
     // Create matches
@@ -225,17 +237,21 @@ export async function POST() {
       }
       
       // Create match
+      const matchId = uuidv4();
       console.log(`Creating match: Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}, Starting Hole: ${startingHole}...`);
       const { data, error } = await supabase
         .from('Match')
         .insert([
           {
+            id: matchId,
             date: new Date(date),
             weekNumber: Number(weekNumber),
             homeTeamId,
             awayTeamId,
             startingHole: Number(startingHole),
-            status: 'SCHEDULED'
+            status: 'SCHEDULED',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           }
         ])
         .select()
@@ -246,6 +262,69 @@ export async function POST() {
       }
       
       console.log(`Created match: Week ${weekNumber}, ${homeTeamName} vs ${awayTeamName}, Starting Hole: ${startingHole}`);
+
+      // Get players for both teams
+      const { data: homePlayers, error: homePlayersError } = await supabase
+        .from('Player')
+        .select('id')
+        .eq('teamId', homeTeamId)
+
+      if (homePlayersError) {
+        console.error(`Error fetching home team players:`, homePlayersError);
+        throw homePlayersError;
+      }
+
+      const { data: awayPlayers, error: awayPlayersError } = await supabase
+        .from('Player')
+        .select('id')
+        .eq('teamId', awayTeamId)
+
+      if (awayPlayersError) {
+        console.error(`Error fetching away team players:`, awayPlayersError);
+        throw awayPlayersError;
+      }
+
+      // Create MatchPlayer records for home team
+      for (const player of homePlayers) {
+        const { error: matchPlayerError } = await supabase
+          .from('MatchPlayer')
+          .insert([
+            {
+              id: uuidv4(),
+              matchId,
+              playerId: player.id,
+              isSubstitute: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          ])
+
+        if (matchPlayerError) {
+          console.error(`Error creating match player record:`, matchPlayerError);
+          throw matchPlayerError;
+        }
+      }
+
+      // Create MatchPlayer records for away team
+      for (const player of awayPlayers) {
+        const { error: matchPlayerError } = await supabase
+          .from('MatchPlayer')
+          .insert([
+            {
+              id: uuidv4(),
+              matchId,
+              playerId: player.id,
+              isSubstitute: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          ])
+
+        if (matchPlayerError) {
+          console.error(`Error creating match player record:`, matchPlayerError);
+          throw matchPlayerError;
+        }
+      }
     }
     
     return NextResponse.json({ success: true })
