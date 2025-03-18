@@ -1,9 +1,11 @@
 {
   "/schedule/page": "app/schedule/page.js",
-  "/standings/page": "app/standings/page.js",
-  "/matches/page": "app/matches/page.js",
-  "/api/standings/route": "app/api/standings/route.js",
-  "/teams/page": "app/teams/page.js",
   "/page": "app/page.js",
-  "/api/schedule/route": "app/api/schedule/route.js"
+  "/matches/page": "app/matches/page.js",
+  "/standings/page": "app/standings/page.js",
+  "/teams/page": "app/teams/page.js",
+  "/api/schedule/route": "app/api/schedule/route.js",
+  "/api/standings/route": "app/api/standings/route.js",
+  "/api/scores/route": "app/api/scores/route.js",
+  "/api/matches/[id]/players/route": "app/api/matches/[id]/players/route.js"
 }
