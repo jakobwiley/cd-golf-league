@@ -1,8 +1,7 @@
-import axios from 'axios';
+import request from 'supertest';
 import { prisma } from '../../lib/prisma';
-import { getResponseData, createTestTeam } from '../utils';
-
-const BASE_URL = global.TEST_BASE_URL;
+import { createTestTeam } from '../utils';
+import { testBaseUrl } from '../../jest.setup';
 
 describe('Teams API', () => {
   let testTeamId: string;
@@ -14,10 +13,9 @@ describe('Teams API', () => {
 
   describe('GET /api/teams', () => {
     it('should return all teams', async () => {
-      const response = await axios.get(`${BASE_URL}/api/teams`);
-      const data = getResponseData(response);
+      const response = await request(testBaseUrl).get('/api/teams');
       expect(response.status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(response.body)).toBe(true);
     });
   });
 
@@ -28,12 +26,13 @@ describe('Teams API', () => {
         players: []
       };
 
-      const response = await axios.post(`${BASE_URL}/api/teams`, newTeam);
-      const data = getResponseData(response);
+      const response = await request(testBaseUrl)
+        .post('/api/teams')
+        .send(newTeam);
       expect(response.status).toBe(201);
-      expect(data).toHaveProperty('id');
-      expect(data.name).toBe(newTeam.name);
-      testTeamId = data.id;
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.name).toBe(newTeam.name);
+      testTeamId = response.body.id;
     });
   });
 
@@ -44,19 +43,22 @@ describe('Teams API', () => {
         players: []
       };
 
-      const response = await axios.put(`${BASE_URL}/api/teams`, {
-        id: testTeamId,
-        ...updatedTeam
-      });
-      const data = getResponseData(response);
+      const response = await request(testBaseUrl)
+        .put('/api/teams')
+        .send({
+          id: testTeamId,
+          ...updatedTeam
+        });
       expect(response.status).toBe(200);
-      expect(data.name).toBe(updatedTeam.name);
+      expect(response.body.name).toBe(updatedTeam.name);
     });
   });
 
   describe('DELETE /api/teams', () => {
     it('should delete a team', async () => {
-      const response = await axios.delete(`${BASE_URL}/api/teams?id=${testTeamId}`);
+      const response = await request(testBaseUrl)
+        .delete('/api/teams')
+        .query({ id: testTeamId });
       expect(response.status).toBe(200);
     });
   });

@@ -32,6 +32,7 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
     playerType: 'PRIMARY'
   })
   const [error, setError] = useState('')
+  const [expandedSubstitutes, setExpandedSubstitutes] = useState<Set<string>>(new Set())
 
   const handleEditTeam = async (teamId: string, newName: string) => {
     try {
@@ -241,50 +242,73 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
     }
   }
 
+  const toggleSubstitutes = (teamId: string) => {
+    setExpandedSubstitutes(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(teamId)) {
+        newSet.delete(teamId)
+      } else {
+        newSet.add(teamId)
+      }
+      return newSet
+    })
+  }
+
+  const getPrimaryPlayers = (players: Player[]) => {
+    return players.filter(p => p.playerType === 'PRIMARY')
+  }
+
+  const getSubstitutePlayers = (players: Player[]) => {
+    return players.filter(p => p.playerType === 'SUB')
+  }
+
   return (
     <>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {teams.map((team) => (
-          <div key={team.id} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
-            <div className="p-6 relative">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-audiowide text-white">{team.name}</h3>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => {
-                      setSelectedTeam(team)
-                      setNewTeamName(team.name)
-                      setIsEditingTeam(true)
-                    }}
-                    className="p-2 text-[#00df82]/60 hover:text-[#00df82] hover:bg-white/10 rounded-lg transition-colors"
-                  >
-                    <PencilIcon className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTeam(team.id)}
-                    className="p-2 text-red-400/60 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
+        {teams.map((team) => {
+          const primaryPlayers = getPrimaryPlayers(team.players)
+          const substitutePlayers = getSubstitutePlayers(team.players)
+          
+          return (
+            <div key={team.id} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
               
-              <div className="space-y-3 mb-6">
-                {team.players.map((player) => (
-                  <div key={player.id} className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 p-3">
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
-                    <div className="flex items-center justify-between relative">
+              <div className="relative p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-audiowide text-white mb-1">{team.name}</h3>
+                    <p className="text-sm text-gray-400 font-orbitron">Primary Players</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        setSelectedTeam(team)
+                        setIsEditingTeam(true)
+                        setNewTeamName(team.name)
+                      }}
+                      className="p-2 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
+                    >
+                      <PencilIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTeam(team.id)}
+                      className="p-2 text-red-500 hover:text-red-400 transition-colors"
+                    >
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Primary Players */}
+                <div className="space-y-4 mb-4">
+                  {primaryPlayers.map((player) => (
+                    <div key={player.id} className="flex items-center justify-between p-3 rounded-lg bg-[#030f0f]/30 border border-[#00df82]/10">
                       <div>
-                        <div className="text-white font-orbitron">{player.name}</div>
-                        <div className="text-sm text-[#00df82]/80 font-audiowide space-x-2">
-                          <span>HCP: {player.handicapIndex}</span>
-                          <span>•</span>
-                          <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
-                        </div>
+                        <div className="text-white font-medium">{player.name}</div>
+                        {renderPlayerHandicaps(player)}
                       </div>
-                      <div className="flex space-x-1">
+                      <div className="flex space-x-2">
                         <button
                           onClick={() => {
                             setSelectedPlayer(player)
@@ -295,45 +319,100 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                             })
                             setIsEditingPlayer(true)
                           }}
-                          className="p-1.5 text-[#00df82]/60 hover:text-[#00df82] hover:bg-white/10 rounded-lg transition-colors"
+                          className="p-1 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
                         >
-                          <PencilIcon className="h-4 w-4" />
+                          <PencilIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeletePlayer(player.id, team.id)}
-                          className="p-1.5 text-red-400/60 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
+                          className="p-1 text-red-500 hover:text-red-400 transition-colors"
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* Substitute Players Section */}
+                {substitutePlayers.length > 0 && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => toggleSubstitutes(team.id)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg bg-[#030f0f]/30 border border-[#00df82]/10 hover:bg-[#030f0f]/40 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-white font-medium">Substitutes</span>
+                        <span className="text-sm text-gray-400">({substitutePlayers.length})</span>
+                      </div>
+                      <svg
+                        className={`w-5 h-5 text-[#00df82] transform transition-transform ${
+                          expandedSubstitutes.has(team.id) ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {expandedSubstitutes.has(team.id) && (
+                      <div className="mt-2 space-y-2">
+                        {substitutePlayers.map((player) => (
+                          <div key={player.id} className="flex items-center justify-between p-3 rounded-lg bg-[#030f0f]/30 border border-[#00df82]/10">
+                            <div>
+                              <div className="text-white font-medium">{player.name}</div>
+                              {renderPlayerHandicaps(player)}
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedPlayer(player)
+                                  setPlayerFormData({
+                                    name: player.name,
+                                    handicapIndex: player.handicapIndex.toString(),
+                                    playerType: player.playerType as 'PRIMARY' | 'SUB'
+                                  })
+                                  setIsEditingPlayer(true)
+                                }}
+                                className="p-1 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePlayer(player.id, team.id)}
+                                className="p-1 text-red-500 hover:text-red-400 transition-colors"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
-                
-                {team.players.length === 0 && (
-                  <div className="text-white/50 text-center py-4 font-orbitron">No players added yet</div>
                 )}
+                
+                {/* Add Player Button */}
+                <button
+                  onClick={() => {
+                    setSelectedTeam(team)
+                    setPlayerFormData({
+                      name: '',
+                      handicapIndex: '',
+                      playerType: 'PRIMARY'
+                    })
+                    setIsAddingPlayer(true)
+                  }}
+                  className="mt-4 w-full py-2 px-4 bg-[#00df82]/10 text-[#00df82] rounded-lg border border-[#00df82]/20 hover:bg-[#00df82]/20 transition-colors font-orbitron"
+                >
+                  Add Player
+                </button>
               </div>
-              
-              <button
-                onClick={() => {
-                  setSelectedTeam(team)
-                  setIsAddingPlayer(true)
-                  setPlayerFormData({
-                    name: '',
-                    handicapIndex: '',
-                    playerType: 'PRIMARY'
-                  })
-                }}
-                className="group relative overflow-hidden w-full px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
-                <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
-                <span className="relative font-audiowide text-sm">Add Player</span>
-              </button>
             </div>
-          </div>
-        ))}
+          )
+        })}
         
         {/* Create Team Button */}
         <div 
@@ -485,35 +564,25 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                     id="handicapIndex"
                     value={playerFormData.handicapIndex}
                     onChange={(e) => setPlayerFormData({...playerFormData, handicapIndex: e.target.value})}
-                    step="0.1"
-                    min="0"
                     className="w-full px-4 py-2 bg-[#030f0f]/70 text-white border border-[#00df82]/30 rounded-lg focus:outline-none focus:border-[#00df82]/60 backdrop-blur-sm"
                     placeholder="Enter handicap index"
+                    min="0"
+                    max="54"
+                    step="0.1"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-white/70 mb-2 font-orbitron">Player Type</label>
-                  <div className="flex space-x-4">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={playerFormData.playerType === 'PRIMARY'}
-                        onChange={() => setPlayerFormData({...playerFormData, playerType: 'PRIMARY'})}
-                        className="form-radio text-[#00df82] focus:ring-[#00df82]"
-                      />
-                      <span className="text-white">Primary</span>
-                    </label>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={playerFormData.playerType === 'SUB'}
-                        onChange={() => setPlayerFormData({...playerFormData, playerType: 'SUB'})}
-                        className="form-radio text-[#00df82] focus:ring-[#00df82]"
-                      />
-                      <span className="text-white">Substitute</span>
-                    </label>
-                  </div>
+                  <label htmlFor="playerType" className="block text-white/70 mb-2 font-orbitron">Player Type</label>
+                  <select
+                    id="playerType"
+                    value={playerFormData.playerType}
+                    onChange={(e) => setPlayerFormData({...playerFormData, playerType: e.target.value as 'PRIMARY' | 'SUB'})}
+                    className="w-full px-4 py-2 bg-[#030f0f]/70 text-white border border-[#00df82]/30 rounded-lg focus:outline-none focus:border-[#00df82]/60 backdrop-blur-sm"
+                  >
+                    <option value="PRIMARY">Primary Player</option>
+                    <option value="SUB">Substitute Player</option>
+                  </select>
                 </div>
               </div>
               
@@ -522,7 +591,6 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                   onClick={() => {
                     setIsAddingPlayer(false)
                     setIsEditingPlayer(false)
-                    setSelectedTeam(null)
                     setSelectedPlayer(null)
                     setPlayerFormData({
                       name: '',
@@ -536,10 +604,10 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                 </button>
                 <button
                   onClick={() => {
-                    if (isAddingPlayer) {
-                      handleAddPlayer(selectedTeam.id)
-                    } else if (isEditingPlayer && selectedPlayer) {
+                    if (isEditingPlayer && selectedPlayer) {
                       handleEditPlayer(selectedPlayer.id)
+                    } else if (isAddingPlayer && selectedTeam) {
+                      handleAddPlayer(selectedTeam.id)
                     }
                   }}
                   disabled={!playerFormData.name.trim() || !playerFormData.handicapIndex.trim()}
@@ -547,7 +615,9 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
                   <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
-                  <span className="relative font-audiowide">{isAddingPlayer ? 'Add Player' : 'Save Changes'}</span>
+                  <span className="relative font-audiowide">
+                    {isEditingPlayer ? 'Save Changes' : 'Add Player'}
+                  </span>
                 </button>
               </div>
             </div>

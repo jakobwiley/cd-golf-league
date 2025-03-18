@@ -394,23 +394,132 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
     fetchData()
   }, [match.id])
 
-  // Handle score change for a player on a specific hole
-  const handleScoreChange = (playerId: string, hole: number, score: number) => {
-    setPlayerScores(prev => {
-      const newScores = { ...prev }
-      const playerScores = [...(newScores[playerId] || [])]
-      const holeIndex = hole - 1
+  // Handle score changes and auto-save
+  const handleScoreChange = async (playerId: string, hole: number, score: number) => {
+    try {
+      // Update local state immediately (optimistic update)
+      const updatedScores = {
+        ...playerScores,
+        [playerId]: playerScores[playerId].map(s =>
+          s.hole === hole ? { ...s, score } : s
+        )
+      };
+      setPlayerScores(updatedScores);
       
-      if (playerScores[holeIndex]) {
-        playerScores[holeIndex] = { ...playerScores[holeIndex], score }
-      } else {
-        playerScores[holeIndex] = { hole, score }
+      // Format the single score for API
+      const scoreToSave = {
+        scores: [{
+          matchId: match.id,
+          playerId,
+          hole,
+          score
+        }]
+      };
+      
+      // Save to database
+      const response = await fetch('/api/scores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(scoreToSave),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save score');
       }
       
-      newScores[playerId] = playerScores
-      return newScores
-    })
-  }
+      // Show brief success message
+      setSuccess('Score saved');
+      setTimeout(() => setSuccess(null), 1000);
+      
+    } catch (err) {
+      console.error('Error saving score:', err);
+      setError('Failed to save score. Will retry automatically.');
+      
+      // Retry logic
+      setTimeout(async () => {
+        try {
+          const retryResponse = await fetch('/api/scores', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              scores: [{
+                matchId: match.id,
+                playerId,
+                hole,
+                score
+              }]
+            }),
+          });
+          
+          if (!retryResponse.ok) {
+            throw new Error('Failed to save score on retry');
+          }
+          
+          setError(null);
+        } catch (retryErr) {
+          console.error('Error on retry:', retryErr);
+          setError('Failed to save score. Please check your connection.');
+        }
+      }, 5000); // Retry after 5 seconds
+    }
+  };
+
+  // Load saved scores on component mount and handle WebSocket updates
+  useEffect(() => {
+    const loadScores = async () => {
+      try {
+        setLoading(true);
+        const scoresResponse = await fetch(`/api/scores?matchId=${match.id}`);
+        if (!scoresResponse.ok) {
+          throw new Error('Failed to load scores');
+        }
+        
+        const savedScores = await scoresResponse.json();
+        
+        // Group scores by player
+        const groupedScores = savedScores.reduce((acc: PlayerScores, score: any) => {
+          if (!acc[score.playerId]) {
+            acc[score.playerId] = Array(9).fill(null).map((_, i) => ({
+              hole: i + 1,
+              score: 0
+            }));
+          }
+          acc[score.playerId][score.hole - 1] = {
+            hole: score.hole,
+            score: score.score
+          };
+          return acc;
+        }, {});
+        
+        setPlayerScores(groupedScores);
+      } catch (err) {
+        console.error('Error loading scores:', err);
+        setError('Failed to load scores');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadScores();
+    
+    // Set up WebSocket listener for real-time updates
+    const socket = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000'}/api/scores/ws?matchId=${match.id}`);
+    
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'SCORE_UPDATED') {
+        loadScores(); // Reload scores when updates come in
+      }
+    };
+    
+    return () => {
+      socket.close();
+    };
+  }, [match.id]);
 
   // Calculate total score for a player
   const calculateTotal = (playerId: string) => {
@@ -456,46 +565,52 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
   // Save scores to the database
   const saveScores = async () => {
     try {
-      setSaving(true);
-      setError(null);
+      setSaving(true)
+      setError(null)
       
       // Format scores for API
-      const formattedScores = Object.entries(playerScores).flatMap(([playerId, scores]) =>
-        scores
-          .filter(score => score && score.score > 0)
-          .map(score => ({
+      const scoresToSave = Object.entries(playerScores).flatMap(([playerId, holeScores]) => 
+        holeScores
+          .filter(holeScore => holeScore.score > 0) // Only save scores that have been entered
+          .map(holeScore => ({
             matchId: match.id,
             playerId,
-            hole: score.hole,
-            score: score.score
+            hole: holeScore.hole,
+            score: holeScore.score
           }))
-      );
+      )
+      
+      if (scoresToSave.length === 0) {
+        setError('Please enter at least one score')
+        setSaving(false)
+        return
+      }
       
       const response = await fetch('/api/scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ scores: formattedScores }),
-      });
+        body: JSON.stringify({ scores: scoresToSave }),
+      })
       
       if (!response.ok) {
-        throw new Error('Failed to save scores');
+        throw new Error('Failed to save scores')
       }
       
-      setSuccess('Scores saved successfully!');
+      setSuccess('Scores saved successfully!')
       
       // Clear success message after 3 seconds
       setTimeout(() => {
-        setSuccess(null);
-      }, 3000);
+        setSuccess(null)
+      }, 3000)
     } catch (err) {
-      console.error('Error saving scores:', err);
-      setError('Failed to save scores');
+      console.error('Error saving scores:', err)
+      setError('Failed to save scores')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   // Navigate to next hole
   const goToNextHole = () => {

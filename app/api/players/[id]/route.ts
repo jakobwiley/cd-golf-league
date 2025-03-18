@@ -70,37 +70,26 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id
-    const data = await request.json()
-    console.log(`Updating player with ID: ${id}`, data)
+    const body = await request.json()
+    const { name, handicapIndex, playerType } = body
 
-    // Check if player exists
-    const player = await prisma.player.findUnique({
-      where: { id }
-    })
-
-    if (!player) {
-      console.log(`Player with ID ${id} not found`)
+    if (!name || !handicapIndex) {
       return NextResponse.json(
-        { error: 'Player not found' },
-        { status: 404 }
+        { error: 'Missing required fields' },
+        { status: 400 }
       )
     }
 
-    // If handicap is provided, update handicapIndex
-    if (data.handicap !== undefined) {
-      data.handicapIndex = data.handicap
-      delete data.handicap
-    }
-
-    // Update the player
-    const updatedPlayer = await prisma.player.update({
-      where: { id },
-      data,
-      include: { team: true }
+    const player = await prisma.player.update({
+      where: { id: params.id },
+      data: {
+        name,
+        handicapIndex: parseFloat(handicapIndex),
+        playerType: playerType || 'PRIMARY'
+      }
     })
 
-    return NextResponse.json(updatedPlayer)
+    return NextResponse.json(player)
   } catch (error) {
     console.error('Error updating player:', error)
     return NextResponse.json(
@@ -115,28 +104,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id
-    console.log(`Deleting player with ID: ${id}`)
-
-    // Check if player exists
-    const player = await prisma.player.findUnique({
-      where: { id }
-    })
-
-    if (!player) {
-      console.log(`Player with ID ${id} not found`)
-      return NextResponse.json(
-        { error: 'Player not found' },
-        { status: 404 }
-      )
-    }
-
-    // Delete the player
     await prisma.player.delete({
-      where: { id }
+      where: { id: params.id }
     })
 
-    return NextResponse.json({ message: 'Player deleted successfully' })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting player:', error)
     return NextResponse.json(
