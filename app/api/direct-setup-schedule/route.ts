@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
-import { Prisma } from '@prisma/client'
+import { supabase } from '../../../lib/supabase'
 
 // Schedule data based on the raw data provided
 // Format: [weekNumber, startingHole, homeTeamName, awayTeamName, date]
@@ -116,147 +115,128 @@ interface Match {
   status: string;
 }
 
-export async function GET() {
+export async function POST(request: Request) {
   try {
-    console.log('Starting direct schedule setup...');
+    console.log('Starting direct schedule setup...')
     
-    // First, ensure all teams exist
-    const teamNames = Array.from(new Set([
-      ...scheduleData.map(entry => entry[2] as string),
-      ...scheduleData.map(entry => entry[3] as string)
-    ]));
-
-    console.log('Team names to create:', teamNames);
-    const teams = new Map<string, any>();
+    // Create a map to store team references
+    const teams = new Map<string, any>()
     
     // Delete any existing matches first
-    await prisma.match.deleteMany({});
-    console.log('Cleared existing matches');
-
-    // Get all existing teams
-    const existingTeams = await prisma.team.findMany();
-    console.log(`Found ${existingTeams.length} existing teams`);
-
-    // Delete all existing teams
-    for (const team of existingTeams) {
-      await prisma.team.delete({
-        where: { id: team.id }
-      });
-      console.log(`Deleted team: ${team.name}`);
+    const { data: existingMatches, error: matchesError } = await supabase
+      .from('Match')
+      .select('id')
+    if (matchesError) {
+      throw matchesError
     }
     
-    // Create all teams fresh
+    if (existingMatches) {
+      for (const match of existingMatches) {
+        const { error: deleteError } = await supabase
+          .from('Match')
+          .delete()
+          .eq('id', match.id)
+        if (deleteError) {
+          throw deleteError
+        }
+      }
+    }
+    console.log('Cleared existing matches')
+
+    // Get all existing teams
+    const { data: existingTeams, error: existingTeamsError } = await supabase
+      .from('Team')
+      .select('id, name')
+    if (existingTeamsError) {
+      throw existingTeamsError
+    }
+    console.log(`Found ${existingTeams?.length || 0} existing teams`)
+
+    // Delete all existing teams
+    if (existingTeams) {
+      for (const team of existingTeams) {
+        const { error: deleteTeamError } = await supabase
+          .from('Team')
+          .delete()
+          .eq('id', team.id)
+        if (deleteTeamError) {
+          throw deleteTeamError
+        }
+        console.log(`Deleted team: ${team.name}`)
+      }
+    }
+    
+    // Create teams
+    const teamNames = Array.from(new Set(scheduleData.map(entry => [entry[2], entry[3]]).flat()))
     for (const teamName of teamNames) {
       try {
-        const teamData: Prisma.TeamCreateInput = {
-          id: crypto.randomUUID(),
-          name: teamName
-        };
-        const team = await prisma.team.create({
-          data: teamData
-        });
-        console.log(`Created team: ${teamName} with ID: ${team.id}`);
-        teams.set(teamName, team);
+        const { data: newTeam, error: teamError } = await supabase
+          .from('Team')
+          .insert({
+            id: crypto.randomUUID(),
+            name: teamName,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          })
+          .select()
+          .single()
+        
+        if (teamError || !newTeam) {
+          throw teamError || new Error('Failed to create team')
+        }
+        
+        console.log(`Created team: ${teamName} with ID: ${newTeam.id}`)
+        teams.set(teamName, newTeam)
       } catch (error) {
-        console.error(`Error creating team ${teamName}:`, error);
-        throw error;
+        console.error(`Error creating team ${teamName}:`, error)
+        throw error
       }
     }
     
     // Create all matches
-    for (const entry of scheduleData) {
-      try {
-        const weekNumber = entry[0] as number;
-        const startingHole = entry[1] as number;
-        const homeTeamName = entry[2] as string;
-        const awayTeamName = entry[3] as string;
-        const dateStr = entry[4] as string;
+    const matchesToCreate = scheduleData.map((entry) => {
+      const weekNumber = entry[0] as number
+      const startingHole = entry[1] as number
+      const homeTeamName = entry[2] as string
+      const awayTeamName = entry[3] as string
+      const dateStr = entry[4] as string
 
-        const homeTeam = teams.get(homeTeamName);
-        const awayTeam = teams.get(awayTeamName);
-        
-        if (!homeTeam || !awayTeam) {
-          throw new Error(`Missing team reference for match: ${homeTeamName} vs ${awayTeamName}`);
-        }
-
-        const matchData: Prisma.MatchCreateInput = {
-          id: crypto.randomUUID(),
-          weekNumber,
-          startingHole,
-          date: new Date(dateStr),
-          homeTeam: { connect: { id: homeTeam.id } },
-          awayTeam: { connect: { id: awayTeam.id } },
-          status: 'SCHEDULED'
-        };
-
-        const match = await prisma.match.create({
-          data: matchData,
-          include: {
-            homeTeam: true,
-            awayTeam: true
-          }
-        });
-        console.log(`Created match: ${homeTeamName} vs ${awayTeamName} (Week ${weekNumber}, Hole ${startingHole})`);
-
-        // Get players for both teams
-        const homePlayers = await prisma.player.findMany({
-          where: { teamId: homeTeam.id }
-        });
-
-        const awayPlayers = await prisma.player.findMany({
-          where: { teamId: awayTeam.id }
-        });
-
-        // Create MatchPlayer records for home team players
-        for (const player of homePlayers) {
-          await prisma.matchPlayer.create({
-            data: {
-              id: crypto.randomUUID(),
-              matchId: match.id,
-              playerId: player.id,
-              isSubstitute: false
-            }
-          });
-          console.log(`Created MatchPlayer record for home team player: ${player.name}`);
-        }
-
-        // Create MatchPlayer records for away team players
-        for (const player of awayPlayers) {
-          await prisma.matchPlayer.create({
-            data: {
-              id: crypto.randomUUID(),
-              matchId: match.id,
-              playerId: player.id,
-              isSubstitute: false
-            }
-          });
-          console.log(`Created MatchPlayer record for away team player: ${player.name}`);
-        }
-      } catch (error) {
-        console.error(`Error creating match for entry ${entry}:`, error);
-        throw error;
+      const homeTeam = teams.get(homeTeamName)
+      const awayTeam = teams.get(awayTeamName)
+      
+      if (!homeTeam || !awayTeam) {
+        throw new Error(`Missing team reference for match: ${homeTeamName} vs ${awayTeamName}`)
       }
+
+      return {
+        id: crypto.randomUUID(),
+        date: new Date(dateStr).toISOString(),
+        weekNumber,
+        homeTeamId: homeTeam.id,
+        awayTeamId: awayTeam.id,
+        startingHole,
+        status: 'SCHEDULED',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    })
+
+    const { data: createdMatches, error } = await supabase
+      .from('Match')
+      .insert(matchesToCreate)
+      .select()
+
+    if (error) {
+      throw error
     }
 
-    // Get all matches
-    const matches = await prisma.match.findMany({
-      include: {
-        homeTeam: true,
-        awayTeam: true
-      },
-      orderBy: [
-        { weekNumber: 'asc' },
-        { startingHole: 'asc' }
-      ]
-    });
-
-    console.log(`Successfully created ${matches.length} matches`);
-    return NextResponse.json(matches);
+    console.log(`Successfully created ${matchesToCreate.length} matches`)
+    return NextResponse.json(createdMatches)
   } catch (error) {
-    console.error('Error setting up schedule:', error);
-    return NextResponse.json({ 
-      error: 'Failed to set up schedule',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('Error setting up schedule:', error)
+    return NextResponse.json(
+      { error: 'Failed to set up schedule' },
+      { status: 500 }
+    )
   }
-} 
+}
