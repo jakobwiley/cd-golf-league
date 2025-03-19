@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { X } from 'lucide-react'
@@ -11,27 +11,37 @@ interface PageParams extends Record<string, string | string[]> {
   id: string | string[];
 }
 
+interface PlayerScores {
+  [key: string]: {
+    hole: number;
+    score: number;
+  }[];
+}
+
 export default function ScorecardSummaryPage() {
   const rawParams = useParams()
   const params: PageParams = rawParams as PageParams
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
   const [match, setMatch] = React.useState<Match | null>(null)
+  const [scores, setScores] = useState<PlayerScores>({})
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
-  // Enter fullscreen and landscape mode on mount
+  // Enter landscape mode and fullscreen on mount
   useEffect(() => {
     const setupView = async () => {
-      if (containerRef.current) {
-        try {
-          await containerRef.current.requestFullscreen()
-          if ('orientation' in window.screen && 'lock' in window.screen.orientation) {
-            await window.screen.orientation.lock('landscape')
-          }
-        } catch (err) {
-          console.error('Fullscreen or orientation error:', err)
+      try {
+        // First try to lock orientation
+        if ('orientation' in window.screen && 'lock' in window.screen.orientation) {
+          await window.screen.orientation.lock('landscape')
         }
+        // Then request fullscreen
+        if (containerRef.current) {
+          await containerRef.current.requestFullscreen()
+        }
+      } catch (err) {
+        console.error('Fullscreen or orientation error:', err)
       }
     }
     
@@ -48,27 +58,38 @@ export default function ScorecardSummaryPage() {
     }
   }, [])
 
-  // Fetch match data
+  // Fetch match data and scores
   useEffect(() => {
-    const fetchMatch = async () => {
+    const fetchData = async () => {
       try {
         const matchId = Array.isArray(params.id) ? params.id[0] : params.id
-        const response = await fetch(`/api/matches/${matchId}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch match')
-        }
-        const data = await response.json()
-        setMatch(data)
+        
+        // Fetch match data
+        const matchResponse = await fetch(`/api/matches/${matchId}`)
+        if (!matchResponse.ok) throw new Error('Failed to fetch match')
+        const matchData = await matchResponse.json()
+        setMatch(matchData)
+
+        // Fetch scores
+        const scoresResponse = await fetch(`/api/scores?matchId=${matchId}`)
+        if (!scoresResponse.ok) throw new Error('Failed to fetch scores')
+        const scoresData = await scoresResponse.json()
+        setScores(scoresData)
+        
         setLoading(false)
       } catch (err) {
-        console.error('Error fetching match:', err)
+        console.error('Error fetching data:', err)
         setError('Failed to load match data')
         setLoading(false)
       }
     }
 
-    fetchMatch()
+    fetchData()
   }, [params.id])
+
+  const calculateTotal = (playerId: string) => {
+    return scores[playerId]?.reduce((total, score) => total + score.score, 0) || 0
+  }
 
   const handleClose = () => {
     router.back()
@@ -117,7 +138,6 @@ export default function ScorecardSummaryPage() {
       {/* Scorecard Summary Content */}
       <div className="p-4">
         <div className="bg-[#030f0f]/90 rounded-xl backdrop-blur-sm border border-[#00df82]/20 overflow-hidden">
-          {/* Add your existing scorecard summary table here */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -128,11 +148,54 @@ export default function ScorecardSummaryPage() {
                       {hole}
                     </th>
                   ))}
-                  <th className="p-3 text-center text-white font-audiowide">Total</th>
+                  <th className="p-3 text-center text-white font-audiowide">Gross</th>
+                  <th className="p-3 text-center text-white font-audiowide">Net</th>
                 </tr>
               </thead>
               <tbody>
-                {/* Add your player rows here */}
+                {/* Home Team */}
+                <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
+                  <td colSpan={12} className="p-2 text-left text-[#00df82] font-audiowide text-sm">
+                    {match.homeTeam.name}
+                  </td>
+                </tr>
+                {match.homeTeam.players?.map((player) => (
+                  <tr key={player.id} className="border-b border-[#00df82]/10">
+                    <td className="p-3 text-left text-white sticky left-0 bg-[#030f0f]/90">
+                      <div>{player.name}</div>
+                      <div className="text-xs text-[#00df82]/70">CHP: {player.handicapIndex}</div>
+                    </td>
+                    {Array.from({ length: 9 }, (_, i) => i + 1).map(hole => (
+                      <td key={hole} className="p-3 text-center text-white">
+                        {scores[player.id]?.find(s => s.hole === hole)?.score || '-'}
+                      </td>
+                    ))}
+                    <td className="p-3 text-center text-white">{calculateTotal(player.id)}</td>
+                    <td className="p-3 text-center text-[#00df82]">{calculateTotal(player.id)}</td>
+                  </tr>
+                ))}
+
+                {/* Away Team */}
+                <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
+                  <td colSpan={12} className="p-2 text-left text-[#00df82] font-audiowide text-sm">
+                    {match.awayTeam.name}
+                  </td>
+                </tr>
+                {match.awayTeam.players?.map((player) => (
+                  <tr key={player.id} className="border-b border-[#00df82]/10">
+                    <td className="p-3 text-left text-white sticky left-0 bg-[#030f0f]/90">
+                      <div>{player.name}</div>
+                      <div className="text-xs text-[#00df82]/70">CHP: {player.handicapIndex}</div>
+                    </td>
+                    {Array.from({ length: 9 }, (_, i) => i + 1).map(hole => (
+                      <td key={hole} className="p-3 text-center text-white">
+                        {scores[player.id]?.find(s => s.hole === hole)?.score || '-'}
+                      </td>
+                    ))}
+                    <td className="p-3 text-center text-white">{calculateTotal(player.id)}</td>
+                    <td className="p-3 text-center text-[#00df82]">{calculateTotal(player.id)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
