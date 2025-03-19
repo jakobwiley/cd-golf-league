@@ -5,7 +5,7 @@ const config = {
   setupFilesAfterEnv: ['./jest.setup.js'],
   testTimeout: 30000,
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './.babelrc.test.js' }]
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
