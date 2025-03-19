@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { WebSocket, WebSocketServer } from 'ws'
 import { IncomingMessage } from 'http'
 import { Duplex } from 'stream'
+import { supabase } from '../../../../lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,11 +19,31 @@ export async function GET(request: NextRequest) {
     const wss = new WebSocketServer({ noServer: true })
 
     // Handle WebSocket connection
-    wss.on('connection', (ws: WebSocket) => {
-      console.log('WebSocket client connected')
+    wss.on('connection', async (ws: WebSocket) => {
+      console.log('WebSocket client connected to', process.env.NODE_ENV, 'environment')
 
-      // Send initial message
-      ws.send(JSON.stringify({ type: 'connected', matchId }))
+      // Send initial message with environment info
+      ws.send(JSON.stringify({ 
+        type: 'connected', 
+        matchId,
+        environment: process.env.NODE_ENV 
+      }))
+
+      // Subscribe to score changes for this match
+      const subscription = supabase
+        .channel(`match_${matchId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'scores',
+          filter: `match_id=eq.${matchId}`
+        }, (payload) => {
+          ws.send(JSON.stringify({
+            type: 'SCORE_UPDATED',
+            payload
+          }))
+        })
+        .subscribe()
 
       // Handle client messages
       ws.on('message', (message: Buffer) => {
@@ -37,6 +58,7 @@ export async function GET(request: NextRequest) {
       // Handle client disconnection
       ws.on('close', () => {
         console.log('Client disconnected')
+        subscription.unsubscribe()
       })
     })
 
