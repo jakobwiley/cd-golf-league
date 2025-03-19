@@ -882,20 +882,20 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
       </div>
 
       {/* Hole navigation */}
-      <div className="bg-[#030f0f]/70 p-4 border-b border-[#00df82]/20">
-        <div className="flex justify-between items-center max-w-xs mx-auto">
+      <div className="bg-[#030f0f]/70 px-2 py-3 border-b border-[#00df82]/20">
+        <div className="flex justify-center items-center gap-2 max-w-[240px] mx-auto">
           <button 
             onClick={goToPrevHole}
-            className="p-1 sm:p-2 text-white border border-[#00df82]/50 rounded-md hover:bg-[#00df82]/10 transition-colors w-10 sm:w-16 h-8 sm:h-10 flex items-center justify-center"
+            className="w-10 h-10 text-white border border-[#00df82]/50 rounded-md hover:bg-[#00df82]/10 transition-colors flex items-center justify-center"
             aria-label="Previous hole"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           </button>
           
-          <div className="flex justify-center mx-4">
-            <div className="rounded-full bg-[#00df82] flex flex-col items-center justify-center w-16 h-16">
+          <div className="flex justify-center">
+            <div className="rounded-full bg-[#00df82] flex flex-col items-center justify-center w-14 h-14">
               <span className="text-xs font-medium text-black font-orbitron">Hole</span>
               <span className="text-xl font-bold text-black font-orbitron">{activeHole}</span>
             </div>
@@ -903,11 +903,11 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
           
           <button 
             onClick={goToNextHole}
-            className="p-1 sm:p-2 text-white border border-[#00df82]/50 rounded-md hover:bg-[#00df82]/10 transition-colors w-10 sm:w-16 h-8 sm:h-10 flex items-center justify-center"
+            className="w-10 h-10 text-white border border-[#00df82]/50 rounded-md hover:bg-[#00df82]/10 transition-colors flex items-center justify-center"
             aria-label="Next hole"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
             </svg>
           </button>
         </div>
@@ -1283,7 +1283,7 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
             onClick={onClose}
             className="px-5 py-3 bg-[#030f0f] text-white border border-[#00df82]/30 rounded-lg hover:bg-[#030f0f]/80 transition-colors text-base min-w-[100px]"
           >
-            Close
+            Close Match
           </button>
           
           <button
@@ -1296,7 +1296,7 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
             <span className="relative flex items-center justify-center">
               {saving ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

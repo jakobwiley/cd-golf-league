@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import MatchScoring from '../components/MatchScoring';
-import HoleByHoleScorecard from '../components/HoleByHoleScorecard';
+import { useRouter } from 'next/navigation';
 
 // Helper function to format date
 const formatDate = (dateString: string) => {
@@ -30,28 +29,8 @@ const groupMatchesByWeek = (matches: Match[]) => {
       week: parseInt(week),
       matches
     }))
-    .sort((a, b) => a.week - b.week); // Ensure weeks are sorted in ascending order
+    .sort((a, b) => a.week - b.week);
 };
-
-// Fallback data
-const fallbackTeams = [
-  { id: 'team1', name: 'Team 1' },
-  { id: 'team2', name: 'Team 2' },
-];
-
-const fallbackMatches = [
-  {
-    id: 'match1',
-    date: new Date().toISOString(),
-    weekNumber: 1,
-    homeTeamId: 'team1',
-    awayTeamId: 'team2',
-    homeTeam: fallbackTeams[0],
-    awayTeam: fallbackTeams[1],
-    startingHole: 1,
-    status: 'SCHEDULED'
-  }
-];
 
 // Types
 interface Team {
@@ -76,16 +55,10 @@ interface MatchesPageProps {
   initialTeams?: Team[];
 }
 
-// Helper function to create a URL-friendly slug
-const createMatchSlug = (homeTeam: string, awayTeam: string) => {
-  return `${homeTeam.toLowerCase().replace(/\s+/g, '-')}-vs-${awayTeam.toLowerCase().replace(/\s+/g, '-')}`;
-};
-
 export default function MatchesPage({ initialMatches = [], initialTeams = [] }: MatchesPageProps) {
-  const [matches, setMatches] = useState<Match[]>(initialMatches.length > 0 ? initialMatches : []);
-  const [teams, setTeams] = useState<Team[]>(initialTeams.length > 0 ? initialTeams : []);
+  const router = useRouter();
+  const [matches, setMatches] = useState<Match[]>(initialMatches);
   const [expandedWeeks, setExpandedWeeks] = useState<Record<number, boolean>>({});
-  const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [loading, setLoading] = useState(initialMatches.length === 0);
   const [error, setError] = useState<string | null>(null);
   
@@ -96,21 +69,15 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
         try {
           setLoading(true);
           
-          // Fetch matches from the schedule API instead
           const response = await fetch('/api/schedule');
           if (!response.ok) {
             throw new Error('Failed to fetch matches');
           }
           
           const data = await response.json();
-          if (data && data.matches && data.teams) {
+          if (data && data.matches) {
             console.log(`Fetched ${data.matches.length} matches from API`);
             setMatches(data.matches);
-            setTeams(data.teams);
-          } else {
-            // If no matches are returned, use fallback data
-            console.log('No matches returned from API, using fallback data');
-            setMatches(fallbackMatches);
           }
           
           setLoading(false);
@@ -118,8 +85,6 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
           console.error('Error fetching matches:', err);
           setError('Failed to load matches. Please try again later.');
           setLoading(false);
-          // Use fallback data on error
-          setMatches(fallbackMatches);
         }
       }
     };
@@ -130,7 +95,7 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
   // Group matches by week
   const groupedMatches = groupMatchesByWeek(matches);
   
-  // Initialize with first week expanded and log grouped matches
+  // Initialize with first week expanded
   useEffect(() => {
     if (matches.length > 0) {
       console.log(`Grouped matches by week: ${groupedMatches.length} weeks`);
@@ -154,25 +119,15 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
       [week]: !prev[week]
     }));
   };
-  
-  // Toggle match expansion
-  const toggleMatch = (matchId: string) => {
-    setExpandedMatch(prev => prev === matchId ? null : matchId);
-  };
-  
+
   return (
     <div className="min-h-screen bg-[#030f0f] relative overflow-hidden">
       {/* Futuristic background elements */}
       <div className="absolute inset-0 z-0">
-        {/* Gradient base */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-[#4CAF50]/10" />
-        
-        {/* Animated grid lines */}
         <div className="absolute inset-0 opacity-10">
           <div className="h-full w-full bg-[url('/grid-pattern.svg')] bg-repeat bg-[length:50px_50px]" />
         </div>
-        
-        {/* Glowing orbs */}
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#00df82]/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-[#4CAF50]/10 rounded-full blur-3xl" />
       </div>
@@ -217,7 +172,7 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                       <div key={match.id} className="relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-[#00df82]/5 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
                         
-                        {/* Desktop view - Modified to left-align teams and button */}
+                        {/* Desktop view */}
                         <div className="hidden md:flex items-center py-3 px-6 relative z-10">
                           {/* Starting Hole */}
                           <div className="mr-4">
@@ -226,18 +181,18 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                             </div>
                           </div>
                           
-                          {/* Teams - Left aligned */}
+                          {/* Teams */}
                           <div className="flex items-center mr-6">
                             <span className="font-orbitron text-white">{match.homeTeam.name}</span>
                             <span className="text-[#00df82] mx-2 font-audiowide">vs</span>
                             <span className="font-orbitron text-white">{match.awayTeam.name}</span>
                           </div>
                           
-                          {/* Play Match Button - Enhanced with futuristic design */}
+                          {/* Play Match Button */}
                           <div className="flex space-x-3">
                             <button
+                              onClick={() => router.push(`/matches/${match.id}`)}
                               className="group relative overflow-hidden px-5 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105"
-                              onClick={() => toggleMatch(match.id)}
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
                               <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
@@ -252,7 +207,7 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                           </div>
                         </div>
                         
-                        {/* Mobile view - Updated with enhanced button */}
+                        {/* Mobile view */}
                         <div className="md:hidden py-3 px-4 relative z-10">
                           <div className="flex items-center mb-2">
                             {/* Starting Hole */}
@@ -264,12 +219,10 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                             
                             {/* Teams */}
                             <div className="flex-1">
-                              <div className="flex flex-col">
+                              <div className="flex items-center">
                                 <span className="font-orbitron text-white text-sm">{match.homeTeam.name}</span>
-                                <div className="flex items-center">
-                                  <span className="text-[#00df82] mr-1 text-xs font-audiowide">vs</span>
-                                  <span className="font-orbitron text-white text-sm">{match.awayTeam.name}</span>
-                                </div>
+                                <span className="text-[#00df82] mx-2 text-xs font-audiowide">vs</span>
+                                <span className="font-orbitron text-white text-sm">{match.awayTeam.name}</span>
                               </div>
                             </div>
                           </div>
@@ -277,29 +230,20 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                           {/* Buttons */}
                           <div className="flex space-x-2 mt-2">
                             <button
-                              className="flex-1 group relative overflow-hidden px-3 py-1.5 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-md transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs font-audiowide shadow-[0_0_10px_rgba(0,223,130,0.3)] hover:shadow-[0_0_15px_rgba(0,223,130,0.5)]"
-                              onClick={() => toggleMatch(match.id)}
+                              onClick={() => router.push(`/matches/${match.id}`)}
+                              className="flex-1 group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-md transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_10px_rgba(0,223,130,0.3)] hover:shadow-[0_0_15px_rgba(0,223,130,0.5)]"
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
                               <span className="relative flex items-center justify-center">
-                                <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#00df82" strokeWidth="2"/>
                                   <path d="M15 12L10 15.4641V8.5359L15 12Z" fill="#00df82"/>
                                 </svg>
-                                Play
+                                Play Match
                               </span>
                             </button>
                           </div>
                         </div>
-                        
-                        {expandedMatch === match.id && (
-                          <div className="p-6 border-t border-[#00df82]/10">
-                            {/* Single full-width scorecard */}
-                            <div className="w-full">
-                              <HoleByHoleScorecard match={match} />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -311,4 +255,4 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
       </div>
     </div>
   );
-} 
+}
