@@ -6,20 +6,20 @@ import { X } from 'lucide-react'
 import { holeHandicaps, calculateCourseHandicap } from '../lib/handicap'
 import { useRouter } from 'next/navigation';
 
-interface Player {
+export interface Player {
   id: string
   name: string
   handicapIndex: number
   teamId: string
 }
 
-interface Team {
+export interface Team {
   id: string
   name: string
   players?: Player[]
 }
 
-interface Match {
+export interface Match {
   id: string
   date: string
   weekNumber: number
@@ -40,9 +40,11 @@ interface PlayerScores {
   [playerId: string]: HoleScore[]
 }
 
-interface HoleByHoleScorecardProps {
+export interface HoleByHoleScorecardProps {
   match: Match
   onClose?: () => void
+  isFullScreen?: boolean
+  disableWebSocket?: boolean
 }
 
 // Fallback player data in case the API doesn't return players
@@ -172,7 +174,12 @@ const calculateGrossTotal = (playerId: string, playerScores: PlayerScores): numb
   return total;
 };
 
-export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorecardProps) {
+export default function HoleByHoleScorecard({ 
+  match, 
+  onClose, 
+  isFullScreen = false,
+  disableWebSocket = false 
+}: HoleByHoleScorecardProps) {
   const router = useRouter();
   const [homeTeamPlayers, setHomeTeamPlayers] = useState<Player[]>([])
   const [awayTeamPlayers, setAwayTeamPlayers] = useState<Player[]>([])
@@ -504,83 +511,105 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
     }
   };
 
-  // Load saved scores on component mount and handle WebSocket updates
   useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+    let retryTimeout: NodeJS.Timeout | null = null;
+    let socket: WebSocket | null = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    
     const loadScores = async () => {
       try {
-        setLoading(true);
-        const scoresResponse = await fetch(`/api/scores?matchId=${match.id}`);
-        if (!scoresResponse.ok) {
-          throw new Error('Failed to load scores');
-        }
-        
-        const savedScores = await scoresResponse.json();
-        
-        // Group scores by player
-        const groupedScores = savedScores.reduce((acc: PlayerScores, score: any) => {
-          if (!acc[score.playerId]) {
-            acc[score.playerId] = Array(9).fill(null).map((_, i) => ({
-              hole: i + 1,
-              score: 0
-            }));
-          }
-          acc[score.playerId][score.hole - 1] = {
-            hole: score.hole,
-            score: score.score
-          };
-          return acc;
-        }, {});
-        
-        setPlayerScores(groupedScores);
-      } catch (err) {
-        console.error('Error loading scores:', err);
-        setError('Failed to load scores');
-      } finally {
-        setLoading(false);
+        const response = await fetch(`/api/scores?matchId=${match.id}`);
+        if (!response.ok) throw new Error('Failed to fetch scores');
+        const data = await response.json();
+        setPlayerScores(data.scores || {});
+      } catch (error) {
+        console.error('Error loading scores:', error);
       }
     };
     
+    const startPolling = () => {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(loadScores, 5000);
+    };
+
+    const connectWebSocket = () => {
+      try {
+        if (socket) {
+          socket.close();
+          socket = null;
+        }
+
+        // Create WebSocket connection
+        socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}/api/scores/ws?matchId=${match.id}`);
+        
+        socket.onopen = () => {
+          console.log('WebSocket connection established');
+          retryCount = 0;
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          if (retryTimeout) {
+            clearTimeout(retryTimeout);
+            retryTimeout = null;
+          }
+        };
+        
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'SCORE_UPDATED') {
+              loadScores();
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+        
+        socket.onerror = () => {
+          // Don't log the error, just retry or fall back to polling
+          if (retryCount < MAX_RETRIES) {
+            retryCount++;
+            if (retryTimeout) clearTimeout(retryTimeout);
+            retryTimeout = setTimeout(connectWebSocket, 1000 * Math.pow(2, retryCount));
+          } else {
+            startPolling();
+          }
+        };
+        
+        socket.onclose = () => {
+          if (retryCount < MAX_RETRIES) {
+            retryCount++;
+            if (retryTimeout) clearTimeout(retryTimeout);
+            retryTimeout = setTimeout(connectWebSocket, 1000 * Math.pow(2, retryCount));
+          } else {
+            startPolling();
+          }
+        };
+      } catch (err) {
+        startPolling();
+      }
+    };
+    
+    // Initial load
     loadScores();
     
-    // Set up WebSocket listener for real-time updates
-    let socket: WebSocket | null = null;
-    try {
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 
-        (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
-        window.location.host;
-      
-      socket = new WebSocket(`${wsUrl}/api/scores/ws?matchId=${match.id}`);
-      
-      socket.onopen = () => {
-        console.log('WebSocket connection established');
-      };
-      
-      socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'SCORE_UPDATED') {
-          loadScores(); // Reload scores when updates come in
-        }
-      };
-      
-      socket.onerror = (error) => {
-        console.log('WebSocket error:', error);
-        // Don't set error state as this is not critical for functionality
-      };
-      
-      socket.onclose = () => {
-        console.log('WebSocket connection closed');
-      };
-    } catch (err) {
-      console.log('WebSocket connection failed:', err);
-      // Continue without WebSocket - scores will still work with polling
+    // Start WebSocket connection or polling based on prop
+    if (!disableWebSocket) {
+      connectWebSocket();
+    } else {
+      startPolling();
     }
     
+    // Cleanup
     return () => {
-      if (socket) {
-        socket.close();
-      }
+      if (socket) socket.close();
+      if (pollInterval) clearInterval(pollInterval);
+      if (retryTimeout) clearTimeout(retryTimeout);
     };
-  }, [match.id]);
+  }, [match.id, disableWebSocket]);
 
   // Calculate total score for a player
   const calculateTotal = (playerId: string) => {
