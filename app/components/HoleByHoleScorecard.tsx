@@ -1,8 +1,10 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
+import { X } from 'lucide-react'
 import { holeHandicaps, calculateCourseHandicap } from '../lib/handicap'
+import { useRouter } from 'next/navigation';
 
 interface Player {
   id: string
@@ -171,6 +173,7 @@ const calculateGrossTotal = (playerId: string, playerScores: PlayerScores): numb
 };
 
 export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorecardProps) {
+  const router = useRouter();
   const [homeTeamPlayers, setHomeTeamPlayers] = useState<Player[]>([])
   const [awayTeamPlayers, setAwayTeamPlayers] = useState<Player[]>([])
   const [allPlayers, setAllPlayers] = useState<Player[]>([])
@@ -190,6 +193,39 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
   const [isLandscape, setIsLandscape] = useState<boolean>(false)
   // New state variable to track if fullscreen scorecard is shown
   const [showFullscreenScorecard, setShowFullscreenScorecard] = useState<boolean>(false)
+  const [showSummary, setShowSummary] = useState<boolean>(false);
+  const summaryRef = React.createRef<HTMLDivElement>();
+
+  const handleSummaryToggle = async () => {
+    if (showSummary) {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        if ('orientation' in window.screen && 'unlock' in window.screen.orientation) {
+          await window.screen.orientation.unlock();
+        }
+      }
+      setShowSummary(false);
+    } else {
+      setShowSummary(true);
+      if (window.innerWidth <= 768 && summaryRef.current) {
+        await summaryRef.current.requestFullscreen();
+        if ('orientation' in window.screen && 'lock' in window.screen.orientation) {
+          await window.screen.orientation.lock('landscape');
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+      if ('orientation' in window.screen && 'unlock' in window.screen.orientation) {
+        window.screen.orientation.unlock();
+      }
+    };
+  }, []);
 
   // Array of holes 1-9
   const holes = Array.from({ length: 9 }, (_, i) => i + 1)
@@ -675,6 +711,35 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
     }
   }, [scorecardExpanded, isSmallScreen, isLandscape]);
 
+  // Function to check if device is mobile
+  const isMobile = () => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 768;
+  };
+
+  // Handle fullscreen and orientation for scorecard summary
+  const handleScorecardSummary = async () => {
+    if (isMobile()) {
+      // On mobile, navigate to the fullscreen summary page
+      router.push(`/matches/${match.id}/scorecard-summary`);
+    } else {
+      // On desktop, just toggle the expanded state
+      setScorecardExpanded(!scorecardExpanded);
+    }
+  };
+
+  // Cleanup fullscreen and orientation on unmount
+  useEffect(() => {
+    return () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+      if ('orientation' in window.screen && 'unlock' in window.screen.orientation) {
+        window.screen.orientation.unlock();
+      }
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -684,7 +749,26 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
   }
 
   return (
-    <div className="bg-[#030f0f]/90 rounded-xl backdrop-blur-sm border border-[#00df82]/20 overflow-hidden">
+    <div className="min-h-screen bg-[#030f0f] relative">
+      {/* Header with match info and close button */}
+      <div className="sticky top-0 z-50 bg-[#030f0f]/95 backdrop-blur-sm border-b border-[#00df82]/30 p-4 flex justify-between items-center">
+        <div>
+          <h2 className="text-white font-audiowide text-lg">
+            {match.homeTeam.name} vs {match.awayTeam.name}
+          </h2>
+          <p className="text-[#00df82]/70 text-sm">
+            Week {match.weekNumber} - {format(new Date(match.date), 'MMMM d, yyyy')}
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="group relative overflow-hidden p-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm"
+          aria-label="Close Scorecard"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+
       {/* Fullscreen Scorecard for Mobile in Landscape Mode */}
       {showFullscreenScorecard && (
         <div className="fixed inset-0 bg-[#030f0f] z-50 overflow-auto">
@@ -1061,35 +1145,35 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
         {/* Scorecard Summary */}
         <div className="mb-6">
           <div className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent"></div>
             <button
-              onClick={() => {
-                setScorecardExpanded(!scorecardExpanded);
-                if (!scorecardExpanded && isSmallScreen && isLandscape) {
-                  setShowFullscreenScorecard(true);
-                }
-              }}
+              onClick={handleScorecardSummary}
               className="w-full px-4 py-3 flex items-center justify-between text-white hover:bg-white/5 transition-colors relative z-10"
             >
               <div className="flex items-center space-x-2">
                 <span className="font-audiowide">Scorecard Summary</span>
                 <span className="text-sm text-white/60 font-orbitron">
-                  {scorecardExpanded ? 'Click to collapse' : 'Click to expand'}
+                  {isMobile() ? 'Click to view fullscreen' : scorecardExpanded ? 'Click to collapse' : 'Click to expand'}
                 </span>
               </div>
-              {scorecardExpanded ? (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[#00df82]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[#00df82]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[#00df82]">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
             </button>
             
-            {scorecardExpanded && !showFullscreenScorecard && (
-              <div className="px-4 pb-4 relative z-10">
+            {!isMobile() && scorecardExpanded && (
+              <div className="px-4 pb-4 relative z-10" ref={summaryRef}>
+                {/* Close button for fullscreen mode */}
+                {document.fullscreenElement && (
+                  <button
+                    onClick={handleScorecardSummary}
+                    className="absolute top-2 right-2 p-2 rounded-lg bg-[#030f0f]/80 border border-[#00df82]/30 hover:bg-[#030f0f] transition-colors"
+                    aria-label="Close Scorecard Summary"
+                  >
+                    <X className="w-5 h-5 text-[#00df82]" />
+                  </button>
+                )}
+                
                 {/* Mobile rotation prompt - updated to be more compact */}
                 {isSmallScreen && !isLandscape && (
                   <div className="mb-4 p-3 bg-[#030f0f]/80 border border-[#00df82]/30 rounded-lg text-white text-center max-h-[120px] flex flex-col justify-center">
