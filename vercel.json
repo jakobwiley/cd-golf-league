@@ -65,6 +65,15 @@
         { "key": "Cache-Control", "value": "public, max-age=86400, s-maxage=86400" },
         { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
+    },
+    {
+      "source": "/api/scores/ws",
+      "headers": [
+        { "key": "Upgrade", "value": "websocket" },
+        { "key": "Connection", "value": "upgrade" },
+        { "key": "Sec-WebSocket-Version", "value": "13" },
+        { "key": "Sec-WebSocket-Key", "value": "*" }
+      ]
     }
   ],
   "rewrites": [
@@ -73,4 +82,4 @@
       "destination": "/api/$1"
     }
   ]
-} 
+}
