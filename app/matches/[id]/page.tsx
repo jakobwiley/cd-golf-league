@@ -4,6 +4,7 @@ import React from 'react'
 import { useParams } from 'next/navigation'
 import HoleByHoleScorecard from '../../components/HoleByHoleScorecard'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
 
 export default function MatchPage() {
   const params = useParams()
@@ -15,7 +16,11 @@ export default function MatchPage() {
   React.useEffect(() => {
     const fetchMatch = async () => {
       try {
-        const response = await fetch(`/api/matches/${params.id}`)
+        if (!params?.id) {
+          throw new Error('Match ID is required')
+        }
+        const matchId = Array.isArray(params.id) ? params.id[0] : params.id
+        const response = await fetch(`/api/matches/${matchId}`)
         if (!response.ok) {
           throw new Error('Failed to fetch match')
         }
@@ -29,10 +34,8 @@ export default function MatchPage() {
       }
     }
 
-    if (params.id) {
-      fetchMatch()
-    }
-  }, [params.id])
+    fetchMatch()
+  }, [params?.id])
 
   if (loading) {
     return (
@@ -64,6 +67,19 @@ export default function MatchPage() {
 
       <div className="relative z-10 container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="relative overflow-hidden rounded-3xl backdrop-blur-sm bg-gradient-to-r from-[#00df82]/30 to-[#4CAF50]/20 p-6 mb-8">
+            <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent" />
+            <div className="relative">
+              <h1 className="text-white font-audiowide text-2xl mb-2">
+                {match.homeTeam.name} vs {match.awayTeam.name}
+              </h1>
+              <p className="text-white/70 font-light">
+                Week {match.weekNumber} - {format(new Date(match.date), 'MMMM d, yyyy')}
+              </p>
+            </div>
+          </div>
+
           <HoleByHoleScorecard match={match} onClose={() => router.push('/matches')} />
         </div>
       </div>

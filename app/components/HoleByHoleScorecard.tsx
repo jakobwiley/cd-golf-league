@@ -543,17 +543,42 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
     loadScores();
     
     // Set up WebSocket listener for real-time updates
-    const socket = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000'}/api/scores/ws?matchId=${match.id}`);
-    
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'SCORE_UPDATED') {
-        loadScores(); // Reload scores when updates come in
-      }
-    };
+    let socket: WebSocket | null = null;
+    try {
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 
+        (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
+        window.location.host;
+      
+      socket = new WebSocket(`${wsUrl}/api/scores/ws?matchId=${match.id}`);
+      
+      socket.onopen = () => {
+        console.log('WebSocket connection established');
+      };
+      
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'SCORE_UPDATED') {
+          loadScores(); // Reload scores when updates come in
+        }
+      };
+      
+      socket.onerror = (error) => {
+        console.log('WebSocket error:', error);
+        // Don't set error state as this is not critical for functionality
+      };
+      
+      socket.onclose = () => {
+        console.log('WebSocket connection closed');
+      };
+    } catch (err) {
+      console.log('WebSocket connection failed:', err);
+      // Continue without WebSocket - scores will still work with polling
+    }
     
     return () => {
-      socket.close();
+      if (socket) {
+        socket.close();
+      }
     };
   }, [match.id]);
 
@@ -750,221 +775,6 @@ export default function HoleByHoleScorecard({ match, onClose }: HoleByHoleScorec
 
   return (
     <div className="min-h-screen bg-[#030f0f] relative">
-      {/* Header with match info and close button */}
-      <div className="sticky top-0 z-50 bg-[#030f0f]/95 backdrop-blur-sm border-b border-[#00df82]/30 p-4 flex justify-between items-center">
-        <div>
-          <h2 className="text-white font-audiowide text-lg">
-            {match.homeTeam.name} vs {match.awayTeam.name}
-          </h2>
-          <p className="text-[#00df82]/70 text-sm">
-            Week {match.weekNumber} - {format(new Date(match.date), 'MMMM d, yyyy')}
-          </p>
-        </div>
-        <button
-          onClick={onClose}
-          className="group relative overflow-hidden p-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm"
-          aria-label="Close Scorecard"
-        >
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-
-      {/* Fullscreen Scorecard for Mobile in Landscape Mode */}
-      {showFullscreenScorecard && (
-        <div className="fixed inset-0 bg-[#030f0f] z-50 overflow-auto">
-          <div className="sticky top-0 left-0 right-0 bg-[#030f0f] border-b border-[#00df82]/20 p-3 flex justify-between items-center">
-            <h3 className="text-xl font-audiowide text-white">Match Scorecard</h3>
-            <button 
-              onClick={() => setShowFullscreenScorecard(false)}
-              className="p-2 text-white hover:text-[#00df82] transition-colors"
-              aria-label="Close scorecard"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <div className="p-4 overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="bg-[#030f0f]/70 border-b border-[#00df82]/20">
-                  <th className="p-2 text-left text-white font-audiowide sticky left-0 bg-[#030f0f]/70 z-10 min-w-[120px]">Player</th>
-                  {holes.map(hole => (
-                    <th key={hole} className="p-2 text-center text-white font-audiowide">
-                      {hole}
-                    </th>
-                  ))}
-                  <th className="p-2 text-center text-white font-audiowide">Gross</th>
-                  <th className="p-2 text-center text-[#00df82] font-audiowide">Net</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Home Team Row with Points */}
-                <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                  <td className="p-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
-                    <div className="text-white font-audiowide">{match.homeTeam.name}</div>
-                    <div className="text-xs text-[#00df82]/70 mt-1">Team Points</div>
-                  </td>
-                  {holes.map(hole => (
-                    <td key={hole} className="p-2 text-center">
-                      <div className="flex flex-col items-center">
-                        {holePoints[hole] && holePoints[hole].home > 0 ? (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1"
-                            style={{
-                              backgroundColor: 'rgba(0, 223, 130, 0.9)',
-                              color: '#000'
-                            }}
-                          >
-                            {holePoints[hole].home}
-                          </div>
-                        ) : (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1 bg-[#030f0f]/50 text-white/30">
-                            0
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  ))}
-                  <td className="p-2 text-center">
-                    <div className="text-white font-bold">{totalPoints.home.toFixed(1)}</div>
-                  </td>
-                  <td className="p-2"></td>
-                </tr>
-                
-                {/* Home Team Players */}
-                {homeTeamPlayers.map(player => (
-                  <React.Fragment key={player.id}>
-                    <tr className="border-b border-[#00df82]/5">
-                      <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                        <div className="text-white font-orbitron">{player.name}</div>
-                        <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
-                      </td>
-                      {holes.map(hole => {
-                        const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                        const score = playerScores[player.id]?.[hole - 1]?.score || 0;
-                        const netScore = score ? calculateNetScore(score, strokesGiven) : 0;
-                        return (
-                          <td key={hole} className="p-2 text-center text-white font-medium">
-                            <div className="relative">
-                              {score ? score : '-'}
-                              {strokesGiven > 0 && (
-                                <span className="absolute -top-1 -right-2 text-[#00df82] text-xs">
-                                  {score ? `${netScore}${Array(strokesGiven).fill('*').join('')}` : Array(strokesGiven).fill('*').join('')}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td className="p-2 text-center">
-                        <div className="text-white font-bold">
-                          {calculateGrossTotal(player.id, playerScores)}
-                        </div>
-                      </td>
-                      <td className="p-2 text-center text-[#00df82] font-bold">
-                        {calculateNetTotal(player.id)}
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                ))}
-                
-                {/* Away Team Row with Points */}
-                <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                  <td className="p-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
-                    <div className="text-white font-audiowide">{match.awayTeam.name}</div>
-                    <div className="text-xs text-[#00df82]/70 mt-1">Team Points</div>
-                  </td>
-                  {holes.map(hole => (
-                    <td key={hole} className="p-2 text-center">
-                      <div className="flex flex-col items-center">
-                        {holePoints[hole] && holePoints[hole].away > 0 ? (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1"
-                            style={{
-                              backgroundColor: 'rgba(255, 99, 71, 0.9)',
-                              color: '#fff'
-                            }}
-                          >
-                            {holePoints[hole].away}
-                          </div>
-                        ) : (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1 bg-[#030f0f]/50 text-white/30">
-                            0
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  ))}
-                  <td className="p-2 text-center">
-                    <div className="text-white font-bold">{totalPoints.away.toFixed(1)}</div>
-                  </td>
-                  <td className="p-2"></td>
-                </tr>
-                
-                {/* Away Team Players */}
-                {awayTeamPlayers.map(player => (
-                  <React.Fragment key={player.id}>
-                    <tr className="border-b border-[#00df82]/5">
-                      <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                        <div className="text-white font-orbitron">{player.name}</div>
-                        <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
-                      </td>
-                      {holes.map(hole => {
-                        const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                        const score = playerScores[player.id]?.[hole - 1]?.score || 0;
-                        const netScore = score ? calculateNetScore(score, strokesGiven) : 0;
-                        return (
-                          <td key={hole} className="p-2 text-center text-white font-medium">
-                            <div className="relative">
-                              {score ? score : '-'}
-                              {strokesGiven > 0 && (
-                                <span className="absolute -top-1 -right-2 text-[#00df82] text-xs">
-                                  {score ? `${netScore}${Array(strokesGiven).fill('*').join('')}` : Array(strokesGiven).fill('*').join('')}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td className="p-2 text-center">
-                        <div className="text-white font-bold">
-                          {calculateGrossTotal(player.id, playerScores)}
-                        </div>
-                      </td>
-                      <td className="p-2 text-center text-[#00df82] font-bold">
-                        {calculateNetTotal(player.id)}
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Header with match details */}
-      <div className="bg-gradient-to-r from-[#00df82]/20 to-transparent p-4 border-b border-[#00df82]/20">
-        <div className="flex justify-center items-center">
-          <h3 className="text-xl font-audiowide text-white">Match Scorecard</h3>
-        </div>
-        
-        {/* Match Scoreboard */}
-        <div className="mt-4 bg-[#030f0f]/70 rounded-lg border border-[#00df82]/30 p-3">
-          <div className="flex justify-center items-center">
-            <div className="flex-1 text-center">
-              <div className="text-white font-orbitron">{match.homeTeam.name}</div>
-              <div className="text-3xl font-bold text-[#00df82]">{totalPoints.home.toFixed(1)}</div>
-            </div>
-            <div className="mx-4 text-white/50 font-bold">-</div>
-            <div className="flex-1 text-center">
-              <div className="text-white font-orbitron">{match.awayTeam.name}</div>
-              <div className="text-3xl font-bold text-[#00df82]">{totalPoints.away.toFixed(1)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Hole navigation */}
       <div className="bg-[#030f0f]/70 px-2 py-3 border-b border-[#00df82]/20">
         <div className="flex justify-center items-center gap-2 max-w-[240px] mx-auto">
