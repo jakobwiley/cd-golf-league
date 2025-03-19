@@ -534,6 +534,15 @@ export default function HoleByHoleScorecard({
       pollInterval = setInterval(loadScores, 5000);
     };
 
+    // Get environment-specific WebSocket URL
+    const getWebSocketUrl = () => {
+      if (process.env.NODE_ENV === 'development') {
+        return `ws://localhost:3007/api/scores/ws`;
+      }
+      // For preview and production environments
+      return `${window.location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}/api/scores/ws`;
+    };
+
     const connectWebSocket = () => {
       try {
         if (socket) {
@@ -542,7 +551,7 @@ export default function HoleByHoleScorecard({
         }
 
         // Create WebSocket connection
-        socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}/api/scores/ws?matchId=${match.id}`);
+        socket = new WebSocket(`${getWebSocketUrl()}?matchId=${match.id}`);
         
         socket.onopen = () => {
           console.log('WebSocket connection established');
