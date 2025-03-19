@@ -32,12 +32,27 @@ export async function GET() {
       );
     }
 
+    // Test match players query
+    const { data: matchPlayers, error: matchPlayersError } = await supabase
+      .from('MatchPlayer')
+      .select('*');
+      
+    if (matchPlayersError) {
+      console.error('Test API: Supabase match players error:', matchPlayersError);
+      return NextResponse.json(
+        { error: 'Failed to fetch match players', details: matchPlayersError.message },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       message: 'Database connection successful',
       matchCount: matches?.length || 0,
       teamCount: teams?.length || 0,
+      matchPlayerCount: matchPlayers?.length || 0,
       matches,
-      teams
+      teams,
+      matchPlayers
     });
   } catch (error) {
     console.error('Test API: Unexpected error:', error);
