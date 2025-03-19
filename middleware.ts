@@ -4,6 +4,19 @@ import { get } from '@vercel/edge-config';
 
 // This middleware handles both edge config and authentication
 export async function middleware(request: NextRequest) {
+  // Handle WebSocket upgrade requests
+  if (request.nextUrl.pathname.startsWith('/api/scores/ws')) {
+    const upgrade = request.headers.get('upgrade')
+    if (upgrade?.toLowerCase() === 'websocket') {
+      return NextResponse.next({
+        headers: {
+          'Upgrade': 'websocket',
+          'Connection': 'Upgrade',
+        }
+      })
+    }
+  }
+
   // Handle edge config for /welcome route
   if (request.nextUrl.pathname === '/welcome') {
     const greeting = await get('greeting');
@@ -62,6 +75,10 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/welcome',
+    '/admin/:path*',
+    '/profile/:path*',
+    '/settings/:path*',
+    '/api/scores/ws/:path*',
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
+  ]
 } 

@@ -130,13 +130,20 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Error fetching scores:', error)
-      return NextResponse.json({ error: 'Failed to fetch scores' }, { status: 500 })
+      return NextResponse.json({ error: error.message || 'Failed to fetch scores' }, { status: 500 })
+    }
+
+    // If no scores found, return empty array
+    if (!data || data.length === 0) {
+      return NextResponse.json([])
     }
 
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error fetching scores:', error)
-    return NextResponse.json({ error: 'Failed to fetch scores' }, { status: 500 })
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to fetch scores' 
+    }, { status: 500 })
   }
 }
 
