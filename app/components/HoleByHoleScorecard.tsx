@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { X } from 'lucide-react'
 import { holeHandicaps, calculateCourseHandicap } from '../lib/handicap'
 import { useRouter } from 'next/navigation';
+import { Match as AppMatch } from '../types'
 
 export interface Player {
   id: string
@@ -19,21 +20,9 @@ export interface Team {
   players?: Player[]
 }
 
-export interface Match {
-  id: string
-  date: string
-  weekNumber: number
-  homeTeamId: string
-  awayTeamId: string
-  homeTeam: Team
-  awayTeam: Team
-  startingHole: number
-  status: string
-}
-
-interface HoleScore {
+export interface HoleScore {
   hole: number
-  score: number
+  score: number | null
 }
 
 interface PlayerScores {
@@ -41,10 +30,12 @@ interface PlayerScores {
 }
 
 export interface HoleByHoleScorecardProps {
-  match: Match
+  match: AppMatch
   onClose?: () => void
+  onViewScorecard?: () => void
   isFullScreen?: boolean
   disableWebSocket?: boolean
+  onPointsUpdate?: (home: number, away: number) => void
 }
 
 // Fallback player data in case the API doesn't return players
@@ -166,20 +157,23 @@ const getStrokesGivenForMatchup = (playerHandicapIndex: number, hole: number, al
 }
 
 // Add this function before the component
-const calculateGrossTotal = (playerId: string, playerScores: PlayerScores): number => {
-  let total = 0;
-  for (let hole = 1; hole <= 9; hole++) {
-    total += playerScores[playerId]?.[hole - 1]?.score || 0;
-  }
-  return total;
+const calculateGrossTotal = (playerId: string, scores: PlayerScores): number => {
+  if (!scores[playerId]) return 0;
+  return scores[playerId].reduce((total, hole) => total + (hole.score || 0), 0);
 };
 
 export default function HoleByHoleScorecard({ 
   match, 
   onClose, 
+  onViewScorecard,
   isFullScreen = false,
-  disableWebSocket = false 
+  disableWebSocket = false,
+  onPointsUpdate
 }: HoleByHoleScorecardProps) {
+  if (!match || !match.homeTeam || !match.awayTeam) {
+    return <div>Loading...</div>;
+  }
+
   const router = useRouter();
   const [homeTeamPlayers, setHomeTeamPlayers] = useState<Player[]>([])
   const [awayTeamPlayers, setAwayTeamPlayers] = useState<Player[]>([])
@@ -190,18 +184,18 @@ export default function HoleByHoleScorecard({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [scorecardExpanded, setScorecardExpanded] = useState<boolean>(false)
   // New state variables for match scoring
   const [holePoints, setHolePoints] = useState<{[hole: number]: {home: number, away: number}}>({})
   const [totalPoints, setTotalPoints] = useState<{home: number, away: number}>({home: 0, away: 0})
   // New state variable to track if screen is small
   const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false)
   // New state variable to track if device is in landscape mode
-  const [isLandscape, setIsLandscape] = useState<boolean>(false)
+  const [isLandscape, setIsLandscape] = useState(false)
   // New state variable to track if fullscreen scorecard is shown
-  const [showFullscreenScorecard, setShowFullscreenScorecard] = useState<boolean>(false)
-  const [showSummary, setShowSummary] = useState<boolean>(false);
+  const [showFullscreenScorecard, setShowFullscreenScorecard] = useState(false)
+  const [showSummary, setShowSummary] = useState(false);
   const summaryRef = React.createRef<HTMLDivElement>();
+  const [showScorecard, setShowScorecard] = useState(false)
 
   const handleSummaryToggle = async () => {
     if (showSummary) {
@@ -239,15 +233,15 @@ export default function HoleByHoleScorecard({
 
   // Par values for each hole at Country Drive
   const parValues = {
-    1: 4,
-    2: 4,
-    3: 3,
-    4: 4,
-    5: 5,
-    6: 3,
+    1: 5,
+    2: 3,
+    3: 4,
+    4: 3,
+    5: 4,
+    6: 4,
     7: 4,
-    8: 5,
-    9: 4
+    8: 4,
+    9: 5
   }
 
   // Calculate the net score for a player on a specific hole
@@ -320,6 +314,13 @@ export default function HoleByHoleScorecard({
       updateMatchPoints();
     }
   }, [playerScores, loading]);
+
+  // Notify parent component when total points change
+  useEffect(() => {
+    if (onPointsUpdate) {
+      onPointsUpdate(totalPoints.home, totalPoints.away);
+    }
+  }, [totalPoints, onPointsUpdate]);
 
   // Fetch match data
   useEffect(() => {
@@ -408,7 +409,7 @@ export default function HoleByHoleScorecard({
         allPlayers.forEach(player => {
           initialScores[player.id] = holes.map(hole => ({
             hole,
-            score: 0
+            score: null
           }))
         })
         
@@ -437,17 +438,62 @@ export default function HoleByHoleScorecard({
     fetchData()
   }, [match.id])
 
+  useEffect(() => {
+    // Function to load scores from the API
+    const loadScores = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/scores?matchId=${match.id}`);
+        if (!response.ok) throw new Error('Failed to fetch scores');
+        const data = await response.json();
+        setPlayerScores(data.scores || {});
+        // Update match points after loading scores
+        updateMatchPoints();
+      } catch (error) {
+        console.error('Error loading scores:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Load scores on initial mount
+    loadScores();
+
+    // No need for WebSocket or polling if we're just saving on manual edits
+    // This simplifies the implementation and removes potential error sources
+    
+    // Cleanup function
+    return () => {
+      // No cleanup needed since we're not using WebSocket or intervals
+    };
+  }, [match.id]);
+
   // Handle score changes and auto-save
-  const handleScoreChange = async (playerId: string, hole: number, score: number) => {
+  const handleScoreChange = async (playerId: string, hole: number, score: number | null) => {
     try {
       // Update local state immediately (optimistic update)
-      const updatedScores = {
-        ...playerScores,
-        [playerId]: playerScores[playerId].map(s =>
-          s.hole === hole ? { ...s, score } : s
-        )
-      };
+      const updatedScores = { ...playerScores };
+      
+      // Check if player exists in scores object
+      if (!updatedScores[playerId]) {
+        updatedScores[playerId] = Array.from({ length: 9 }, (_, i) => ({
+          hole: i + 1,
+          score: i + 1 === hole ? score : null
+        }));
+      } else {
+        // Find the score for this hole or create it
+        const holeIndex = updatedScores[playerId].findIndex(s => s.hole === hole);
+        if (holeIndex >= 0) {
+          updatedScores[playerId][holeIndex] = { ...updatedScores[playerId][holeIndex], score };
+        } else {
+          updatedScores[playerId].push({ hole, score });
+        }
+      }
+      
       setPlayerScores(updatedScores);
+      
+      // Update match points immediately for better UX
+      updateMatchPoints();
       
       // Format the single score for API
       const scoreToSave = {
@@ -459,181 +505,99 @@ export default function HoleByHoleScorecard({
         }]
       };
       
-      // Save to database
-      const response = await fetch('/api/scores', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(scoreToSave),
-      });
+      console.log('Sending score to API:', JSON.stringify(scoreToSave));
       
-      if (!response.ok) {
-        throw new Error('Failed to save score');
-      }
+      // Save to database with timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
       
-      // Show brief success message
-      setSuccess('Score saved');
-      setTimeout(() => setSuccess(null), 1000);
-      
-    } catch (err) {
-      console.error('Error saving score:', err);
-      setError('Failed to save score. Will retry automatically.');
-      
-      // Retry logic
-      setTimeout(async () => {
-        try {
-          const retryResponse = await fetch('/api/scores', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              scores: [{
-                matchId: match.id,
-                playerId,
-                hole,
-                score
-              }]
-            }),
-          });
-          
-          if (!retryResponse.ok) {
-            throw new Error('Failed to save score on retry');
-          }
-          
-          setError(null);
-        } catch (retryErr) {
-          console.error('Error on retry:', retryErr);
-          setError('Failed to save score. Please check your connection.');
+      try {
+        const response = await fetch('/api/scores', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(scoreToSave),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+          console.error('Server returned error:', response.status, errorData);
+          throw new Error(`Server error: ${response.status} - ${JSON.stringify(errorData)}`);
         }
-      }, 5000); // Retry after 5 seconds
+        
+        const responseData = await response.json();
+        console.log('Score saved successfully:', responseData);
+        
+        // Show brief success message
+        setSuccess(score === null ? 'Score cleared' : 'Score saved');
+        setTimeout(() => setSuccess(null), 1000);
+      } catch (fetchError) {
+        console.error('Error saving score:', fetchError instanceof Error ? fetchError.message : JSON.stringify(fetchError));
+        
+        // Don't show error to user for aborted requests
+        if (fetchError.name === 'AbortError') {
+          console.log('Request timed out, but UI is still updated');
+        } else {
+          setError('Failed to save score. Will retry in background.');
+          
+          // Retry logic in background
+          setTimeout(async () => {
+            try {
+              console.log('Retrying score save:', JSON.stringify(scoreToSave));
+              const retryResponse = await fetch('/api/scores', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scoreToSave),
+              });
+              
+              if (!retryResponse.ok) {
+                const errorData = await retryResponse.json().catch(() => ({ message: 'Unknown error' }));
+                console.error('Server returned error on retry:', retryResponse.status, errorData);
+                throw new Error(`Server error on retry: ${retryResponse.status} - ${JSON.stringify(errorData)}`);
+              }
+              
+              const responseData = await retryResponse.json();
+              console.log('Score saved successfully on retry:', responseData);
+              
+              setError(null);
+            } catch (retryErr) {
+              console.error('Error on retry:', retryErr instanceof Error ? retryErr.message : JSON.stringify(retryErr));
+              // Don't show persistent error to user, as the UI is already updated
+              setTimeout(() => setError(null), 3000);
+            }
+          }, 3000); // Retry after 3 seconds
+        }
+      }
+    } catch (err) {
+      console.error('Error in handleScoreChange:', err instanceof Error ? err.message : JSON.stringify(err));
+      // Even if there's an error, we've already updated the UI
+      // Just show a brief error message
+      setError('Error processing score, but your input is saved locally');
+      setTimeout(() => setError(null), 3000);
     }
   };
-
-  useEffect(() => {
-    let pollInterval: NodeJS.Timeout | null = null;
-    let retryTimeout: NodeJS.Timeout | null = null;
-    let socket: WebSocket | null = null;
-    let retryCount = 0;
-    const MAX_RETRIES = 3;
-    
-    const loadScores = async () => {
-      try {
-        const response = await fetch(`/api/scores?matchId=${match.id}`);
-        if (!response.ok) throw new Error('Failed to fetch scores');
-        const data = await response.json();
-        setPlayerScores(data.scores || {});
-      } catch (error) {
-        console.error('Error loading scores:', error);
-      }
-    };
-    
-    const startPolling = () => {
-      if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(loadScores, 5000);
-    };
-
-    // Get environment-specific WebSocket URL
-    const getWebSocketUrl = () => {
-      if (process.env.NODE_ENV === 'development') {
-        return `ws://localhost:3007/api/scores/ws`;
-      }
-      // For preview and production environments
-      return `${window.location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}/api/scores/ws`;
-    };
-
-    const connectWebSocket = () => {
-      try {
-        if (socket) {
-          socket.close();
-          socket = null;
-        }
-
-        // Create WebSocket connection
-        socket = new WebSocket(`${getWebSocketUrl()}?matchId=${match.id}`);
-        
-        socket.onopen = () => {
-          console.log('WebSocket connection established');
-          retryCount = 0;
-          if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
-          }
-          if (retryTimeout) {
-            clearTimeout(retryTimeout);
-            retryTimeout = null;
-          }
-        };
-        
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'SCORE_UPDATED') {
-              loadScores();
-            }
-          } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
-          }
-        };
-        
-        socket.onerror = () => {
-          // Don't log the error, just retry or fall back to polling
-          if (retryCount < MAX_RETRIES) {
-            retryCount++;
-            if (retryTimeout) clearTimeout(retryTimeout);
-            retryTimeout = setTimeout(connectWebSocket, 1000 * Math.pow(2, retryCount));
-          } else {
-            startPolling();
-          }
-        };
-        
-        socket.onclose = () => {
-          if (retryCount < MAX_RETRIES) {
-            retryCount++;
-            if (retryTimeout) clearTimeout(retryTimeout);
-            retryTimeout = setTimeout(connectWebSocket, 1000 * Math.pow(2, retryCount));
-          } else {
-            startPolling();
-          }
-        };
-      } catch (err) {
-        startPolling();
-      }
-    };
-    
-    // Initial load
-    loadScores();
-    
-    // Start WebSocket connection or polling based on prop
-    if (!disableWebSocket) {
-      connectWebSocket();
-    } else {
-      startPolling();
-    }
-    
-    // Cleanup
-    return () => {
-      if (socket) socket.close();
-      if (pollInterval) clearInterval(pollInterval);
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
-  }, [match.id, disableWebSocket]);
 
   // Calculate total score for a player
   const calculateTotal = (playerId: string) => {
     let total = 0;
     for (let i = 0; i < 18; i++) {
       if (playerScores[playerId]?.[i]?.score) {
-        total += playerScores[playerId][i].score;
+        total += playerScores[playerId][i].score ?? 0;
       }
     }
     return total > 0 ? total : 0;
   };
 
   // Helper function to calculate net score
-  const calculateNetScore = (score: number, strokesGiven: number) => {
-    return score - strokesGiven;
+  const calculateNetScore = (grossScore: number | null, strokesGiven: number): number => {
+    if (grossScore === null) return 0;
+    return Math.max(1, grossScore - strokesGiven);
   };
 
   // Calculate net total score for a player
@@ -670,7 +634,7 @@ export default function HoleByHoleScorecard({
       // Format scores for API
       const scoresToSave = Object.entries(playerScores).flatMap(([playerId, holeScores]) => 
         holeScores
-          .filter(holeScore => holeScore.score > 0) // Only save scores that have been entered
+          .filter(holeScore => holeScore.score !== null) // Only save scores that have been entered
           .map(holeScore => ({
             matchId: match.id,
             playerId,
@@ -729,50 +693,27 @@ export default function HoleByHoleScorecard({
 
   // Add a useEffect to detect screen size and orientation
   useEffect(() => {
-    // Function to check if screen is small and detect orientation
     const checkScreenSize = () => {
-      const smallScreen = window.innerWidth < 768;
-      const landscape = window.innerWidth > window.innerHeight;
-      
-      setIsSmallScreen(smallScreen);
-      setIsLandscape(landscape);
-      
-      // If we're on a small screen and the scorecard is expanded, 
-      // automatically show fullscreen view in landscape mode
-      if (smallScreen && landscape && scorecardExpanded) {
-        setShowFullscreenScorecard(true);
-      } else if (!landscape || !scorecardExpanded) {
-        setShowFullscreenScorecard(false);
-      }
+      setIsLandscape(window.innerWidth > window.innerHeight);
     };
 
-    // Check on initial load
     checkScreenSize();
-
-    // Add event listener for resize
     window.addEventListener('resize', checkScreenSize);
+    window.addEventListener('orientationchange', checkScreenSize);
 
-    // Add event listener for orientation change
-    window.addEventListener('orientationchange', () => {
-      // Add a small delay to ensure the browser has updated the window dimensions
-      setTimeout(checkScreenSize, 100);
-    });
-
-    // Clean up
     return () => {
       window.removeEventListener('resize', checkScreenSize);
       window.removeEventListener('orientationchange', checkScreenSize);
     };
-  }, [scorecardExpanded]);
+  }, []);
 
-  // Effect to handle scorecard expansion
   useEffect(() => {
-    if (scorecardExpanded && isSmallScreen && isLandscape) {
-      setShowFullscreenScorecard(true);
-    } else if (!scorecardExpanded) {
-      setShowFullscreenScorecard(false);
+    if (isLandscape && !isFullScreen) {
+      setShowScorecard(true);
+    } else {
+      setShowScorecard(false);
     }
-  }, [scorecardExpanded, isSmallScreen, isLandscape]);
+  }, [isLandscape, isFullScreen]);
 
   // Function to check if device is mobile
   const isMobile = () => {
@@ -787,7 +728,7 @@ export default function HoleByHoleScorecard({
       router.push(`/matches/${match.id}/scorecard-summary`);
     } else {
       // On desktop, just toggle the expanded state
-      setScorecardExpanded(!scorecardExpanded);
+      setShowScorecard(!showScorecard);
     }
   };
 
@@ -812,7 +753,7 @@ export default function HoleByHoleScorecard({
   }
 
   return (
-    <div className="min-h-screen bg-[#030f0f] relative">
+    <div className={`relative ${isFullScreen ? 'fixed inset-0 z-50 bg-[#030f0f]' : ''}`}>
       {/* Hole navigation */}
       <div className="bg-[#030f0f]/70 px-2 py-3 border-b border-[#00df82]/20">
         <div className="flex justify-center items-center gap-2 max-w-[240px] mx-auto">
@@ -845,12 +786,12 @@ export default function HoleByHoleScorecard({
         </div>
       </div>
 
-      {/* Active hole scorecard */}
-      <div className="p-4">
-        <div className="mb-4 bg-[#030f0f]/50 p-3 rounded-lg border border-[#00df82]/10">
+      <div className="p-4 max-w-6xl mx-auto" data-component-name="HoleByHoleScorecard">
+        {/* Hole information */}
+        <div className="mb-4 bg-[#030f0f]/50 p-2 md:p-3 rounded-lg border border-[#00df82]/10">
           <div className="flex justify-between items-center">
-            <h4 className="text-lg font-audiowide text-white">Hole {activeHole}</h4>
-            <div className="text-white/70 font-orbitron text-sm">
+            <h4 className="text-base md:text-lg font-audiowide text-white">Hole {activeHole}</h4>
+            <div className="text-white/70 font-orbitron text-xs md:text-sm">
               Par {parValues[activeHole as keyof typeof parValues]} • 
               Handicap {holeHandicaps[activeHole as keyof typeof holeHandicaps]}
             </div>
@@ -867,7 +808,7 @@ export default function HoleByHoleScorecard({
                     : 'rgba(255, 255, 255, 0.1)'
               }}
             >
-              <div className="text-sm font-audiowide"
+              <div className="text-xs md:text-sm font-audiowide"
                 style={{
                   color: holePoints[activeHole].home > holePoints[activeHole].away 
                     ? '#00df82' 
@@ -877,323 +818,136 @@ export default function HoleByHoleScorecard({
                 }}
               >
                 {holePoints[activeHole].home > holePoints[activeHole].away 
-                  ? `${match.homeTeam.name} wins hole (${holePoints[activeHole].home} point)` 
+                  ? `${match.homeTeam.name} wins hole (${holePoints[activeHole].home.toFixed(1)} point)` 
                   : holePoints[activeHole].away > holePoints[activeHole].home 
-                    ? `${match.awayTeam.name} wins hole (${holePoints[activeHole].away} point)` 
-                    : `Hole tied (${holePoints[activeHole].home} point each)`}
+                    ? `${match.awayTeam.name} wins hole (${holePoints[activeHole].away.toFixed(1)} point)` 
+                    : `Hole tied (${holePoints[activeHole].home.toFixed(1)} point each)`}
               </div>
             </div>
           )}
         </div>
 
-        {/* Home Team */}
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-[#00df82]/10 to-transparent p-2 mb-2 rounded">
-            <h5 className="text-white font-audiowide">{match.homeTeam.name}</h5>
-          </div>
-          <div className="space-y-3">
-            {homeTeamPlayers.map(player => (
-              <div key={player.id} className="flex items-center justify-between bg-[#030f0f]/30 p-3 rounded-lg border border-[#00df82]/5">
-                <div className="flex-1 mr-3">
-                  <div className="text-lg text-white font-orbitron">{player.name}</div>
-                  <div className="text-xs text-[#00df82]/70 font-audiowide flex items-center">
-                    <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
-                    {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
-                      <span className="ml-2 px-1.5 py-0.5 bg-[#00df82]/20 rounded text-[#00df82] text-xs">
-                        Gets {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)} {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) === 1 ? 'stroke' : 'strokes'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center">
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="1"
-                        max="12"
-                        value={playerScores[player.id]?.[activeHole - 1]?.score || ''}
-                        onChange={(e) => handleScoreChange(player.id, activeHole, parseInt(e.target.value) || 0)}
-                        className="bg-[#030f0f] border border-[#00df82]/30 text-white text-xl font-medium rounded-md py-2 px-3 w-16 h-12 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
-                        placeholder="-"
-                      />
+        {/* Player cards - side by side layout */}
+        <div className="grid grid-cols-2 gap-2 md:gap-4">
+          {/* Home Team */}
+          <div className="mb-6 md:mb-0">
+            <div className="bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 p-1 md:p-2 mb-2 md:mb-3 rounded-lg backdrop-blur-sm shadow-[0_0_15px_rgba(0,223,130,0.3)] text-center">
+              <h5 className="text-white font-audiowide text-sm md:text-xl">{match.homeTeam.name}</h5>
+            </div>
+            <div className="space-y-2 md:space-y-3">
+              {homeTeamPlayers.map(player => (
+                <div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-2 md:p-4 rounded-lg border border-[#00df82]/5">
+                  <div className="text-center mb-1 md:mb-2">
+                    <div className="text-base md:text-2xl text-white font-orbitron mb-0 md:mb-1">{player.name}</div>
+                    <div className="text-xs md:text-sm text-[#00df82]/70 font-audiowide flex flex-wrap items-center justify-center">
+                      <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
                       {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
-                        <span className="absolute -top-3 -right-3 text-[#00df82] text-xs font-bold">
-                          {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
+                        <span className="ml-1 md:ml-2 px-1 md:px-1.5 py-0.5 bg-[#00df82]/20 rounded text-[#00df82] text-xs md:text-sm">
+                          +{getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)}
                         </span>
                       )}
                     </div>
                   </div>
-                  {playerScores[player.id]?.[activeHole - 1]?.score > 0 && (
-                    <div className="text-xs text-[#00df82]/70 mt-1">
-                      Net: {calculateNetScore(
-                        playerScores[player.id]?.[activeHole - 1]?.score || 0,
-                        getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)
-                      )}
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center justify-center mb-0 md:mb-1">
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="1"
+                          max="12"
+                          value={playerScores[player.id]?.[activeHole - 1]?.score || ''}
+                          onChange={(e) => handleScoreChange(player.id, activeHole, parseInt(e.target.value) || null)}
+                          className="bg-[#030f0f] border border-[#00df82]/30 text-white text-xl md:text-3xl font-medium rounded-md md:py-3 py-1 md:px-4 px-2 md:w-20 w-12 md:h-16 h-12 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
+                          placeholder="-"
+                        />
+                        {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
+                          <span className="absolute -top-2 -right-2 md:-top-3 md:-right-3 text-[#00df82] text-xs md:text-sm font-bold">
+                            {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Away Team */}
-        <div className="mb-6">
-          <div className="bg-gradient-to-r from-[#00df82]/10 to-transparent p-2 mb-2 rounded">
-            <h5 className="text-white font-audiowide">{match.awayTeam.name}</h5>
-          </div>
-          <div className="space-y-3">
-            {awayTeamPlayers.map(player => (
-              <div key={player.id} className="flex items-center justify-between bg-[#030f0f]/30 p-3 rounded-lg border border-[#00df82]/5">
-                <div className="flex-1 mr-3">
-                  <div className="text-lg text-white font-orbitron">{player.name}</div>
-                  <div className="text-xs text-[#00df82]/70 font-audiowide flex items-center">
-                    <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
-                    {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
-                      <span className="ml-2 px-1.5 py-0.5 bg-[#00df82]/20 rounded text-[#00df82] text-xs">
-                        Gets {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)} {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) === 1 ? 'stroke' : 'strokes'}
-                      </span>
+                    {playerScores[player.id]?.[activeHole - 1]?.score !== null && (
+                      <div className="text-xs md:text-sm text-[#00df82]/70 text-center">
+                        Net: {calculateNetScore(
+                          playerScores[player.id]?.[activeHole - 1]?.score || 0,
+                          getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center">
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="1"
-                        max="12"
-                        value={playerScores[player.id]?.[activeHole - 1]?.score || ''}
-                        onChange={(e) => handleScoreChange(player.id, activeHole, parseInt(e.target.value) || 0)}
-                        className="bg-[#030f0f] border border-[#00df82]/30 text-white text-xl font-medium rounded-md py-2 px-3 w-16 h-12 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
-                        placeholder="-"
-                      />
+              ))}
+            </div>
+          </div>
+
+          {/* Away Team */}
+          <div className="mb-6 md:mb-0">
+            <div className="bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 p-1 md:p-2 mb-2 md:mb-3 rounded-lg backdrop-blur-sm shadow-[0_0_15px_rgba(0,223,130,0.3)] text-center">
+              <h5 className="text-white font-audiowide text-sm md:text-xl">{match.awayTeam.name}</h5>
+            </div>
+            <div className="space-y-2 md:space-y-3">
+              {awayTeamPlayers.map(player => (
+                <div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-2 md:p-4 rounded-lg border border-[#00df82]/5">
+                  <div className="text-center mb-1 md:mb-2">
+                    <div className="text-base md:text-2xl text-white font-orbitron mb-0 md:mb-1">{player.name}</div>
+                    <div className="text-xs md:text-sm text-[#00df82]/70 font-audiowide flex flex-wrap items-center justify-center">
+                      <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
                       {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
-                        <span className="absolute -top-3 -right-3 text-[#00df82] text-xs font-bold">
-                          {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
+                        <span className="ml-1 md:ml-2 px-1 md:px-1.5 py-0.5 bg-[#00df82]/20 rounded text-[#00df82] text-xs md:text-sm">
+                          +{getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)}
                         </span>
                       )}
                     </div>
                   </div>
-                  {playerScores[player.id]?.[activeHole - 1]?.score > 0 && (
-                    <div className="text-xs text-[#00df82]/70 mt-1">
-                      Net: {calculateNetScore(
-                        playerScores[player.id]?.[activeHole - 1]?.score || 0,
-                        getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)
-                      )}
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center justify-center mb-0 md:mb-1">
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="1"
+                          max="12"
+                          value={playerScores[player.id]?.[activeHole - 1]?.score || ''}
+                          onChange={(e) => handleScoreChange(player.id, activeHole, parseInt(e.target.value) || null)}
+                          className="bg-[#030f0f] border border-[#00df82]/30 text-white text-xl md:text-3xl font-medium rounded-md md:py-3 py-1 md:px-4 px-2 md:w-20 w-12 md:h-16 h-12 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
+                          placeholder="-"
+                        />
+                        {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
+                          <span className="absolute -top-2 -right-2 md:-top-3 md:-right-3 text-[#00df82] text-xs md:text-sm font-bold">
+                            {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
+                    {playerScores[player.id]?.[activeHole - 1]?.score !== null && (
+                      <div className="text-xs md:text-sm text-[#00df82]/70 text-center">
+                        Net: {calculateNetScore(
+                          playerScores[player.id]?.[activeHole - 1]?.score || 0,
+                          getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Scorecard Summary */}
-        <div className="mb-6">
-          <div className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent"></div>
-            <button
-              onClick={handleScorecardSummary}
-              className="w-full px-4 py-3 flex items-center justify-between text-white hover:bg-white/5 transition-colors relative z-10"
-            >
-              <div className="flex items-center space-x-2">
-                <span className="font-audiowide">Scorecard Summary</span>
-                <span className="text-sm text-white/60 font-orbitron">
-                  {isMobile() ? 'Click to view fullscreen' : scorecardExpanded ? 'Click to collapse' : 'Click to expand'}
-                </span>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[#00df82]">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
-            
-            {!isMobile() && scorecardExpanded && (
-              <div className="px-4 pb-4 relative z-10" ref={summaryRef}>
-                {/* Close button for fullscreen mode */}
-                {document.fullscreenElement && (
-                  <button
-                    onClick={handleScorecardSummary}
-                    className="absolute top-2 right-2 p-2 rounded-lg bg-[#030f0f]/80 border border-[#00df82]/30 hover:bg-[#030f0f] transition-colors"
-                    aria-label="Close Scorecard Summary"
-                  >
-                    <X className="w-5 h-5 text-[#00df82]" />
-                  </button>
-                )}
-                
-                {/* Mobile rotation prompt - updated to be more compact */}
-                {isSmallScreen && !isLandscape && (
-                  <div className="mb-4 p-3 bg-[#030f0f]/80 border border-[#00df82]/30 rounded-lg text-white text-center max-h-[120px] flex flex-col justify-center">
-                    <div className="flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[#00df82] mr-2 animate-pulse">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                      </svg>
-                      <span className="font-audiowide text-sm">Rotate your device</span>
-                    </div>
-                    <p className="text-xs mt-1">For a better view of the scorecard</p>
-                  </div>
-                )}
-                
-                {/* Simplified landscape view without complex transformations */}
-                <div className={isSmallScreen && !isLandscape ? 'hidden' : 'overflow-x-auto'}>
-                  <table className="min-w-full border-collapse">
-                    <thead>
-                      <tr className="bg-[#030f0f]/70 border-b border-[#00df82]/20">
-                        <th className="p-2 text-left text-white font-audiowide sticky left-0 bg-[#030f0f]/70 z-10 min-w-[120px]">Player</th>
-                        {holes.map(hole => (
-                          <th key={hole} className="p-2 text-center text-white font-audiowide">
-                            {hole}
-                          </th>
-                        ))}
-                        <th className="p-2 text-center text-white font-audiowide">Gross</th>
-                        <th className="p-2 text-center text-[#00df82] font-audiowide">Net</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* Home Team Row with Points */}
-                      <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                        <td className="p-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
-                          <div className="text-white font-audiowide">{match.homeTeam.name}</div>
-                          <div className="text-xs text-[#00df82]/70 mt-1">Team Points</div>
-                        </td>
-                        {holes.map(hole => (
-                          <td key={hole} className="p-2 text-center">
-                            <div className="flex flex-col items-center">
-                              {holePoints[hole] && holePoints[hole].home > 0 ? (
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1"
-                                  style={{
-                                    backgroundColor: 'rgba(0, 223, 130, 0.9)',
-                                    color: '#000'
-                                  }}
-                                >
-                                  {holePoints[hole].home}
-                                </div>
-                              ) : (
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1 bg-[#030f0f]/50 text-white/30">
-                                  0
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        ))}
-                        <td className="p-2 text-center">
-                          <div className="text-white font-bold">{totalPoints.home.toFixed(1)}</div>
-                        </td>
-                        <td className="p-2"></td>
-                      </tr>
-                      
-                      {/* Home Team Players */}
-                      {homeTeamPlayers.map(player => (
-                        <React.Fragment key={player.id}>
-                          <tr className="border-b border-[#00df82]/5">
-                            <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                              <div className="text-white font-orbitron">{player.name}</div>
-                              <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
-                            </td>
-                            {holes.map(hole => {
-                              const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                              const score = playerScores[player.id]?.[hole - 1]?.score || 0;
-                              const netScore = score ? calculateNetScore(score, strokesGiven) : 0;
-                              return (
-                                <td key={hole} className="p-2 text-center text-white font-medium">
-                                  <div className="relative">
-                                    {score ? score : '-'}
-                                    {strokesGiven > 0 && (
-                                      <span className="absolute -top-1 -right-2 text-[#00df82] text-xs">
-                                        {score ? `${netScore}${Array(strokesGiven).fill('*').join('')}` : Array(strokesGiven).fill('*').join('')}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                              );
-                            })}
-                            <td className="p-2 text-center">
-                              <div className="text-white font-bold">
-                                {calculateGrossTotal(player.id, playerScores)}
-                              </div>
-                            </td>
-                            <td className="p-2 text-center text-[#00df82] font-bold">
-                              {calculateNetTotal(player.id)}
-                            </td>
-                          </tr>
-                        </React.Fragment>
-                      ))}
-                      
-                      {/* Away Team Row with Points */}
-                      <tr className="border-b border-[#00df82]/10 bg-[#00df82]/5">
-                        <td className="p-2 text-left sticky left-0 bg-[#00df82]/5 z-10">
-                          <div className="text-white font-audiowide">{match.awayTeam.name}</div>
-                          <div className="text-xs text-[#00df82]/70 mt-1">Team Points</div>
-                        </td>
-                        {holes.map(hole => (
-                          <td key={hole} className="p-2 text-center">
-                            <div className="flex flex-col items-center">
-                              {holePoints[hole] && holePoints[hole].away > 0 ? (
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1"
-                                  style={{
-                                    backgroundColor: 'rgba(255, 99, 71, 0.9)',
-                                    color: '#fff'
-                                  }}
-                                >
-                                  {holePoints[hole].away}
-                                </div>
-                              ) : (
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mb-1 bg-[#030f0f]/50 text-white/30">
-                                  0
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        ))}
-                        <td className="p-2 text-center">
-                          <div className="text-white font-bold">{totalPoints.away.toFixed(1)}</div>
-                        </td>
-                        <td className="p-2"></td>
-                      </tr>
-                      
-                      {/* Away Team Players */}
-                      {awayTeamPlayers.map(player => (
-                        <React.Fragment key={player.id}>
-                          <tr className="border-b border-[#00df82]/5">
-                            <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                              <div className="text-white font-orbitron">{player.name}</div>
-                              <div className="text-xs text-[#00df82]/70">CHP: {calculateCourseHandicap(player.handicapIndex)}</div>
-                            </td>
-                            {holes.map(hole => {
-                              const strokesGiven = getStrokesGivenForMatchup(player.handicapIndex, hole, allPlayers);
-                              const score = playerScores[player.id]?.[hole - 1]?.score || 0;
-                              const netScore = score ? calculateNetScore(score, strokesGiven) : 0;
-                              return (
-                                <td key={hole} className="p-2 text-center text-white font-medium">
-                                  <div className="relative">
-                                    {score ? score : '-'}
-                                    {strokesGiven > 0 && (
-                                      <span className="absolute -top-1 -right-2 text-[#00df82] text-xs">
-                                        {score ? `${netScore}${Array(strokesGiven).fill('*').join('')}` : Array(strokesGiven).fill('*').join('')}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                              );
-                            })}
-                            <td className="p-2 text-center">
-                              <div className="text-white font-bold">
-                                {calculateGrossTotal(player.id, playerScores)}
-                              </div>
-                            </td>
-                            <td className="p-2 text-center text-[#00df82] font-bold">
-                              {calculateNetTotal(player.id)}
-                            </td>
-                          </tr>
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
+        {/* Action buttons */}
+        <div className="flex justify-between mt-4 md:mt-6">
+          <button
+            onClick={onClose}
+            className="group relative overflow-hidden px-3 md:px-5 py-1.5 md:py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs md:text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105"
+          >
+            Close Match
+          </button>
+          <button
+            onClick={saveScores}
+            className="group relative overflow-hidden px-3 md:px-5 py-1.5 md:py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs md:text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105"
+          >
+            Save Score
+          </button>
         </div>
 
         {/* Error and success messages */}
@@ -1208,44 +962,7 @@ export default function HoleByHoleScorecard({
             {success}
           </div>
         )}
-
-        {/* Action buttons */}
-        <div className="flex justify-between mt-6">
-          <button
-            onClick={onClose}
-            className="px-5 py-3 bg-[#030f0f] text-white border border-[#00df82]/30 rounded-lg hover:bg-[#030f0f]/80 transition-colors text-base min-w-[100px]"
-          >
-            Close Match
-          </button>
-          
-          <button
-            onClick={saveScores}
-            disabled={saving}
-            className="group relative overflow-hidden px-5 py-3 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-base font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105 min-w-[140px]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
-            <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
-            <span className="relative flex items-center justify-center">
-              {saving ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 13l4 4L19 7" stroke="#00df82" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Save Scores
-                </>
-              )}
-            </span>
-          </button>
-        </div>
       </div>
     </div>
   )
-} 
+}

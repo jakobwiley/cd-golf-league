@@ -41,7 +41,7 @@ export default function MatchPointTracker({ match, homePoints, awayPoints, onVie
               {/* Home Team */}
               <div className="flex flex-col items-center space-y-1 flex-1">
                 <div className="text-md font-orbitron text-white">{match.homeTeam.name}</div>
-                <div className="text-5xl font-audiowide text-[#00df82]">{homePoints}.0</div>
+                <div className="text-5xl font-audiowide text-[#00df82]">{Number(homePoints).toFixed(1)}</div>
               </div>
               
               {/* Divider */}
@@ -50,7 +50,7 @@ export default function MatchPointTracker({ match, homePoints, awayPoints, onVie
               {/* Away Team */}
               <div className="flex flex-col items-center space-y-1 flex-1">
                 <div className="text-md font-orbitron text-white">{match.awayTeam.name}</div>
-                <div className="text-5xl font-audiowide text-[#00df82]">{awayPoints}.0</div>
+                <div className="text-5xl font-audiowide text-[#00df82]">{Number(awayPoints).toFixed(1)}</div>
               </div>
             </div>
           </div>
