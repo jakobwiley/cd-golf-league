@@ -12,7 +12,7 @@ export type Team = {
   players?: Player[]
 }
 
-export type Match = {
+export interface Match {
   id: string
   date: string
   weekNumber: number
@@ -21,5 +21,14 @@ export type Match = {
   homeTeam?: Team
   awayTeam?: Team
   startingHole: number
+  scores?: Score[]
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'
+}
+
+export interface Score {
+  id: string
+  playerId: string
+  hole: number
+  strokes: number
+  matchId: string
 }

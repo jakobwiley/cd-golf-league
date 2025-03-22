@@ -1,74 +1,136 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
 
+interface Standing {
+  teamId: string
+  teamName: string
+  matchesPlayed: number
+  matchesWon: number
+  matchesLost: number
+  matchesTied: number
+  points: number
+}
+
 export async function GET() {
   try {
-    // First, get all teams
-    const { data: teams, error: teamsError } = await supabase
-      .from('Team')
-      .select('id, name')
+    if (!supabase) {
+      throw new Error('Supabase client not initialized')
+    }
 
-    if (teamsError) throw teamsError
-
-    // Get all matches and their points
+    // Get all matches
     const { data: matches, error: matchesError } = await supabase
       .from('Match')
       .select(`
         id,
-        weekNumber,
+        status,
         homeTeamId,
         awayTeamId,
-        MatchPoints (
-          teamId,
-          points
+        homeTeamScore,
+        awayTeamScore,
+        homeTeam:homeTeamId (
+          id,
+          name
+        ),
+        awayTeam:awayTeamId (
+          id,
+          name
         )
       `)
-      .eq('status', 'COMPLETED')
+      .eq('status', 'completed')
 
-    if (matchesError) throw matchesError
-
-    // Calculate standings for each team
-    const standings = teams.map(team => {
-      const teamMatches = matches.filter(match => 
-        match.homeTeamId === team.id || match.awayTeamId === team.id
+    if (matchesError) {
+      console.error('Supabase error:', matchesError)
+      return NextResponse.json(
+        { error: 'Failed to fetch matches from database' },
+        { status: 500 }
       )
+    }
 
-      // Group points by week
-      const weeklyPoints = {}
-      teamMatches.forEach(match => {
-        const points = match.MatchPoints?.find(p => p.teamId === team.id)?.points || 0
-        if (!weeklyPoints[match.weekNumber]) {
-          weeklyPoints[match.weekNumber] = 0
-        }
-        weeklyPoints[match.weekNumber] += points
-      })
+    if (!matches) {
+      return NextResponse.json(
+        { error: 'No matches found' },
+        { status: 404 }
+      )
+    }
 
-      // Convert weekly points to array format
-      const weeklyPointsArray = Object.entries(weeklyPoints).map(([week, points]) => ({
-        weekNumber: parseInt(week),
-        points: Number(points)
-      }))
+    // Get all teams
+    const { data: teams, error: teamsError } = await supabase
+      .from('Team')
+      .select('id, name')
 
-      // Calculate total points
-      const totalPoints = weeklyPointsArray.reduce((sum, week) => sum + week.points, 0)
+    if (teamsError) {
+      console.error('Supabase error:', teamsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch teams from database' },
+        { status: 500 }
+      )
+    }
 
-      return {
-        id: team.id,
-        name: team.name,
-        totalPoints,
-        matchesPlayed: teamMatches.length,
-        weeklyPoints: weeklyPointsArray
+    if (!teams) {
+      return NextResponse.json(
+        { error: 'No teams found' },
+        { status: 404 }
+      )
+    }
+
+    // Initialize standings for all teams
+    const standings: Record<string, Standing> = {}
+    teams.forEach(team => {
+      standings[team.id] = {
+        teamId: team.id,
+        teamName: team.name,
+        matchesPlayed: 0,
+        matchesWon: 0,
+        matchesLost: 0,
+        matchesTied: 0,
+        points: 0
       }
     })
 
-    // Sort by total points (descending)
-    standings.sort((a, b) => b.totalPoints - a.totalPoints)
+    // Calculate standings
+    matches.forEach(match => {
+      const homeTeam = standings[match.homeTeamId]
+      const awayTeam = standings[match.awayTeamId]
 
-    return NextResponse.json(standings)
+      if (homeTeam && awayTeam) {
+        homeTeam.matchesPlayed++
+        awayTeam.matchesPlayed++
+
+        if (match.homeTeamScore > match.awayTeamScore) {
+          homeTeam.matchesWon++
+          homeTeam.points += 2
+          awayTeam.matchesLost++
+        } else if (match.homeTeamScore < match.awayTeamScore) {
+          awayTeam.matchesWon++
+          awayTeam.points += 2
+          homeTeam.matchesLost++
+        } else {
+          homeTeam.matchesTied++
+          homeTeam.points += 1
+          awayTeam.matchesTied++
+          awayTeam.points += 1
+        }
+      }
+    })
+
+    // Convert standings object to array and sort by points
+    const standingsArray = Object.values(standings).sort((a, b) => {
+      if (b.points !== a.points) {
+        return b.points - a.points
+      }
+      // If points are equal, sort by matches won
+      if (b.matchesWon !== a.matchesWon) {
+        return b.matchesWon - a.matchesWon
+      }
+      // If matches won are equal, sort by matches played (fewer is better)
+      return a.matchesPlayed - b.matchesPlayed
+    })
+
+    return NextResponse.json(standingsArray)
   } catch (error) {
     console.error('Error calculating standings:', error)
     return NextResponse.json(
-      { error: 'Failed to calculate standings' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

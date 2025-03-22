@@ -1,87 +1,124 @@
 'use client'
 
-import React from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
 import HoleByHoleScorecard from '../../components/HoleByHoleScorecard'
-import { useRouter } from 'next/navigation'
-import { format } from 'date-fns'
+import MatchPointTracker from '../../components/MatchPointTracker'
+import { Match } from '../../types'
 
 export default function MatchPage() {
-  const params = useParams()
+  const rawParams = useParams()
+  const params = rawParams as { id: string }
   const router = useRouter()
-  const [match, setMatch] = React.useState<any>(null)
+  const [match, setMatch] = React.useState<Match | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [homePoints, setHomePoints] = useState(0)
+  const [awayPoints, setAwayPoints] = useState(0)
 
   React.useEffect(() => {
     const fetchMatch = async () => {
       try {
-        if (!params?.id) {
-          throw new Error('Match ID is required')
-        }
-        const matchId = Array.isArray(params.id) ? params.id[0] : params.id
-        const response = await fetch(`/api/matches/${matchId}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch match')
-        }
+        const response = await fetch(`/api/matches/${params.id}`)
+        if (!response.ok) throw new Error('Failed to fetch match')
         const data = await response.json()
         setMatch(data)
-        setLoading(false)
       } catch (err) {
         console.error('Error fetching match:', err)
-        setError('Failed to load match data')
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      } finally {
         setLoading(false)
       }
     }
 
     fetchMatch()
-  }, [params?.id])
+  }, [params.id])
+
+  // Function to update points from the HoleByHoleScorecard
+  const updatePoints = (home: number, away: number) => {
+    setHomePoints(home)
+    setAwayPoints(away)
+  }
+
+  const handleViewScorecard = () => {
+    router.push(`/matches/${params.id}/scorecard-summary`);
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#030f0f] flex items-center justify-center">
-        <div className="text-white">Loading match...</div>
+      <div className="min-h-screen bg-[#030f0f] flex items-center justify-center relative overflow-hidden">
+        {/* Futuristic background elements */}
+        <div className="absolute inset-0 z-0">
+          {/* Gradient base */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-[#4CAF50]/10" />
+          
+          {/* Animated grid lines */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="h-full w-full bg-[url('/grid-pattern.svg')] bg-repeat bg-[length:50px_50px]" />
+          </div>
+          
+          {/* Glowing orbs */}
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#00df82]/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-[#4CAF50]/10 rounded-full blur-3xl" />
+        </div>
+        <div className="text-white relative z-10">Loading match...</div>
       </div>
     )
   }
 
-  if (error || !match) {
+  if (error || !match || !match.homeTeam || !match.awayTeam) {
     return (
-      <div className="min-h-screen bg-[#030f0f] flex items-center justify-center">
-        <div className="text-red-500">{error || 'Match not found'}</div>
+      <div className="min-h-screen bg-[#030f0f] flex items-center justify-center relative overflow-hidden">
+        {/* Futuristic background elements */}
+        <div className="absolute inset-0 z-0">
+          {/* Gradient base */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-[#4CAF50]/10" />
+          
+          {/* Animated grid lines */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="h-full w-full bg-[url('/grid-pattern.svg')] bg-repeat bg-[length:50px_50px]" />
+          </div>
+          
+          {/* Glowing orbs */}
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#00df82]/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-[#4CAF50]/10 rounded-full blur-3xl" />
+        </div>
+        <div className="text-red-500 relative z-10">{error || 'Match not found'}</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#030f0f] relative">
+    <div className="min-h-screen bg-[#030f0f] relative overflow-hidden">
       {/* Futuristic background elements */}
       <div className="absolute inset-0 z-0">
+        {/* Gradient base */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-[#4CAF50]/10" />
+        
+        {/* Animated grid lines */}
         <div className="absolute inset-0 opacity-10">
           <div className="h-full w-full bg-[url('/grid-pattern.svg')] bg-repeat bg-[length:50px_50px]" />
         </div>
+        
+        {/* Glowing orbs */}
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#00df82]/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-[#4CAF50]/10 rounded-full blur-3xl" />
       </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="relative overflow-hidden rounded-3xl backdrop-blur-sm bg-gradient-to-r from-[#00df82]/30 to-[#4CAF50]/20 p-6 mb-8">
-            <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent" />
-            <div className="relative">
-              <h1 className="text-white font-audiowide text-2xl mb-2">
-                {match.homeTeam.name} vs {match.awayTeam.name}
-              </h1>
-              <p className="text-white/70 font-light">
-                Week {match.weekNumber} - {format(new Date(match.date), 'MMMM d, yyyy')}
-              </p>
-            </div>
-          </div>
-
-          <HoleByHoleScorecard match={match} onClose={() => router.push('/matches')} />
-        </div>
+      
+      <div className="relative z-10 pt-8">
+        <MatchPointTracker 
+          match={match}
+          homePoints={homePoints}
+          awayPoints={awayPoints}
+          onViewScorecard={handleViewScorecard}
+        />
+        
+        <HoleByHoleScorecard 
+          match={match} 
+          onPointsUpdate={updatePoints}
+          onClose={() => router.push('/matches')}
+          onViewScorecard={handleViewScorecard}
+        />
       </div>
     </div>
   )
