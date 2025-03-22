@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // Helper function to format date
@@ -188,7 +188,7 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                             <span className="font-orbitron text-white">{match.awayTeam.name}</span>
                           </div>
                           
-                          {/* Play Match Button */}
+                          {/* Action Buttons */}
                           <div className="flex space-x-3">
                             <button
                               onClick={() => router.push(`/matches/${match.id}`)}
@@ -204,42 +204,54 @@ export default function MatchesPage({ initialMatches = [], initialTeams = [] }: 
                                 Play Match
                               </span>
                             </button>
+                            <button
+                              onClick={() => router.push(`/matches/${match.id}/scorecard-summary`)}
+                              className="group relative overflow-hidden px-5 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
+                              <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
+                              <span className="relative flex items-center">
+                                <ClipboardList className="w-4 h-4 mr-2" />
+                                View Scorecard
+                              </span>
+                            </button>
                           </div>
                         </div>
                         
                         {/* Mobile view */}
-                        <div className="md:hidden py-3 px-4 relative z-10">
-                          <div className="flex items-center mb-2">
-                            {/* Starting Hole */}
-                            <div className="mr-3">
-                              <div className="w-8 h-8 rounded-full bg-[#00df82]/10 border border-[#00df82]/30 flex items-center justify-center text-white text-sm font-orbitron">
-                                {match.startingHole}
-                              </div>
+                        <div className="md:hidden p-4 relative z-10">
+                          <div className="flex items-center mb-3">
+                            <div className="w-8 h-8 rounded-full bg-[#00df82]/10 border border-[#00df82]/30 flex items-center justify-center text-white font-orbitron text-sm mr-3">
+                              {match.startingHole}
                             </div>
-                            
-                            {/* Teams */}
-                            <div className="flex-1">
-                              <div className="flex items-center">
-                                <span className="font-orbitron text-white text-sm">{match.homeTeam.name}</span>
-                                <span className="text-[#00df82] mx-2 text-xs font-audiowide">vs</span>
-                                <span className="font-orbitron text-white text-sm">{match.awayTeam.name}</span>
-                              </div>
+                            <div className="flex items-center">
+                              <span className="font-orbitron text-white text-sm">{match.homeTeam.name}</span>
+                              <span className="text-[#00df82] mx-2 font-audiowide text-sm">vs</span>
+                              <span className="font-orbitron text-white text-sm">{match.awayTeam.name}</span>
                             </div>
                           </div>
-                          
-                          {/* Buttons */}
-                          <div className="flex space-x-2 mt-2">
+                          <div className="flex flex-col space-y-2">
                             <button
                               onClick={() => router.push(`/matches/${match.id}`)}
-                              className="flex-1 group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-md transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_10px_rgba(0,223,130,0.3)] hover:shadow-[0_0_15px_rgba(0,223,130,0.5)]"
+                              className="w-full group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)]"
                             >
                               <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
                               <span className="relative flex items-center justify-center">
-                                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#00df82" strokeWidth="2"/>
                                   <path d="M15 12L10 15.4641V8.5359L15 12Z" fill="#00df82"/>
                                 </svg>
                                 Play Match
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => router.push(`/matches/${match.id}/scorecard-summary`)}
+                              className="w-full group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)]"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
+                              <span className="relative flex items-center justify-center">
+                                <ClipboardList className="w-4 h-4 mr-1" />
+                                View Scorecard
                               </span>
                             </button>
                           </div>
