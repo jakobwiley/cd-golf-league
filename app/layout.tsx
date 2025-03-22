@@ -3,14 +3,22 @@ import Link from 'next/link'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Orbitron, Audiowide } from 'next/font/google'
 import Navigation from './components/Navigation'
-// import './styles/fonts.css'
 
 const inter = Inter({ subsets: ['latin'] })
-const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron' })
-const audiowide = Audiowide({ subsets: ['latin'], weight: '400', variable: '--font-audiowide' })
+const orbitron = Orbitron({ 
+  subsets: ['latin'], 
+  variable: '--font-orbitron',
+  display: 'swap',
+})
+const audiowide = Audiowide({ 
+  subsets: ['latin'], 
+  weight: '400', 
+  variable: '--font-audiowide',
+  display: 'swap',
+})
 
 export const viewport: Viewport = {
-  themeColor: '#4CAF50',
+  themeColor: '#00df82',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -38,19 +46,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${orbitron.variable} ${audiowide.variable}`}>
-      <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-      </head>
-      <body className={`${inter.className} h-full bg-[#030f0f]`}>
+      <body className={`${inter.className} min-h-screen bg-[#030f0f]`}>
         <Navigation />
-        <main className="min-h-screen">
+        <main>
           {children}
         </main>
       </body>
     </html>
   )
-} 
+}

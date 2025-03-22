@@ -836,9 +836,9 @@ export default function HoleByHoleScorecard({
             </div>
             <div className="space-y-2 md:space-y-3">
               {homeTeamPlayers.map(player => (
-                <div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-2 md:p-4 rounded-lg border border-[#00df82]/5">
-                  <div className="text-center mb-1 md:mb-2">
-                    <div className="text-base md:text-2xl text-white font-orbitron mb-0 md:mb-1">{player.name}</div>
+                <div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-3 md:p-5 rounded-lg border border-[#00df82]/5">
+                  <div className="text-center mb-2 md:mb-3">
+                    <div className="text-lg md:text-2xl text-white font-orbitron mb-1 md:mb-2">{player.name}</div>
                     <div className="text-xs md:text-sm text-[#00df82]/70 font-audiowide flex flex-wrap items-center justify-center">
                       <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
                       {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
@@ -849,7 +849,7 @@ export default function HoleByHoleScorecard({
                     </div>
                   </div>
                   <div className="flex flex-col items-center">
-                    <div className="flex items-center justify-center mb-0 md:mb-1">
+                    <div className="flex items-center justify-center mb-1 md:mb-2">
                       <div className="relative">
                         <input
                           type="number"
@@ -857,7 +857,7 @@ export default function HoleByHoleScorecard({
                           max="12"
                           value={playerScores[player.id]?.[activeHole - 1]?.score || ''}
                           onChange={(e) => handleScoreChange(player.id, activeHole, parseInt(e.target.value) || null)}
-                          className="bg-[#030f0f] border border-[#00df82]/30 text-white text-xl md:text-3xl font-medium rounded-md md:py-3 py-1 md:px-4 px-2 md:w-20 w-12 md:h-16 h-12 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
+                          className="bg-[#030f0f] border border-[#00df82]/30 text-white text-2xl md:text-4xl font-medium rounded-md md:py-4 py-2 md:px-5 px-3 md:w-24 w-16 md:h-20 h-16 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
                           placeholder="-"
                         />
                         {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
@@ -868,7 +868,7 @@ export default function HoleByHoleScorecard({
                       </div>
                     </div>
                     {playerScores[player.id]?.[activeHole - 1]?.score !== null && (
-                      <div className="text-xs md:text-sm text-[#00df82]/70 text-center">
+                      <div className="text-sm md:text-base text-[#00df82]/70 text-center mt-1">
                         Net: {calculateNetScore(
                           playerScores[player.id]?.[activeHole - 1]?.score || 0,
                           getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)
@@ -888,9 +888,9 @@ export default function HoleByHoleScorecard({
             </div>
             <div className="space-y-2 md:space-y-3">
               {awayTeamPlayers.map(player => (
-                <div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-2 md:p-4 rounded-lg border border-[#00df82]/5">
-                  <div className="text-center mb-1 md:mb-2">
-                    <div className="text-base md:text-2xl text-white font-orbitron mb-0 md:mb-1">{player.name}</div>
+                <div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-3 md:p-5 rounded-lg border border-[#00df82]/5">
+                  <div className="text-center mb-2 md:mb-3">
+                    <div className="text-lg md:text-2xl text-white font-orbitron mb-1 md:mb-2">{player.name}</div>
                     <div className="text-xs md:text-sm text-[#00df82]/70 font-audiowide flex flex-wrap items-center justify-center">
                       <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
                       {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
@@ -901,7 +901,7 @@ export default function HoleByHoleScorecard({
                     </div>
                   </div>
                   <div className="flex flex-col items-center">
-                    <div className="flex items-center justify-center mb-0 md:mb-1">
+                    <div className="flex items-center justify-center mb-1 md:mb-2">
                       <div className="relative">
                         <input
                           type="number"
@@ -909,7 +909,7 @@ export default function HoleByHoleScorecard({
                           max="12"
                           value={playerScores[player.id]?.[activeHole - 1]?.score || ''}
                           onChange={(e) => handleScoreChange(player.id, activeHole, parseInt(e.target.value) || null)}
-                          className="bg-[#030f0f] border border-[#00df82]/30 text-white text-xl md:text-3xl font-medium rounded-md md:py-3 py-1 md:px-4 px-2 md:w-20 w-12 md:h-16 h-12 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
+                          className="bg-[#030f0f] border border-[#00df82]/30 text-white text-2xl md:text-4xl font-medium rounded-md md:py-4 py-2 md:px-5 px-3 md:w-24 w-16 md:h-20 h-16 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
                           placeholder="-"
                         />
                         {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
@@ -920,7 +920,7 @@ export default function HoleByHoleScorecard({
                       </div>
                     </div>
                     {playerScores[player.id]?.[activeHole - 1]?.score !== null && (
-                      <div className="text-xs md:text-sm text-[#00df82]/70 text-center">
+                      <div className="text-sm md:text-base text-[#00df82]/70 text-center mt-1">
                         Net: {calculateNetScore(
                           playerScores[player.id]?.[activeHole - 1]?.score || 0,
                           getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)
@@ -935,7 +935,7 @@ export default function HoleByHoleScorecard({
         </div>
 
         {/* Action buttons */}
-        <div className="flex justify-between mt-4 md:mt-6">
+        <div className="flex justify-between mt-6 md:mt-8">
           <button
             onClick={onClose}
             className="group relative overflow-hidden px-3 md:px-5 py-1.5 md:py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs md:text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105"

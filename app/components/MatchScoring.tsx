@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { calculateNetScore, holeHandicaps, calculateStrokesReceived } from '../lib/handicap'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { Match, Team, Player } from '../types'
+import { Match, Team, Player, Score as AppScore } from '../types'
 import { calculateCourseHandicap } from '../lib/handicap'
 import MatchScoreCard from './MatchScoreCard'
 
@@ -12,12 +12,13 @@ interface MatchScoringProps {
   match: Match
 }
 
-interface Score {
+// Local score interface for the component's internal use
+interface LocalScore {
   id?: string
   matchId: string
   playerId: string
-  grossScore: number
-  netScore?: number
+  hole: number
+  strokes: number
   player?: Player
 }
 
@@ -26,7 +27,7 @@ interface PlayerScores {
 }
 
 export default function MatchScoring({ match }: MatchScoringProps) {
-  const [scores, setScores] = useState<Score[]>([])
+  const [scores, setScores] = useState<LocalScore[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,15 +41,15 @@ export default function MatchScoring({ match }: MatchScoringProps) {
 
   // Par values for each hole
   const parValues = {
-    1: 4,
-    2: 4,
-    3: 3,
-    4: 4,
-    5: 5,
-    6: 3,
+    1: 5,
+    2: 3,
+    3: 4,
+    4: 3,
+    5: 4,
+    6: 4,
     7: 4,
-    8: 5,
-    9: 4
+    8: 4,
+    9: 5
   }
 
   // If no match is provided, show a message
@@ -85,17 +86,19 @@ export default function MatchScoring({ match }: MatchScoringProps) {
           setScores(scoresData)
         } else {
           // Initialize empty scores for all players
-          const initialScores: Score[] = [
+          const initialScores: LocalScore[] = [
             ...(homeData.players || []).map((player: Player) => ({
               matchId: match.id,
               playerId: player.id,
-              grossScore: 0,
+              hole: 1,
+              strokes: 0,
               player
             })),
             ...(awayData.players || []).map((player: Player) => ({
               matchId: match.id,
               playerId: player.id,
-              grossScore: 0,
+              hole: 1,
+              strokes: 0,
               player
             }))
           ]
@@ -125,30 +128,30 @@ export default function MatchScoring({ match }: MatchScoringProps) {
     }
   }, [match])
 
-  const handleScoreChange = (playerId: string, value: number) => {
+  const handleScoreChange = (playerId: string, hole: number, strokes: number) => {
     setScores(prevScores => 
       prevScores.map(score => 
-        score.playerId === playerId 
-          ? { ...score, grossScore: value, netScore: calculateNetScore(value, playerId) } 
+        score.playerId === playerId && score.hole === hole 
+          ? { ...score, strokes } 
           : score
       )
     )
   }
 
-  const calculateNetScore = (grossScore: number, playerId: string): number => {
+  const calculateNetScore = (strokes: number, playerId: string): number => {
     const allPlayers = [...homeTeamPlayers, ...awayTeamPlayers]
     const player = allPlayers.find(p => p.id === playerId)
     
-    if (!player || grossScore === 0) return 0
+    if (!player || strokes === 0) return 0
     
     // Simple calculation: gross score - handicap (rounded)
     // In a real app, this would be more complex based on course rating, etc.
-    const netScore = Math.max(0, grossScore - Math.round(player.handicapIndex))
+    const netScore = Math.max(0, strokes - Math.round(player.handicapIndex))
     return netScore
   }
 
   const isMatchComplete = useCallback(() => {
-    return scores.every(score => score.grossScore > 0)
+    return scores.every(score => score.strokes > 0)
   }, [scores])
 
   const saveScores = async () => {
@@ -203,7 +206,7 @@ export default function MatchScoring({ match }: MatchScoringProps) {
                 key={player.id}
                 player={player}
                 score={scores.find(s => s.playerId === player.id)}
-                onScoreChange={handleScoreChange}
+                onScoreChange={(playerId, value) => handleScoreChange(playerId, 1, value)}
                 holes={holes}
                 parValues={parValues}
               />
@@ -220,7 +223,7 @@ export default function MatchScoring({ match }: MatchScoringProps) {
                 key={player.id}
                 player={player}
                 score={scores.find(s => s.playerId === player.id)}
-                onScoreChange={handleScoreChange}
+                onScoreChange={(playerId, value) => handleScoreChange(playerId, 1, value)}
                 holes={holes}
                 parValues={parValues}
               />

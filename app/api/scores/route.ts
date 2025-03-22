@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
 import { z } from 'zod'
 import { SocketEvents } from '../../../lib/socket'
+import { randomUUID } from 'crypto'
 
 interface Score {
   id: string
@@ -150,32 +151,68 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    console.log('Received score data:', JSON.stringify(body))
+    
     const validatedData = batchScoreSchema.parse(body)
+    console.log('Validated data:', JSON.stringify(validatedData))
 
     // Process each score
     const results = await Promise.all(
       validatedData.scores.map(async (score) => {
-        // Insert the score
-        const { data, error } = await supabase
-          .from('MatchScore')
-          .insert({
-            matchId: score.matchId,
-            playerId: score.playerId,
-            hole: score.hole,
-            score: score.score,
-            putts: score.putts,
-            fairway: score.fairway,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          })
-          .select()
-          .single()
+        console.log('Processing score for player:', score.playerId, 'hole:', score.hole)
+        
+        try {
+          // Check if we're clearing a score (null or undefined score value)
+          if (score.score === null || score.score === undefined) {
+            console.log('Clearing score for player:', score.playerId, 'hole:', score.hole)
+            
+            // Delete the score record if it exists
+            const { error: deleteError } = await supabase
+              .from('MatchScore')
+              .delete()
+              .eq('matchId', score.matchId)
+              .eq('playerId', score.playerId)
+              .eq('hole', score.hole)
+            
+            if (deleteError) {
+              console.error('Error deleting score:', deleteError)
+              throw deleteError
+            }
+            
+            return { deleted: true, matchId: score.matchId, playerId: score.playerId, hole: score.hole }
+          }
+          
+          // Use upsert operation (insert if not exists, update if exists)
+          const result = await supabase
+            .from('MatchScore')
+            .upsert({
+              id: randomUUID(), // Generate a UUID for new records
+              matchId: score.matchId,
+              playerId: score.playerId,
+              hole: score.hole,
+              score: score.score,
+              putts: score.putts,
+              fairway: score.fairway,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }, {
+              onConflict: 'matchId,playerId,hole',
+              ignoreDuplicates: false
+            })
+            .select()
+            .single()
+          
+          if (result.error) {
+            console.error('Error upserting score:', result.error)
+            throw result.error
+          }
 
-        if (error) {
-          throw error
+          console.log('Score saved successfully:', result.data)
+          return result.data
+        } catch (scoreError) {
+          console.error('Error processing individual score:', scoreError)
+          throw scoreError
         }
-
-        return data
       })
     )
 
@@ -192,17 +229,19 @@ export async function POST(request: Request) {
       .single()
 
     if (matchError) {
+      console.error('Error fetching match:', matchError)
       throw matchError
     }
 
     if (match && match.status === 'SCHEDULED') {
-      const { error: updateError } = await supabase
+      const updateResult = await supabase
         .from('Match')
         .update({ status: 'IN_PROGRESS' })
         .eq('id', validatedData.scores[0].matchId)
-
-      if (updateError) {
-        throw updateError
+      
+      if (updateResult.error) {
+        console.error('Error updating match status:', updateResult.error)
+        throw updateResult.error
       }
     }
 
@@ -213,6 +252,7 @@ export async function POST(request: Request) {
       .eq('matchId', validatedData.scores[0].matchId)
 
     if (scoresError) {
+      console.error('Error fetching all scores:', scoresError)
       throw scoresError
     }
 
@@ -222,18 +262,20 @@ export async function POST(request: Request) {
       .in('teamId', [match.homeTeamId, match.awayTeamId])
 
     if (playersError) {
+      console.error('Error fetching players:', playersError)
       throw playersError
     }
 
     // If all players have scores for all 9 holes, update match status to COMPLETED
     if (players && scores && players.length > 0 && scores.length === players.length * 9) {
-      const { error: updateError } = await supabase
+      const updateResult = await supabase
         .from('Match')
         .update({ status: 'COMPLETED' })
         .eq('id', validatedData.scores[0].matchId)
-
-      if (updateError) {
-        throw updateError
+      
+      if (updateResult.error) {
+        console.error('Error updating match status to COMPLETED:', updateResult.error)
+        throw updateResult.error
       }
     }
 
@@ -245,7 +287,7 @@ export async function POST(request: Request) {
       await emitStandingsUpdated()
     }
 
-    return NextResponse.json({ success: true, count: results.length })
+    return NextResponse.json({ success: true, count: results.length, results })
   } catch (error) {
     console.error('Error saving scores:', error)
 

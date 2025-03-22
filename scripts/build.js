@@ -1,6 +1,7 @@
 // build.js
 const { execSync } = require('child_process');
 const https = require('https');
+const path = require('path');
 
 console.log('Starting custom build process...');
 
@@ -12,6 +13,11 @@ try {
   // Run the Next.js build
   console.log('Running Next.js build...');
   execSync('next build', { stdio: 'inherit' });
+  
+  // Run CSS rebuild to ensure all styles are properly generated
+  console.log('Running CSS rebuild...');
+  execSync('node scripts/rebuild-css.js', { stdio: 'inherit' });
+  
   console.log('Build completed successfully');
 
   // Call the force-setup endpoint

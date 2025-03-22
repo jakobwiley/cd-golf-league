@@ -2,12 +2,33 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 const WebSocket = require('ws')
+const { execSync } = require('child_process')
+const path = require('path')
+const fs = require('fs')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
 const port = 3007
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
+
+// Ensure CSS is built before starting the server in development mode
+if (dev) {
+  try {
+    console.log('Ensuring CSS is built for development...')
+    // Check if the CSS rebuild script exists
+    const cssRebuildPath = path.join(__dirname, 'scripts', 'rebuild-css.js')
+    if (fs.existsSync(cssRebuildPath)) {
+      execSync('node scripts/rebuild-css.js', { stdio: 'inherit' })
+      console.log('CSS rebuild completed')
+    } else {
+      console.log('CSS rebuild script not found, skipping')
+    }
+  } catch (error) {
+    console.error('Error rebuilding CSS:', error.message)
+    // Continue anyway to not block development
+  }
+}
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
@@ -49,11 +70,11 @@ app.prepare().then(() => {
     })
   })
 
-  // Handle upgrade requests
+  // Handle WebSocket upgrade
   server.on('upgrade', (request, socket, head) => {
-    const { pathname } = parse(request.url)
+    const pathname = parse(request.url).pathname
 
-    if (pathname.startsWith('/api/scores/ws')) {
+    if (pathname === '/api/scores/ws') {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request)
       })
@@ -62,8 +83,7 @@ app.prepare().then(() => {
     }
   })
 
-  server.listen(port, (err) => {
-    if (err) throw err
+  server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`)
   })
 })

@@ -21,6 +21,10 @@ interface Match {
 
 export async function GET() {
   try {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized')
+    }
+
     const { data, error } = await supabase
       .from('Match')
       .select(`
@@ -43,14 +47,25 @@ export async function GET() {
       .order('weekNumber', { ascending: true })
 
     if (error) {
-      throw error
+      console.error('Supabase error:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch matches from database' },
+        { status: 500 }
+      )
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: 'No matches found' },
+        { status: 404 }
+      )
     }
 
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error fetching matches:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch matches' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
@@ -58,6 +73,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized')
+    }
+
     const body = await request.json()
 
     // Validate required fields
@@ -75,7 +94,11 @@ export async function POST(request: Request) {
       .in('id', [body.homeTeamId, body.awayTeamId])
 
     if (teamsError) {
-      throw teamsError
+      console.error('Supabase error:', teamsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch teams from database' },
+        { status: 500 }
+      )
     }
 
     if (!teams || teams.length !== 2) {
@@ -118,14 +141,25 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      throw error
+      console.error('Supabase error:', error)
+      return NextResponse.json(
+        { error: 'Failed to create match in database' },
+        { status: 500 }
+      )
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: 'Failed to create match' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error creating match:', error)
     return NextResponse.json(
-      { error: 'Failed to create match' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
@@ -133,6 +167,10 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized')
+    }
+
     const body = await request.json()
 
     // Validate required fields
@@ -150,7 +188,11 @@ export async function PUT(request: Request) {
       .eq('id', body.id)
 
     if (matchError) {
-      throw matchError
+      console.error('Supabase error:', matchError)
+      return NextResponse.json(
+        { error: 'Failed to fetch match from database' },
+        { status: 500 }
+      )
     }
 
     if (!match || match.length === 0) {
@@ -168,7 +210,11 @@ export async function PUT(request: Request) {
         .in('id', [body.homeTeamId, body.awayTeamId])
 
       if (teamsError) {
-        throw teamsError
+        console.error('Supabase error:', teamsError)
+        return NextResponse.json(
+          { error: 'Failed to fetch teams from database' },
+          { status: 500 }
+        )
       }
 
       if (!teams || teams.length !== 2) {
@@ -212,14 +258,25 @@ export async function PUT(request: Request) {
       .single()
 
     if (error) {
-      throw error
+      console.error('Supabase error:', error)
+      return NextResponse.json(
+        { error: 'Failed to update match in database' },
+        { status: 500 }
+      )
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: 'Failed to update match' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error updating match:', error)
     return NextResponse.json(
-      { error: 'Failed to update match' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
