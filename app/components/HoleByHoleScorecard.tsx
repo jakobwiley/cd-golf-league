@@ -297,6 +297,7 @@ export default function HoleByHoleScorecard({
 
   // Calculate points for all holes and update state
   const updateMatchPoints = () => {
+    console.log('Updating match points...');
     const newHolePoints: {[hole: number]: {home: number, away: number}} = {};
     let newTotalPoints = {home: 0, away: 0};
     
@@ -305,11 +306,57 @@ export default function HoleByHoleScorecard({
       newHolePoints[hole] = holeResult;
       newTotalPoints.home += holeResult.home;
       newTotalPoints.away += holeResult.away;
+      console.log(`Hole ${hole}: Home ${holeResult.home} - Away ${holeResult.away}`);
+    });
+    
+    console.log('Total points:', {
+      home: newTotalPoints.home,
+      away: newTotalPoints.away
     });
     
     setHolePoints(newHolePoints);
     setTotalPoints(newTotalPoints);
+    
+    // Save match points to the database
+    saveMatchPoints(newHolePoints, newTotalPoints);
   }
+
+  // Function to save match points to the database
+  const saveMatchPoints = async (holePoints: {[hole: number]: {home: number, away: number}}, totalPoints: {home: number, away: number}) => {
+    if (!match?.id) return;
+    
+    console.log('Saving match points to database:', {
+      matchId: match.id,
+      holePoints,
+      totalPoints
+    });
+    
+    try {
+      const response = await fetch('/api/match-points', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          matchId: match.id,
+          holePoints,
+          totalPoints
+        })
+      });
+      
+      console.log('Match points API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error saving match points:', errorData);
+      } else {
+        const responseData = await response.json();
+        console.log('Match points saved successfully:', responseData);
+      }
+    } catch (error) {
+      console.error('Error saving match points:', error);
+    }
+  };
 
   // Update match points whenever scores change
   useEffect(() => {
@@ -350,7 +397,8 @@ export default function HoleByHoleScorecard({
               setHomeTeamPlayers(homePlayers);
             } else {
               console.warn('No home team players found, using fallback data');
-              setHomeTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2));
+              const homePlayers = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2);
+              setHomeTeamPlayers(homePlayers);
             }
             
             if (matchPlayersData.awayPlayers && matchPlayersData.awayPlayers.length > 0) {
@@ -364,26 +412,48 @@ export default function HoleByHoleScorecard({
               setAwayTeamPlayers(awayPlayers);
             } else {
               console.warn('No away team players found, using fallback data');
-              setAwayTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2));
+              const awayPlayers = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2);
+              setAwayTeamPlayers(awayPlayers);
             }
             
             // Set all players
-            const allPlayersData = [
-              ...matchPlayersData.homePlayers.map((player: any) => ({
-                id: player.playerId,
-                name: player.name,
-                handicapIndex: player.handicapIndex,
-                teamId: player.teamId,
-                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
-              })),
-              ...matchPlayersData.awayPlayers.map((player: any) => ({
-                id: player.playerId,
-                name: player.name,
-                handicapIndex: player.handicapIndex,
-                teamId: player.teamId,
-                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
-              }))
-            ];
+            let allPlayersData: Player[] = [];
+            if (matchPlayersData.homePlayers && matchPlayersData.homePlayers.length > 0) {
+              allPlayersData = [
+                ...allPlayersData,
+                ...matchPlayersData.homePlayers.map((player: any) => ({
+                  id: player.playerId,
+                  name: player.name,
+                  handicapIndex: player.handicapIndex,
+                  teamId: player.teamId,
+                  playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
+                }))
+              ];
+            } else {
+              allPlayersData = [
+                ...allPlayersData,
+                ...fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2)
+              ];
+            }
+            
+            if (matchPlayersData.awayPlayers && matchPlayersData.awayPlayers.length > 0) {
+              allPlayersData = [
+                ...allPlayersData,
+                ...matchPlayersData.awayPlayers.map((player: any) => ({
+                  id: player.playerId,
+                  name: player.name,
+                  handicapIndex: player.handicapIndex,
+                  teamId: player.teamId,
+                  playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
+                }))
+              ];
+            } else {
+              allPlayersData = [
+                ...allPlayersData,
+                ...fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2)
+              ];
+            }
+            
             setAllPlayers(allPlayersData);
             
             // Now that we have players, fetch scores
@@ -399,11 +469,10 @@ export default function HoleByHoleScorecard({
           
           setHomeTeamPlayers(homePlayers);
           setAwayTeamPlayers(awayPlayers);
-          const allPlayersData = [...homePlayers, ...awayPlayers];
-          setAllPlayers(allPlayersData);
+          setAllPlayers([...homePlayers, ...awayPlayers]);
           
           // Now that we have players, fetch scores
-          await fetchLatestScores(allPlayersData);
+          await fetchLatestScores([...homePlayers, ...awayPlayers]);
         }
       } catch (error) {
         console.error('Error loading scores:', error);
@@ -501,6 +570,31 @@ export default function HoleByHoleScorecard({
       // If we don't have players yet, don't try to fetch scores
       if (currentPlayers.length === 0) {
         console.warn('No players available to fetch scores for');
+        
+        // Use fallback data if we have a match
+        if (match && match.homeTeamId && match.awayTeamId) {
+          console.log('Using fallback player data for scores');
+          const homePlayers = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2);
+          const awayPlayers = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2);
+          
+          setHomeTeamPlayers(homePlayers);
+          setAwayTeamPlayers(awayPlayers);
+          setAllPlayers([...homePlayers, ...awayPlayers]);
+          
+          // Initialize empty scores for these players
+          const initialScores: PlayerScores = {};
+          [...homePlayers, ...awayPlayers].forEach(player => {
+            initialScores[player.id] = Array.from({ length: 9 }, (_, i) => ({
+              hole: i + 1,
+              score: null
+            }));
+          });
+          
+          setPlayerScores(initialScores);
+          setLoading(false);
+          return true;
+        }
+        
         return false;
       }
       
@@ -607,9 +701,13 @@ export default function HoleByHoleScorecard({
       
       // Save to database with timeout to prevent hanging requests
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       
       try {
+        // Log the player ID to help diagnose issues
+        const player = allPlayers.find(p => p.id === playerId);
+        console.log(`Saving score for player: ${player?.name} (ID: ${playerId})`);
+        
         const response = await fetch('/api/scores', {
           method: 'POST',
           headers: {
@@ -622,9 +720,18 @@ export default function HoleByHoleScorecard({
         clearTimeout(timeoutId);
         
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-          console.error('Server returned error:', response.status, errorData);
-          throw new Error(`Server error: ${response.status} - ${JSON.stringify(errorData)}`);
+          console.error('Server returned error:', response.status);
+          let errorText = '';
+          try {
+            const errorData = await response.json();
+            errorText = JSON.stringify(errorData);
+            console.error('Error response:', errorText);
+          } catch (parseError) {
+            errorText = await response.text();
+            console.error('Error response (text):', errorText);
+          }
+          
+          throw new Error(`Server error: ${response.status} - ${errorText}`);
         }
         
         const responseData = await response.json();
@@ -646,9 +753,20 @@ export default function HoleByHoleScorecard({
           setError('Failed to save score. Will retry in background.');
           
           // Retry logic in background
-          setTimeout(async () => {
+          let retryCount = 0;
+          const maxRetries = 3;
+          const retryDelay = 2000; // 2 seconds
+          
+          const retryFn = async () => {
+            if (retryCount >= maxRetries) {
+              console.error(`Max retries (${maxRetries}) reached for saving score`);
+              return;
+            }
+            
+            retryCount++;
+            console.log(`Retrying score save (attempt ${retryCount}/${maxRetries})...`);
+            
             try {
-              console.log('Retrying score save:', JSON.stringify(scoreToSave));
               const retryResponse = await fetch('/api/scores', {
                 method: 'POST',
                 headers: {
@@ -657,17 +775,28 @@ export default function HoleByHoleScorecard({
                 body: JSON.stringify(scoreToSave)
               });
               
-              if (retryResponse.ok) {
-                console.log('Retry successful');
-                // After successful retry, refresh scores from the server
-                await fetchLatestScores();
+              if (!retryResponse.ok) {
+                const errorText = await retryResponse.text();
+                console.error('Retry failed:', errorText);
+                setTimeout(retryFn, retryDelay);
               } else {
-                console.error('Retry failed');
+                console.log('Retry succeeded!');
+                setError(null);
+                // Clear error message if retry succeeds
+                setSuccess('Score saved on retry');
+                setTimeout(() => setSuccess(null), 1000);
+                
+                // Refresh scores from server
+                await fetchLatestScores();
               }
             } catch (retryError) {
-              console.error('Retry error:', retryError);
+              console.error('Retry failed:', retryError);
+              setTimeout(retryFn, retryDelay);
             }
-          }, 2000);
+          };
+          
+          // Start retry process after a delay
+          setTimeout(retryFn, retryDelay);
         }
       }
     } catch (error) {
