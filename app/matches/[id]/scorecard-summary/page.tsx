@@ -7,6 +7,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import CollapsibleScorecard from '../../../components/CollapsibleScorecard';
 import { Match } from '../../../types'
+import { getWebSocketUrl, SocketEvents } from '../../../utils/websocketConnection'
 
 // Create Supabase client
 const supabase = createClient(
@@ -26,30 +27,132 @@ export default function ScorecardSummaryPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [isPortrait, setIsPortrait] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<number>(Date.now())
+  const socketRef = useRef<WebSocket | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    const fetchMatch = async () => {
-      try {
-        const { data: match, error } = await supabase
-          .from('Match')
-          .select('*, homeTeam:Team!Match_homeTeamId_fkey(*, players:Player(id, name, handicapIndex, teamId)), awayTeam:Team!Match_awayTeamId_fkey(*, players:Player(id, name, handicapIndex, teamId))')
-          .eq('id', params.id)
-          .single()
+  // Function to fetch match data with scores
+  const fetchMatchData = async () => {
+    try {
+      const { data: match, error } = await supabase
+        .from('Match')
+        .select('*, homeTeam:Team!Match_homeTeamId_fkey(*, players:Player(id, name, handicapIndex, teamId)), awayTeam:Team!Match_awayTeamId_fkey(*, players:Player(id, name, handicapIndex, teamId))')
+        .eq('id', params.id)
+        .single()
 
-        if (error) throw error
-        if (!match) throw new Error('Match not found')
-        
-        setMatch(match as Match)
-      } catch (error) {
-        console.error('Error fetching match:', error)
-        setError('Failed to load match')
-      } finally {
-        setLoading(false)
+      if (error) throw error
+      if (!match) throw new Error('Match not found')
+      
+      // Fetch scores for this match
+      const scoresResponse = await fetch(`/api/scores?matchId=${params.id}`, {
+        cache: 'no-store'
+      })
+      
+      if (!scoresResponse.ok) {
+        throw new Error('Failed to fetch scores')
       }
+      
+      const scores = await scoresResponse.json()
+      
+      // Attach scores to the match object
+      match.scores = scores
+      
+      setMatch(match as Match)
+      setLastUpdated(Date.now())
+    } catch (error) {
+      console.error('Error fetching match:', error)
+      setError('Failed to load match')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchMatch()
+  // Initial data fetch
+  useEffect(() => {
+    fetchMatchData()
   }, [params.id])
+
+  // Setup real-time updates
+  useEffect(() => {
+    // Try to connect to WebSocket for real-time updates
+    const connectWebSocket = () => {
+      try {
+        // Use the consolidated WebSocket URL function
+        const wsUrl = getWebSocketUrl();
+        
+        console.log(`Connecting to WebSocket at ${wsUrl}`);
+        const ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+          console.log('WebSocket connection established');
+          // Clear polling interval if it exists
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        };
+        
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.event === SocketEvents.SCORE_UPDATED && data.matchId === params.id) {
+              console.log('Received score update via WebSocket');
+              fetchMatchData();
+            }
+          } catch (error) {
+            console.error('Error processing WebSocket message:', error);
+          }
+        };
+        
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          // Fall back to polling if WebSocket fails
+          setupPolling();
+        };
+        
+        ws.onclose = () => {
+          console.log('WebSocket connection closed');
+          // Fall back to polling if WebSocket closes
+          setupPolling();
+        };
+        
+        socketRef.current = ws;
+      } catch (error) {
+        console.error('Error setting up WebSocket:', error);
+        // Fall back to polling if WebSocket setup fails
+        setupPolling();
+      }
+    };
+    
+    // Fallback to polling if WebSocket is not available
+    const setupPolling = () => {
+      if (!pollingIntervalRef.current) {
+        console.log('Setting up polling for score updates');
+        pollingIntervalRef.current = setInterval(() => {
+          console.log('Polling for score updates');
+          fetchMatchData();
+        }, 5000); // Poll every 5 seconds
+      }
+    };
+    
+    // Start with WebSocket
+    connectWebSocket();
+    
+    // Cleanup function
+    return () => {
+      // Close WebSocket connection
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+      
+      // Clear polling interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [params.id]);
 
   // Handle orientation detection
   useEffect(() => {

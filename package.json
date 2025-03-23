@@ -15,7 +15,11 @@
     "test:watch": "jest --watch",
     "test:coverage": "npm run test:setup && jest --coverage",
     "test:prod": "TEST_BASE_URL=https://cd-gl-2025-ip9vq6bjm-jakes-projects-9070cd0b.vercel.app jest",
-    "rebuild-css": "node scripts/rebuild-css.js"
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "npm run test && npm run test:e2e",
+    "rebuild-css": "node scripts/rebuild-css.js",
+    "rebuild-css:dev": "node scripts/rebuild-css.js && npm run dev"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -58,6 +62,7 @@
     "@babel/preset-env": "^7.26.9",
     "@babel/preset-react": "^7.26.3",
     "@babel/preset-typescript": "^7.26.0",
+    "@playwright/test": "^1.42.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
@@ -86,14 +91,5 @@
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5"
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": [
-      "<rootDir>/jest.setup.js"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
-    }
   }
 }

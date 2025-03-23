@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { holeHandicaps, calculateCourseHandicap } from '../lib/handicap'
 import { useRouter } from 'next/navigation';
 import { Match as AppMatch } from '../types'
+import { getWebSocketUrl, createWebSocketConnection, closeWebSocketConnection, SocketEvents } from '../utils/websocketConnection'
 
 export interface Player {
   id: string
@@ -196,6 +197,8 @@ export default function HoleByHoleScorecard({
   const [showSummary, setShowSummary] = useState(false);
   const summaryRef = React.createRef<HTMLDivElement>();
   const [showScorecard, setShowScorecard] = useState(false)
+  // WebSocket reference
+  const wsRef = useRef<WebSocket | null>(null);
 
   const handleSummaryToggle = async () => {
     if (showSummary) {
@@ -351,7 +354,6 @@ export default function HoleByHoleScorecard({
             }
             
             if (matchPlayersData.awayPlayers && matchPlayersData.awayPlayers.length > 0) {
-              // Convert the API response format to our Player type
               const awayPlayers = matchPlayersData.awayPlayers.map((player: any) => ({
                 id: player.playerId,
                 name: player.name,
@@ -365,8 +367,8 @@ export default function HoleByHoleScorecard({
               setAwayTeamPlayers(fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2));
             }
             
-            // Set all players for handicap calculations
-            setAllPlayers([
+            // Set all players
+            const allPlayersData = [
               ...matchPlayersData.homePlayers.map((player: any) => ({
                 id: player.playerId,
                 name: player.name,
@@ -381,7 +383,11 @@ export default function HoleByHoleScorecard({
                 teamId: player.teamId,
                 playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
               }))
-            ]);
+            ];
+            setAllPlayers(allPlayersData);
+            
+            // Now that we have players, fetch scores
+            await fetchLatestScores(allPlayersData);
           } else {
             throw new Error('Failed to fetch match players');
           }
@@ -393,62 +399,12 @@ export default function HoleByHoleScorecard({
           
           setHomeTeamPlayers(homePlayers);
           setAwayTeamPlayers(awayPlayers);
-          setAllPlayers([...homePlayers, ...awayPlayers]);
+          const allPlayersData = [...homePlayers, ...awayPlayers];
+          setAllPlayers(allPlayersData);
+          
+          // Now that we have players, fetch scores
+          await fetchLatestScores(allPlayersData);
         }
-        
-        // Fetch existing scores for this match
-        const scoresResponse = await fetch(`/api/scores?matchId=${match.id}`)
-        const scoresData = await scoresResponse.json()
-        
-        // Initialize player scores
-        const initialScores: PlayerScores = {}
-        
-        // Initialize empty scores for all players and all holes
-        const allPlayers = [...homeTeamPlayers, ...awayTeamPlayers];
-        
-        allPlayers.forEach(player => {
-          initialScores[player.id] = holes.map(hole => ({
-            hole,
-            score: null
-          }))
-        })
-        
-        // If we have existing scores, update the initial scores
-        if (scoresData && Array.isArray(scoresData) && scoresData.length > 0) {
-          scoresData.forEach((score: any) => {
-            const { playerId, hole, score: scoreValue } = score
-            if (initialScores[playerId] && initialScores[playerId][hole - 1]) {
-              initialScores[playerId][hole - 1].score = scoreValue
-            }
-          })
-        }
-        
-        setPlayerScores(initialScores)
-        setLoading(false)
-        
-        // Calculate match points
-        updateMatchPoints()
-      } catch (err) {
-        console.error('Error fetching data:', err)
-        setError('Failed to load match data')
-        setLoading(false)
-      }
-    }
-    
-    fetchData()
-  }, [match.id])
-
-  useEffect(() => {
-    // Function to load scores from the API
-    const loadScores = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/scores?matchId=${match.id}`);
-        if (!response.ok) throw new Error('Failed to fetch scores');
-        const data = await response.json();
-        setPlayerScores(data.scores || {});
-        // Update match points after loading scores
-        updateMatchPoints();
       } catch (error) {
         console.error('Error loading scores:', error);
       } finally {
@@ -457,16 +413,158 @@ export default function HoleByHoleScorecard({
     };
 
     // Load scores on initial mount
-    loadScores();
-
-    // No need for WebSocket or polling if we're just saving on manual edits
-    // This simplifies the implementation and removes potential error sources
-    
-    // Cleanup function
-    return () => {
-      // No cleanup needed since we're not using WebSocket or intervals
-    };
+    fetchData();
   }, [match.id]);
+
+  // Set up WebSocket connection for real-time score updates
+  useEffect(() => {
+    // Skip WebSocket setup if disabled
+    if (disableWebSocket) {
+      console.log('WebSocket connection disabled');
+      return;
+    }
+
+    try {
+      // Get WebSocket URL
+      const wsUrl = getWebSocketUrl();
+      console.log(`Setting up WebSocket connection to ${wsUrl}`);
+
+      // Create WebSocket connection
+      wsRef.current = createWebSocketConnection(
+        wsUrl,
+        // onOpen
+        (event) => {
+          console.log('WebSocket connection established');
+        },
+        // onMessage
+        (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('WebSocket message received:', data);
+            
+            // Check if this is a score update for our match
+            if (data.type === SocketEvents.SCORE_UPDATED && 
+                (data.matchId === match.id || !data.matchId)) {
+              console.log('Score update received, refreshing scores');
+              fetchLatestScores();
+            }
+          } catch (error) {
+            console.error('Error processing WebSocket message:', error);
+          }
+        },
+        // onClose
+        (event) => {
+          console.log('WebSocket connection closed:', event);
+        },
+        // onError
+        (event) => {
+          console.error('WebSocket error:', event);
+        }
+      );
+    } catch (error) {
+      console.error('Error setting up WebSocket:', error);
+    }
+
+    // Clean up WebSocket connection on unmount
+    return () => {
+      console.log('Closing WebSocket connection');
+      closeWebSocketConnection(wsRef.current);
+      wsRef.current = null;
+    };
+  }, [match.id, disableWebSocket]);
+
+  // Set up periodic refresh for scores as fallback (every 15 seconds)
+  useEffect(() => {
+    // Skip if WebSocket is enabled
+    if (!disableWebSocket) {
+      return;
+    }
+    
+    console.log('Setting up periodic score refresh (WebSocket disabled)');
+    const refreshInterval = setInterval(() => {
+      console.log('Refreshing scores via polling...');
+      fetchLatestScores();
+    }, 15000);
+    
+    // Cleanup function to clear the interval
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [disableWebSocket]);
+
+  // Add a new function to fetch the latest scores from the server
+  const fetchLatestScores = async (playersToUse?: Player[]) => {
+    try {
+      // Use provided players or current state
+      const currentPlayers = playersToUse || [...homeTeamPlayers, ...awayTeamPlayers];
+      
+      // If we don't have players yet, don't try to fetch scores
+      if (currentPlayers.length === 0) {
+        console.warn('No players available to fetch scores for');
+        return false;
+      }
+      
+      console.log(`Fetching scores for match ${match.id} with ${currentPlayers.length} players`);
+      
+      const scoresResponse = await fetch(`/api/scores?matchId=${match.id}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!scoresResponse.ok) {
+        throw new Error('Failed to fetch latest scores');
+      }
+      
+      const scoresData = await scoresResponse.json();
+      console.log(`Received ${scoresData.length} scores from server:`, scoresData);
+      
+      // Update local state with the latest scores
+      const latestScores: PlayerScores = {};
+      
+      // Initialize empty scores for all players and all holes
+      currentPlayers.forEach(player => {
+        latestScores[player.id] = holes.map(hole => ({
+          hole,
+          score: null
+        }));
+      });
+      
+      // Update with the latest scores from the server
+      if (scoresData && Array.isArray(scoresData) && scoresData.length > 0) {
+        scoresData.forEach((score: any) => {
+          const { playerId, hole, score: scoreValue } = score;
+          // Make sure the player exists in our scores object
+          if (!latestScores[playerId]) {
+            // This might happen if we have scores for players not in the current match
+            console.warn(`Received score for unknown player ${playerId}`);
+            latestScores[playerId] = holes.map(h => ({
+              hole: h,
+              score: null
+            }));
+          }
+          
+          // Find the index for this hole (hole numbers are 1-based, array is 0-based)
+          const holeIndex = hole - 1;
+          if (holeIndex >= 0 && holeIndex < holes.length) {
+            latestScores[playerId][holeIndex].score = scoreValue;
+          }
+        });
+      }
+      
+      console.log('Updated scores:', latestScores);
+      setPlayerScores(latestScores);
+      
+      // Update match points
+      updateMatchPoints();
+      
+      return true;
+    } catch (error) {
+      console.error('Error fetching latest scores:', error);
+      return false;
+    }
+  };
 
   // Handle score changes and auto-save
   const handleScoreChange = async (playerId: string, hole: number, score: number | null) => {
@@ -532,6 +630,9 @@ export default function HoleByHoleScorecard({
         const responseData = await response.json();
         console.log('Score saved successfully:', responseData);
         
+        // After successful save, refresh scores from the server to ensure consistency
+        await fetchLatestScores();
+        
         // Show brief success message
         setSuccess(score === null ? 'Score cleared' : 'Score saved');
         setTimeout(() => setSuccess(null), 1000);
@@ -553,32 +654,25 @@ export default function HoleByHoleScorecard({
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(scoreToSave),
+                body: JSON.stringify(scoreToSave)
               });
               
-              if (!retryResponse.ok) {
-                const errorData = await retryResponse.json().catch(() => ({ message: 'Unknown error' }));
-                console.error('Server returned error on retry:', retryResponse.status, errorData);
-                throw new Error(`Server error on retry: ${retryResponse.status} - ${JSON.stringify(errorData)}`);
+              if (retryResponse.ok) {
+                console.log('Retry successful');
+                // After successful retry, refresh scores from the server
+                await fetchLatestScores();
+              } else {
+                console.error('Retry failed');
               }
-              
-              const responseData = await retryResponse.json();
-              console.log('Score saved successfully on retry:', responseData);
-              
-              setError(null);
-            } catch (retryErr) {
-              console.error('Error on retry:', retryErr instanceof Error ? retryErr.message : JSON.stringify(retryErr));
-              // Don't show persistent error to user, as the UI is already updated
-              setTimeout(() => setError(null), 3000);
+            } catch (retryError) {
+              console.error('Retry error:', retryError);
             }
-          }, 3000); // Retry after 3 seconds
+          }, 2000);
         }
       }
-    } catch (err) {
-      console.error('Error in handleScoreChange:', err instanceof Error ? err.message : JSON.stringify(err));
-      // Even if there's an error, we've already updated the UI
-      // Just show a brief error message
-      setError('Error processing score, but your input is saved locally');
+    } catch (error) {
+      console.error('Error handling score change:', error);
+      setError('Failed to update score');
       setTimeout(() => setError(null), 3000);
     }
   };
@@ -801,20 +895,12 @@ export default function HoleByHoleScorecard({
           {holePoints[activeHole] && (holePoints[activeHole].home > 0 || holePoints[activeHole].away > 0) && (
             <div className="mt-2 p-2 rounded-md text-center"
               style={{
-                backgroundColor: holePoints[activeHole].home > holePoints[activeHole].away 
-                  ? 'rgba(0, 223, 130, 0.2)' 
-                  : holePoints[activeHole].away > holePoints[activeHole].home 
-                    ? 'rgba(255, 99, 71, 0.2)' 
-                    : 'rgba(255, 255, 255, 0.1)'
+                backgroundColor: 'rgba(0, 223, 130, 0.2)'
               }}
             >
               <div className="text-xs md:text-sm font-audiowide"
                 style={{
-                  color: holePoints[activeHole].home > holePoints[activeHole].away 
-                    ? '#00df82' 
-                    : holePoints[activeHole].away > holePoints[activeHole].home 
-                      ? '#ff6347' 
-                      : '#ffffff'
+                  color: '#00df82'
                 }}
               >
                 {holePoints[activeHole].home > holePoints[activeHole].away 

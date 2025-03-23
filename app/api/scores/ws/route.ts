@@ -35,12 +35,13 @@ export async function GET(request: NextRequest) {
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
-          table: 'scores',
-          filter: `match_id=eq.${matchId}`
+          table: 'MatchScore',
+          filter: `matchId=eq.${matchId}`
         }, (payload) => {
           ws.send(JSON.stringify({
-            type: 'SCORE_UPDATED',
-            payload
+            event: 'score:updated',
+            matchId: matchId,
+            timestamp: new Date().toISOString()
           }))
         })
         .subscribe()

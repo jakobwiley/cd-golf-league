@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import ScheduleForm from '../components/ScheduleForm'
@@ -10,6 +10,8 @@ import { formatDateForForm, formatDisplayDate, formatDateForAPI } from '../lib/d
 interface ExtendedMatch extends Match {
   homeTeam: Team
   awayTeam: Team
+  weekNumber: number
+  date: string
 }
 
 interface SchedulePageClientProps {
@@ -18,10 +20,55 @@ interface SchedulePageClientProps {
 }
 
 export default function SchedulePageClient({ teams, matches }: SchedulePageClientProps) {
-  const [expandedWeeks, setExpandedWeeks] = useState<number[]>([])
+  const [expandedWeeks, setExpandedWeeks] = useState<Record<number, boolean>>({});
   const [editingMatch, setEditingMatch] = useState<ExtendedMatch | null>(null)
   const [loading, setLoading] = useState(false)
-  
+  const [activeWeek, setActiveWeek] = useState<number | null>(null)
+
+  // Initialize with first week expanded and fetch its match details
+  useEffect(() => {
+    const now = new Date()
+    
+    // Group matches by week
+    const matchesByWeek = matches.reduce((acc: Record<number, ExtendedMatch[]>, match) => {
+      if (!acc[match.weekNumber]) {
+        acc[match.weekNumber] = []
+      }
+      acc[match.weekNumber].push(match)
+      return acc
+    }, {})
+
+    // Find the next upcoming week
+    const sortedWeeks = Object.keys(matchesByWeek)
+      .map(Number)
+      .sort((a, b) => a - b)
+
+    const nextWeek = sortedWeeks.find(week => {
+      const weekMatches = matchesByWeek[week]
+      // Use the first match's date as the week's date
+      const weekDate = new Date(weekMatches[0].date)
+      return weekDate >= now
+    })
+
+    if (nextWeek) {
+      console.log('Setting active week:', nextWeek)
+      setActiveWeek(nextWeek)
+      
+      // Initialize all weeks as collapsed initially
+      const initialExpandedState: Record<number, boolean> = {}
+      initialExpandedState[nextWeek] = true
+      setExpandedWeeks(initialExpandedState)
+      
+      // Scroll to the active week
+      setTimeout(() => {
+        const weekElement = document.getElementById(`week-${nextWeek}`)
+        if (weekElement) {
+          weekElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 100)
+    }
+  }, [])  // Only run once on mount
+
   const handleSubmit = async (data: any) => {
     setLoading(true)
     try {
@@ -116,19 +163,21 @@ export default function SchedulePageClient({ teams, matches }: SchedulePageClien
 
   // Group matches by week
   const matchesByWeek = matches.reduce((acc, match) => {
-    if (!acc[match.weekNumber]) {
-      acc[match.weekNumber] = []
+    const weekNum = Number(match.weekNumber)
+    if (!acc[weekNum]) {
+      acc[weekNum] = []
     }
-    acc[match.weekNumber].push(match)
+    acc[weekNum].push(match)
     return acc
   }, {} as Record<number, ExtendedMatch[]>)
 
   const toggleWeek = (weekNumber: number) => {
-    setExpandedWeeks(prev => 
-      prev.includes(weekNumber)
-        ? prev.filter(w => w !== weekNumber)
-        : [...prev, weekNumber]
-    )
+    console.log('Toggling week:', weekNumber)
+    console.log('Current expanded weeks:', expandedWeeks)
+    setExpandedWeeks(prev => ({
+      ...prev,
+      [weekNumber]: !prev[weekNumber]
+    }))
   }
 
   return (
@@ -222,10 +271,10 @@ export default function SchedulePageClient({ teams, matches }: SchedulePageClien
           {/* Matches by Week */}
           <div className="space-y-6">
             {Object.entries(matchesByWeek).map(([weekNumber, weekMatches]) => (
-              <div key={weekNumber} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
+              <div key={weekNumber} id={`week-${weekNumber}`} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
                 <button
-                  onClick={() => toggleWeek(parseInt(weekNumber))}
+                  onClick={() => toggleWeek(Number(weekNumber))}
                   className="w-full px-6 py-4 flex items-center justify-between text-white hover:bg-white/5 transition-colors relative z-10"
                 >
                   <div className="flex items-center space-x-4">
@@ -234,14 +283,14 @@ export default function SchedulePageClient({ teams, matches }: SchedulePageClien
                       {weekMatches.length} {weekMatches.length === 1 ? 'match' : 'matches'}
                     </span>
                   </div>
-                  {expandedWeeks.includes(parseInt(weekNumber)) ? (
+                  {expandedWeeks[Number(weekNumber)] ? (
                     <ChevronUpIcon className="h-6 w-6 text-[#00df82]" />
                   ) : (
                     <ChevronDownIcon className="h-6 w-6 text-[#00df82]" />
                   )}
                 </button>
 
-                {expandedWeeks.includes(parseInt(weekNumber)) && (
+                {expandedWeeks[Number(weekNumber)] && (
                   <div className="px-4 pb-4 relative z-10">
                     {/* Mobile view */}
                     <div className="block sm:hidden space-y-4">

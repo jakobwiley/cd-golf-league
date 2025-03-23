@@ -4,63 +4,68 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-export default function Navigation() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const pathname = usePathname()
+const Navigation = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
   
-  // Close mobile menu when pathname changes (navigation occurs)
   useEffect(() => {
-    setIsMobileMenuOpen(false)
-  }, [pathname])
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   return (
-    <nav className="bg-[#030f0f] border-b border-[#00df82]/10">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center">
+    <nav className="bg-[#001f1f]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex-shrink-0">
             <Link 
               href="/" 
-              className="flex items-center gap-2"
+              className="flex items-center"
             >
-              <span className="text-white text-xl font-audiowide bg-clip-text text-transparent bg-gradient-to-r from-white to-[#00df82]">CD Golf League</span>
-              <span role="img" aria-label="golf flag" className="text-xl">⛳</span>
+              <span className="text-white text-xl font-audiowide">CD Golf League</span>
+              <span role="img" aria-label="golf flag" className="text-xl ml-1">⛳</span>
             </Link>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                <Link href="/teams" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Teams</Link>
-                <Link href="/matches" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Matches</Link>
-                <Link href="/standings" className="text-gray-300 hover:text-[#00df82] px-3 py-2 rounded-md text-sm font-orbitron transition-colors">Standings</Link>
-              </div>
-            </div>
           </div>
           
-          {/* Mobile menu button */}
+          {/* Mobile menu button - in green box */}
           <div className="md:hidden">
             <button
               type="button"
-              className="relative inline-flex items-center justify-center rounded-md bg-[#00df82]/10 p-2 text-[#00df82] hover:bg-[#00df82]/20 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#030f0f] transition-colors"
+              className="inline-flex items-center justify-center p-2 rounded-md bg-[#004f3f] text-[#00df82] hover:bg-[#006f5f] border border-[#00df82]/30"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              <span className="absolute -inset-0.5"></span>
               <span className="sr-only">Open main menu</span>
               <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
           </div>
+          
+          {/* Desktop navigation */}
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-center space-x-8">
+              <Link href="/teams" className="text-white hover:text-[#00df82] px-3 py-2 text-sm font-orbitron">Teams</Link>
+              <Link href="/schedule" className="text-white hover:text-[#00df82] px-3 py-2 text-sm font-orbitron">Schedule</Link>
+              <Link href="/matches" className="text-white hover:text-[#00df82] px-3 py-2 text-sm font-orbitron">Matches</Link>
+              <Link href="/standings" className="text-white hover:text-[#00df82] px-3 py-2 text-sm font-orbitron">Standings</Link>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - positioned below the header */}
       {isMobileMenuOpen && (
-        <div className="md:hidden" id="mobile-menu">
-          <div className="space-y-1 px-2 pb-3 pt-2">
-            <Link href="/teams" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Teams</Link>
-            <Link href="/matches" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Matches</Link>
-            <Link href="/standings" className="text-gray-300 hover:text-[#00df82] block px-3 py-2 rounded-md text-base font-orbitron transition-colors">Standings</Link>
+        <div className="md:hidden bg-[#001f1f] border-t border-[#00df82]/10">
+          <div className="px-2 pt-2 pb-3 space-y-1">
+            <Link href="/teams" className="text-white hover:text-[#00df82] block px-3 py-2 text-base font-orbitron">Teams</Link>
+            <Link href="/schedule" className="text-white hover:text-[#00df82] block px-3 py-2 text-base font-orbitron">Schedule</Link>
+            <Link href="/matches" className="text-white hover:text-[#00df82] block px-3 py-2 text-base font-orbitron">Matches</Link>
+            <Link href="/standings" className="text-white hover:text-[#00df82] block px-3 py-2 text-base font-orbitron">Standings</Link>
           </div>
         </div>
       )}
     </nav>
-  )
-}
+  );
+};
+
+export default Navigation;

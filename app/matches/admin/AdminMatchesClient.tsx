@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { FaEdit, FaCheck, FaTimes, FaExchangeAlt, FaChevronDown, FaChevronRight } from 'react-icons/fa'
 import { toast } from 'react-hot-toast'
 import { useSocket } from '../../../lib/useSocket'
-import { SocketEvents } from '../../../lib/socket'
+import { SocketEvents } from '../../../app/utils/websocketConnection'
 
 type Player = {
   id: string

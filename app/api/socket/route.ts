@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server'
-import { WebSocket } from 'ws'
-import { supabase } from '../../../lib/supabase'
-import { SocketEvents } from '../../../lib/socket'
+import { NextResponse } from 'next/server';
+import { supabase } from '../../../lib/supabase';
+import { SocketEvents } from '../../../app/utils/websocketConnection';
 
 export async function GET() {
   try {

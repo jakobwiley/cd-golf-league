@@ -1,8 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSocket } from '../../lib/useSocket'
-import { SocketEvents } from '../../lib/socket'
+import { SocketEvents } from '../../app/utils/websocketConnection'
+import { Team } from '../../types'
+import TeamsList from '../components/TeamsList'
 
 // This is a placeholder component for the teams page
 // You'll need to implement the actual UI based on your design
@@ -45,4 +48,4 @@ export default function TeamsClient({ initialTeams }: { initialTeams: any[] }) {
       <pre>{JSON.stringify(teams, null, 2)}</pre>
     </div>
   )
-} 
+}

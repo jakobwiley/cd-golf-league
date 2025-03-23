@@ -264,7 +264,7 @@ export default function MatchesPageClient() {
                       </div>
                       <button
                         onClick={() => toggleMatch(match.id)}
-                        className="group relative overflow-hidden px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
+                        className="w-1/2 group relative overflow-hidden px-4 py-2 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
                         <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>

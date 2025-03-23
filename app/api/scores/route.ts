@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase'
+import { NextResponse } from 'next/server';
+import { supabase } from '../../../lib/supabase';
+import { SocketEvents } from '../../../app/utils/websocketConnection';
 import { z } from 'zod'
-import { SocketEvents } from '../../../lib/socket'
 import { randomUUID } from 'crypto'
 
 interface Score {
@@ -50,9 +50,9 @@ const scoreSchema = z.object({
   matchId: z.string(),
   playerId: z.string(),
   hole: z.number(),
-  score: z.number(),
-  putts: z.number().optional(),
-  fairway: z.boolean().optional()
+  score: z.number().nullable(),
+  putts: z.number().optional().nullable(),
+  fairway: z.boolean().optional().nullable()
 })
 
 // Validation schema for batch score submission

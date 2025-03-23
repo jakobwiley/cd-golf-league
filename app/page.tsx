@@ -25,7 +25,7 @@ export default function Home() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center min-h-screen">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-5xl">
           {/* Hero section */}
           <div className="relative mb-12 text-center">
             <h1 className="text-6xl font-bold text-white mb-6 font-audiowide tracking-wider">
@@ -43,8 +43,8 @@ export default function Home() {
             <div className="absolute top-1/2 -translate-y-1/2 -right-20 w-10 h-10 bg-[#00df82]/10 rounded-full blur-md"></div>
           </div>
 
-          {/* Navigation Cards - 3 column grid on desktop, stack on mobile */}
-          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+          {/* Navigation Cards - 4 column grid on desktop, 2 columns on medium screens */}
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
             {/* Teams Card */}
             <Link href="/teams" 
                   className="group bg-[#001f1f] rounded-2xl p-6 flex items-center space-x-4 hover:bg-[#001f1f]/80 transition-all">
@@ -59,6 +59,20 @@ export default function Home() {
               </div>
             </Link>
 
+            {/* Schedule Card */}
+            <Link href="/schedule" 
+                  className="group bg-[#001f1f] rounded-2xl p-6 flex items-center space-x-4 hover:bg-[#001f1f]/80 transition-all">
+              <div className="bg-[#00df82]/10 p-3 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#00df82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-audiowide text-white mb-1">Schedule</h2>
+                <p className="text-white/70 text-sm">View match schedule</p>
+              </div>
+            </Link>
+
             {/* Matches Card */}
             <Link href="/matches" 
                   className="group bg-[#001f1f] rounded-2xl p-6 flex items-center space-x-4 hover:bg-[#001f1f]/80 transition-all">
@@ -69,7 +83,7 @@ export default function Home() {
               </div>
               <div>
                 <h2 className="text-xl font-audiowide text-white mb-1">Matches</h2>
-                <p className="text-white/70 text-sm">View match details</p>
+                <p className="text-white/70 text-sm">View live scores</p>
               </div>
             </Link>
 
