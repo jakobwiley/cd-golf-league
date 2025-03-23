@@ -10,6 +10,122 @@ jest.setTimeout(30000);
 process.env.TEST_BASE_URL = 'http://localhost:3000';
 global.TEST_BASE_URL = process.env.TEST_BASE_URL;
 
+// Mock Supabase
+jest.mock('@supabase/supabase-js', () => {
+  const mockSupabase = {
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    match: jest.fn().mockReturnThis(),
+    single: jest.fn().mockReturnThis(),
+    data: [],
+    error: null,
+    then: jest.fn((callback) => Promise.resolve(callback({ data: [], error: null }))),
+    catch: jest.fn(),
+    subscribe: jest.fn().mockReturnValue({
+      on: jest.fn().mockReturnValue({
+        subscribe: jest.fn().mockReturnValue({
+          unsubscribe: jest.fn()
+        })
+      })
+    }),
+    auth: {
+      signInWithPassword: jest.fn(),
+      signOut: jest.fn(),
+      onAuthStateChange: jest.fn(),
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null })
+    },
+    storage: {
+      from: jest.fn().mockReturnValue({
+        upload: jest.fn(),
+        getPublicUrl: jest.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/image.jpg' } })
+      })
+    },
+    realtime: {
+      channel: jest.fn().mockReturnValue({
+        on: jest.fn().mockReturnThis(),
+        subscribe: jest.fn().mockImplementation((callback) => {
+          callback();
+          return {
+            unsubscribe: jest.fn()
+          };
+        })
+      })
+    }
+  };
+
+  return {
+    createClient: jest.fn().mockReturnValue(mockSupabase)
+  };
+});
+
+// Mock lib/supabase.ts
+jest.mock('./lib/supabase', () => {
+  const mockSupabase = {
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    match: jest.fn().mockReturnThis(),
+    single: jest.fn().mockReturnThis(),
+    data: [],
+    error: null,
+    then: jest.fn((callback) => Promise.resolve(callback({ data: [], error: null }))),
+    catch: jest.fn(),
+    auth: {
+      signInWithPassword: jest.fn(),
+      signOut: jest.fn(),
+      onAuthStateChange: jest.fn(),
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null })
+    },
+    storage: {
+      from: jest.fn().mockReturnValue({
+        upload: jest.fn(),
+        getPublicUrl: jest.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/image.jpg' } })
+      })
+    },
+    realtime: {
+      channel: jest.fn().mockReturnValue({
+        on: jest.fn().mockReturnThis(),
+        subscribe: jest.fn().mockImplementation((callback) => {
+          callback();
+          return {
+            unsubscribe: jest.fn()
+          };
+        })
+      })
+    }
+  };
+
+  return {
+    supabase: mockSupabase,
+    createClient: jest.fn().mockReturnValue(mockSupabase)
+  };
+}, { virtual: true });
+
+// Set Supabase environment variables for testing
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.com';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-key';
+
+// Mock fetch
+global.fetch = jest.fn().mockImplementation((url) => {
+  return Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ success: true, data: [] }),
+    text: () => Promise.resolve('{}')
+  });
+});
+
 // Export test configuration
 module.exports = {
   testBaseUrl: process.env.TEST_BASE_URL
@@ -22,8 +138,6 @@ const mockResponse = {
   json: jest.fn().mockResolvedValue({}),
   text: jest.fn().mockResolvedValue(''),
 };
-
-global.fetch = jest.fn().mockImplementation(() => Promise.resolve(mockResponse));
 
 // Mock WebSocket to avoid circular JSON issues
 class MockWebSocket {

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
-import { supabase } from '../../../../../lib/supabase'
-import { z } from 'zod'
-import { SocketEvents } from '../../../../../lib/socket'
+import { NextResponse } from 'next/server';
+import { supabase } from '../../../../../lib/supabase';
+import { z } from 'zod';
+import { SocketEvents } from '../../../../../app/utils/websocketConnection';
 
 interface Player {
   id: string

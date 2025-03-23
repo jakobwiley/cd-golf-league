@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import MatchesPage from './MatchesPage'
+import LiveMatchesPage from './LiveMatchesPage'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 export const revalidate = 0; // Disable cache for development
@@ -30,7 +30,7 @@ export default async function MatchesPageServer() {
 
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <MatchesPage initialMatches={matches} initialTeams={teams} />
+      <LiveMatchesPage initialMatches={matches} initialTeams={teams} />
     </Suspense>
   )
 } 

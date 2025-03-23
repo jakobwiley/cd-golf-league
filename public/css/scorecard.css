@@ -1,0 +1,99 @@
+/* Scorecard styles */
+.scorecard-container {
+  width: 100%;
+  overflow-x: auto;
+  background-color: #030f0f;
+  border: 1px solid rgba(0, 223, 130, 0.2);
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.scorecard-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.scorecard-header {
+  background-color: rgba(0, 223, 130, 0.1);
+  color: #00df82;
+  font-family: var(--font-audiowide, monospace);
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.scorecard-header th {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid rgba(0, 223, 130, 0.2);
+}
+
+.scorecard-row {
+  border-bottom: 1px solid rgba(0, 223, 130, 0.1);
+}
+
+.scorecard-row:last-child {
+  border-bottom: none;
+}
+
+.scorecard-cell {
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  color: white;
+  font-size: 0.875rem;
+}
+
+.scorecard-player-name {
+  text-align: left;
+  font-weight: 500;
+  color: white;
+  padding-left: 1rem;
+}
+
+.scorecard-total {
+  font-weight: bold;
+  color: #00df82;
+}
+
+.scorecard-under-par {
+  color: #00df82;
+}
+
+.scorecard-over-par {
+  color: #ff4d4d;
+}
+
+.scorecard-par {
+  color: white;
+}
+
+.scorecard-toggle-button {
+  background-color: rgba(0, 223, 130, 0.1);
+  color: #00df82;
+  border: 1px solid rgba(0, 223, 130, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.scorecard-toggle-button:hover {
+  background-color: rgba(0, 223, 130, 0.2);
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .scorecard-header th, 
+  .scorecard-cell {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.75rem;
+  }
+  
+  .scorecard-player-name {
+    padding-left: 0.5rem;
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSocket } from '../../lib/useSocket'
-import { SocketEvents } from '../../lib/socket'
+import { SocketEvents } from '../../app/utils/websocketConnection'
 
 // This is a placeholder component for the scores page
 // You'll need to implement the actual UI based on your design

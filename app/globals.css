@@ -32,6 +32,7 @@
 }
 
 @layer components {
+  /* Navigation components */
   .nav-link {
     @apply text-white hover:text-[#00df82] px-3 py-2 text-sm font-medium transition-colors;
   }
@@ -40,6 +41,29 @@
     @apply text-[#00df82];
   }
 
+  /* Main navigation bar */
+  .main-nav {
+    @apply flex items-center justify-between bg-[#030f0f] p-4 border-b border-[#00df82]/20;
+  }
+
+  .main-nav-logo {
+    @apply text-xl font-audiowide text-[#00df82] flex items-center;
+  }
+
+  .main-nav-links {
+    @apply flex space-x-4;
+  }
+
+  /* Mobile menu */
+  .mobile-menu {
+    @apply absolute z-50 w-64 bg-[#030f0f] border border-[#00df82]/20 shadow-lg rounded-md p-4;
+  }
+
+  .mobile-menu-button {
+    @apply p-2 text-white hover:text-[#00df82] transition-colors;
+  }
+
+  /* Button styles */
   .btn-primary {
     @apply inline-flex justify-center rounded-md bg-[#00df82] px-4 py-2 text-sm font-semibold text-[#030f0f] shadow-sm hover:bg-[#00df82]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00df82] transition-colors;
   }
@@ -302,4 +326,4 @@ input, select, textarea {
 select option {
   background-color: #fff;
   color: #000;
-} 
+}

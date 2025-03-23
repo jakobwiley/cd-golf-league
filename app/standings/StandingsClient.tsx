@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSocket } from '../../lib/useSocket'
-import { SocketEvents } from '../../lib/socket'
+import { SocketEvents } from '../../app/utils/websocketConnection'
 
 // This is a placeholder component for the standings page
 // You'll need to implement the actual UI based on your design
@@ -45,4 +45,4 @@ export default function StandingsClient({ initialStandings }: { initialStandings
       <pre>{JSON.stringify(standings, null, 2)}</pre>
     </div>
   )
-} 
+}

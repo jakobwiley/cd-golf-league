@@ -2,10 +2,15 @@
 
 import { useEffect, useRef } from 'react'
 
-export function useWebSocket(url: string) {
+export function useWebSocket(url: string | null) {
   const ws = useRef<WebSocket | null>(null)
 
   useEffect(() => {
+    // If URL is null or empty, don't create a WebSocket
+    if (!url) {
+      return;
+    }
+    
     // Convert http(s) to ws(s)
     const wsUrl = url.replace(/^http/, 'ws')
     const fullUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${wsUrl}`
@@ -28,4 +33,4 @@ export function useWebSocket(url: string) {
   }, [url])
 
   return ws.current
-} 
+}

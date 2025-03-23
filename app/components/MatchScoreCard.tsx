@@ -96,7 +96,7 @@ export default function MatchScoreCard({
         <div className="space-x-4">
           <button 
             onClick={onViewScorecard}
-            className="text-white hover:text-[#00df82] transition-colors text-sm"
+            className="w-1/2 text-white hover:text-[#00df82] transition-colors text-sm"
           >
             View Scorecard
           </button>
