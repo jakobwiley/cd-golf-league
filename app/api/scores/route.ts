@@ -153,8 +153,33 @@ export async function POST(request: Request) {
     const body = await request.json()
     console.log('Received score data:', JSON.stringify(body))
     
+    // Log Supabase connection details (without exposing keys)
+    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    console.log('Supabase Key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY || !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    
     const validatedData = batchScoreSchema.parse(body)
     console.log('Validated data:', JSON.stringify(validatedData))
+
+    // Verify that the player exists before attempting to save the score
+    for (const score of validatedData.scores) {
+      console.log(`Verifying player ${score.playerId} exists...`)
+      const { data: playerData, error: playerError } = await supabase
+        .from('Player')
+        .select('id, name')
+        .eq('id', score.playerId)
+        .single()
+      
+      if (playerError) {
+        console.error(`Error verifying player ${score.playerId}:`, playerError)
+        return NextResponse.json({ 
+          error: 'Player not found', 
+          details: playerError,
+          playerId: score.playerId
+        }, { status: 400 })
+      }
+      
+      console.log(`Player verified: ${playerData.name} (${playerData.id})`)
+    }
 
     // Process each score
     const results = await Promise.all(
@@ -182,33 +207,76 @@ export async function POST(request: Request) {
             return { deleted: true, matchId: score.matchId, playerId: score.playerId, hole: score.hole }
           }
           
+          console.log('Upserting score:', {
+            matchId: score.matchId,
+            playerId: score.playerId,
+            hole: score.hole,
+            score: score.score
+          })
+          
           // Use upsert operation (insert if not exists, update if exists)
-          const result = await supabase
+          const { data: existingScore, error: existingScoreError } = await supabase
             .from('MatchScore')
-            .upsert({
-              id: randomUUID(), // Generate a UUID for new records
-              matchId: score.matchId,
-              playerId: score.playerId,
-              hole: score.hole,
-              score: score.score,
-              putts: score.putts,
-              fairway: score.fairway,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            }, {
-              onConflict: 'matchId,playerId,hole',
-              ignoreDuplicates: false
-            })
-            .select()
-            .single()
+            .select('id, createdAt')
+            .eq('matchId', score.matchId)
+            .eq('playerId', score.playerId)
+            .eq('hole', score.hole)
+            .maybeSingle()
+
+          if (existingScoreError) {
+            console.error('Error checking for existing score:', existingScoreError)
+            // Continue with new score creation if we can't find the existing one
+          }
+
+          console.log('Upserting score with data:', {
+            id: existingScore?.id || randomUUID(),
+            matchId: score.matchId,
+            playerId: score.playerId,
+            hole: score.hole,
+            score: score.score
+          });
+
+          let result;
+          
+          if (existingScore) {
+            // Update existing record
+            console.log('Updating existing score with ID:', existingScore.id);
+            result = await supabase
+              .from('MatchScore')
+              .update({
+                score: score.score,
+                putts: score.putts,
+                fairway: score.fairway,
+                updatedAt: new Date().toISOString()
+              })
+              .eq('id', existingScore.id);
+          } else {
+            // Insert new record
+            console.log('Inserting new score');
+            const newId = randomUUID();
+            result = await supabase
+              .from('MatchScore')
+              .insert({
+                id: newId,
+                matchId: score.matchId,
+                playerId: score.playerId,
+                hole: score.hole,
+                score: score.score,
+                putts: score.putts,
+                fairway: score.fairway,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+          }
           
           if (result.error) {
-            console.error('Error upserting score:', result.error)
+            console.error('Error saving score:', result.error)
+            console.error('Error details:', JSON.stringify(result.error))
             throw result.error
           }
 
-          console.log('Score saved successfully:', result.data)
-          return result.data
+          console.log('Score saved successfully')
+          return { success: true, matchId: score.matchId, playerId: score.playerId, hole: score.hole }
         } catch (scoreError) {
           console.error('Error processing individual score:', scoreError)
           throw scoreError
@@ -298,6 +366,18 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json({ error: 'Failed to save scores' }, { status: 500 })
+    // Check if it's a Supabase error
+    if (error && typeof error === 'object' && 'code' in error) {
+      return NextResponse.json({ 
+        error: 'Failed to save scores', 
+        details: error,
+        message: error.message || 'Database error'
+      }, { status: 500 })
+    }
+
+    return NextResponse.json({ 
+      error: 'Failed to save scores',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

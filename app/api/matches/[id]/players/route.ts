@@ -80,6 +80,8 @@ export async function GET(
       throw matchError
     }
 
+    console.log(`Fetching players for match ${params.id} with homeTeamId: ${matchData.homeTeamId}, awayTeamId: ${matchData.awayTeamId}`);
+
     const { data, error } = await supabase
       .from('MatchPlayer')
       .select(`
@@ -99,6 +101,60 @@ export async function GET(
 
     if (error) {
       throw error
+    }
+
+    console.log(`Found ${data?.length || 0} MatchPlayer records for match ${params.id}`);
+
+    // If no MatchPlayer records exist, fetch players directly from the teams
+    if (!data || data.length === 0) {
+      console.log(`No MatchPlayer records found, fetching players directly from teams`);
+      
+      // Get home team players
+      const { data: homeTeamPlayers, error: homeTeamError } = await supabase
+        .from('Player')
+        .select('id, name, handicapIndex, teamId, playerType')
+        .eq('teamId', matchData.homeTeamId)
+        .eq('playerType', 'PRIMARY')
+        .limit(2);
+      
+      if (homeTeamError) {
+        console.error('Error fetching home team players:', homeTeamError);
+      }
+      
+      // Get away team players
+      const { data: awayTeamPlayers, error: awayTeamError } = await supabase
+        .from('Player')
+        .select('id, name, handicapIndex, teamId, playerType')
+        .eq('teamId', matchData.awayTeamId)
+        .eq('playerType', 'PRIMARY')
+        .limit(2);
+      
+      if (awayTeamError) {
+        console.error('Error fetching away team players:', awayTeamError);
+      }
+      
+      // Map home players
+      const mappedHomePlayers = (homeTeamPlayers || []).map(player => ({
+        playerId: player.id,
+        teamId: player.teamId,
+        name: player.name,
+        handicapIndex: player.handicapIndex,
+        isSubstitute: false
+      }));
+      
+      // Map away players
+      const mappedAwayPlayers = (awayTeamPlayers || []).map(player => ({
+        playerId: player.id,
+        teamId: player.teamId,
+        name: player.name,
+        handicapIndex: player.handicapIndex,
+        isSubstitute: false
+      }));
+      
+      return NextResponse.json({
+        homePlayers: mappedHomePlayers,
+        awayPlayers: mappedAwayPlayers
+      });
     }
 
     // Convert raw data to typed data

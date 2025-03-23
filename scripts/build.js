@@ -9,6 +9,10 @@ console.log('Starting custom build process...');
 process.env.CI = 'false';
 console.log('Set CI to false');
 
+// Log environment information
+console.log(`Building for environment: ${process.env.VERCEL_ENV || 'local'}`);
+console.log(`Using Supabase URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL || 'not set'}`);
+
 try {
   // Run the Next.js build
   console.log('Running Next.js build...');
