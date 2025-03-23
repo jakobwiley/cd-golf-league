@@ -1,0 +1,292 @@
+{
+  "matchData": {
+    "id": "97e38f37-b5cd-4604-a60d-8f08183345d2",
+    "date": "2025-04-15T18:00:00",
+    "weekNumber": 1,
+    "startingHole": 5,
+    "status": "SCHEDULED",
+    "homeTeamId": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+    "awayTeamId": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+    "homeTeam": {
+      "id": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+      "name": "Trev/Murph"
+    },
+    "awayTeam": {
+      "id": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+      "name": "Ryan/Drew"
+    }
+  },
+  "scoresData": [],
+  "playersData": [
+    {
+      "id": "95411cdb-088d-438e-adf7-628203c3b849",
+      "name": "Alli",
+      "handicapIndex": 30,
+      "teamId": "08066d48-ab93-4d66-9f9e-cbba4301d885",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "08066d48-ab93-4d66-9f9e-cbba4301d885",
+        "name": "Ashley/Alli"
+      }
+    },
+    {
+      "id": "b0dc3785-9c16-44cd-960d-6f459833b8f6",
+      "name": "AP",
+      "handicapIndex": 7.3,
+      "teamId": "8051152b-e030-4817-a9c7-bab365bc0b53",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "8051152b-e030-4817-a9c7-bab365bc0b53",
+        "name": "AP/JohnP"
+      }
+    },
+    {
+      "id": "72e9f7d1-b60f-433d-864e-85326cad4a31",
+      "name": "Ashley",
+      "handicapIndex": 40.6,
+      "teamId": "08066d48-ab93-4d66-9f9e-cbba4301d885",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "08066d48-ab93-4d66-9f9e-cbba4301d885",
+        "name": "Ashley/Alli"
+      }
+    },
+    {
+      "id": "f2b14599-a34c-4f0b-ad76-b0954ba30c49",
+      "name": "Brent",
+      "handicapIndex": 12,
+      "teamId": "063196ba-2877-40bf-b09e-f58bbb5de405",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "063196ba-2877-40bf-b09e-f58bbb5de405",
+        "name": "Nick/Brent"
+      }
+    },
+    {
+      "id": "684d84e6-86dc-4838-a69f-06034ac57218",
+      "name": "Brett",
+      "handicapIndex": 10.3,
+      "teamId": "8837f71c-f6ff-40f8-93d6-640959e0e823",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "8837f71c-f6ff-40f8-93d6-640959e0e823",
+        "name": "Brett/Tony"
+      }
+    },
+    {
+      "id": "88e50209-c1cd-4342-9a35-122025a8b028",
+      "name": "Brew",
+      "handicapIndex": 13.4,
+      "teamId": "9753d64a-f88e-463d-b4da-f803a2fa7f0c",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "9753d64a-f88e-463d-b4da-f803a2fa7f0c",
+        "name": "Brew/Jake"
+      }
+    },
+    {
+      "id": "9996e716-d0ad-436a-b173-596575f83321",
+      "name": "Clauss",
+      "handicapIndex": 12.5,
+      "teamId": "e5100823-8362-4be5-b564-cd5153adc2f0",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "e5100823-8362-4be5-b564-cd5153adc2f0",
+        "name": "Clauss/Wade"
+      }
+    },
+    {
+      "id": "5f61cb0d-36fd-423e-b7a2-fdfa6250b6d7",
+      "name": "Drew",
+      "handicapIndex": 10.6,
+      "teamId": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+        "name": "Ryan/Drew"
+      }
+    },
+    {
+      "id": "95cfcb18-7c89-4e0a-9791-1dcff6ac1d68",
+      "name": "Hot",
+      "handicapIndex": 17.2,
+      "teamId": "d32a53ec-8857-4bda-ac8f-6fd5f1344ff5",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "d32a53ec-8857-4bda-ac8f-6fd5f1344ff5",
+        "name": "Hot/Huerter"
+      }
+    },
+    {
+      "id": "c3aa3bc4-a30b-4e97-ab90-04f83f6cfd71",
+      "name": "Huerter",
+      "handicapIndex": 11.8,
+      "teamId": "d32a53ec-8857-4bda-ac8f-6fd5f1344ff5",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "d32a53ec-8857-4bda-ac8f-6fd5f1344ff5",
+        "name": "Hot/Huerter"
+      }
+    },
+    {
+      "id": "6bc61f17-41ba-4e74-8d10-73b261de3de2",
+      "name": "Jake",
+      "handicapIndex": 16.7,
+      "teamId": "9753d64a-f88e-463d-b4da-f803a2fa7f0c",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "9753d64a-f88e-463d-b4da-f803a2fa7f0c",
+        "name": "Brew/Jake"
+      }
+    },
+    {
+      "id": "121a251e-2b52-4101-8c59-5d8614379a09",
+      "name": "JohnP",
+      "handicapIndex": 21.4,
+      "teamId": "8051152b-e030-4817-a9c7-bab365bc0b53",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "8051152b-e030-4817-a9c7-bab365bc0b53",
+        "name": "AP/JohnP"
+      }
+    },
+    {
+      "id": "e7a07528-e624-4c12-ab54-635a37d9c6c3",
+      "name": "Murph",
+      "handicapIndex": 12.6,
+      "teamId": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+        "name": "Trev/Murph"
+      }
+    },
+    {
+      "id": "28a42d4d-c007-422f-9df8-610d103aae00",
+      "name": "Nick",
+      "handicapIndex": 11.3,
+      "teamId": "063196ba-2877-40bf-b09e-f58bbb5de405",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "063196ba-2877-40bf-b09e-f58bbb5de405",
+        "name": "Nick/Brent"
+      }
+    },
+    {
+      "id": "2f0be99a-0c53-4cdf-a2ee-b3da710f6db0",
+      "name": "Rob",
+      "handicapIndex": 18.1,
+      "teamId": "dfd5144a-d3df-45f1-9ffa-1f92c074c179",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "dfd5144a-d3df-45f1-9ffa-1f92c074c179",
+        "name": "Sketch/Rob"
+      }
+    },
+    {
+      "id": "765a452a-fe34-4ced-88ab-24f029b2ddd0",
+      "name": "Ryan",
+      "handicapIndex": 13.9,
+      "teamId": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+        "name": "Ryan/Drew"
+      }
+    },
+    {
+      "id": "f60eef2d-6264-4af2-b26b-d1580f20db4c",
+      "name": "Sketch",
+      "handicapIndex": 11.9,
+      "teamId": "dfd5144a-d3df-45f1-9ffa-1f92c074c179",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "dfd5144a-d3df-45f1-9ffa-1f92c074c179",
+        "name": "Sketch/Rob"
+      }
+    },
+    {
+      "id": "9317be21-d870-4dbb-8c9b-a4d4b6bc896d",
+      "name": "Tony",
+      "handicapIndex": 14.1,
+      "teamId": "8837f71c-f6ff-40f8-93d6-640959e0e823",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "8837f71c-f6ff-40f8-93d6-640959e0e823",
+        "name": "Brett/Tony"
+      }
+    },
+    {
+      "id": "14349530-9dff-4166-b25f-142b28fc35dc",
+      "name": "Trev",
+      "handicapIndex": 16,
+      "teamId": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+        "name": "Trev/Murph"
+      }
+    },
+    {
+      "id": "eac91dbf-b5b1-4f2d-8421-6d97c3e7086e",
+      "name": "Wade",
+      "handicapIndex": 15,
+      "teamId": "e5100823-8362-4be5-b564-cd5153adc2f0",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "e5100823-8362-4be5-b564-cd5153adc2f0",
+        "name": "Clauss/Wade"
+      }
+    }
+  ],
+  "homeTeamId": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+  "awayTeamId": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+  "homeTeamPlayers": [
+    {
+      "id": "e7a07528-e624-4c12-ab54-635a37d9c6c3",
+      "name": "Murph",
+      "handicapIndex": 12.6,
+      "teamId": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+        "name": "Trev/Murph"
+      }
+    },
+    {
+      "id": "14349530-9dff-4166-b25f-142b28fc35dc",
+      "name": "Trev",
+      "handicapIndex": 16,
+      "teamId": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "61bb5591-0eda-417c-a7f9-a092b91c0170",
+        "name": "Trev/Murph"
+      }
+    }
+  ],
+  "awayTeamPlayers": [
+    {
+      "id": "5f61cb0d-36fd-423e-b7a2-fdfa6250b6d7",
+      "name": "Drew",
+      "handicapIndex": 10.6,
+      "teamId": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+        "name": "Ryan/Drew"
+      }
+    },
+    {
+      "id": "765a452a-fe34-4ced-88ab-24f029b2ddd0",
+      "name": "Ryan",
+      "handicapIndex": 13.9,
+      "teamId": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+      "playerType": "PRIMARY",
+      "Team": {
+        "id": "2b9bb19b-d7b1-4de2-bcd9-022fdd4d893c",
+        "name": "Ryan/Drew"
+      }
+    }
+  ]
+}
