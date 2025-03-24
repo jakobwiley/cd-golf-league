@@ -54,9 +54,19 @@ async function checkAndCreateMatchPointsTable() {
         // Alternative approach: direct query to check if table exists
         console.log('Trying alternative approach to check table existence...');
         
-        // Create the table directly
-        console.log('Creating MatchPoints table...');
-        await createMatchPointsTable();
+        // Try to query the table to see if it exists
+        const { data, error } = await supabase
+          .from('MatchPoints')
+          .select('*')
+          .limit(1);
+          
+        if (error && error.code === '42P01') { // table doesn't exist
+          // Create the table only if it doesn't exist
+          console.log('Creating MatchPoints table...');
+          await createMatchPointsTable();
+        } else {
+          console.log('MatchPoints table already exists');
+        }
         return;
       }
       
@@ -97,32 +107,43 @@ async function checkAndCreateMatchPointsTable() {
 
 async function createMatchPointsTable() {
   const createTableSql = `
-    -- Drop the table if it exists
-    DROP TABLE IF EXISTS "MatchPoints";
+    -- Only create the table if it doesn't exist
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT FROM pg_tables 
+        WHERE schemaname = 'public' 
+        AND tablename = 'MatchPoints'
+      ) THEN
+        -- Create the MatchPoints table with all required columns
+        CREATE TABLE "MatchPoints" (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+          "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
+          "teamId" TEXT NOT NULL,
+          hole INTEGER,
+          "homePoints" NUMERIC NOT NULL DEFAULT 0,
+          "awayPoints" NUMERIC NOT NULL DEFAULT 0,
+          "points" NUMERIC NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
 
-    -- Create the MatchPoints table with all required columns
-    CREATE TABLE "MatchPoints" (
-      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-      "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
-      "teamId" TEXT NOT NULL,
-      hole INTEGER,
-      "homePoints" NUMERIC NOT NULL DEFAULT 0,
-      "awayPoints" NUMERIC NOT NULL DEFAULT 0,
-      "points" NUMERIC NOT NULL DEFAULT 0,
-      "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
+        -- Create an index on matchId for better performance
+        CREATE INDEX "idx_match_points_match_id" ON "MatchPoints" ("matchId");
 
-    -- Create an index on matchId for better performance
-    CREATE INDEX IF NOT EXISTS "idx_match_points_match_id" ON "MatchPoints" ("matchId");
+        -- Create an index on teamId for better performance
+        CREATE INDEX "idx_match_points_team_id" ON "MatchPoints" ("teamId");
 
-    -- Create an index on teamId for better performance
-    CREATE INDEX IF NOT EXISTS "idx_match_points_team_id" ON "MatchPoints" ("teamId");
-
-    -- Create a unique index on matchId and hole to prevent duplicates
-    CREATE UNIQUE INDEX IF NOT EXISTS "idx_match_points_match_id_hole" 
-    ON "MatchPoints" ("matchId", hole) 
-    WHERE hole IS NOT NULL;
+        -- Create a unique index on matchId and hole to prevent duplicates
+        CREATE UNIQUE INDEX "idx_match_points_match_id_hole" 
+        ON "MatchPoints" ("matchId", hole) 
+        WHERE hole IS NOT NULL;
+        
+        RAISE NOTICE 'MatchPoints table created successfully';
+      ELSE
+        RAISE NOTICE 'MatchPoints table already exists, no changes made';
+      END IF;
+    END $$;
   `;
 
   try {
@@ -135,47 +156,54 @@ async function createMatchPointsTable() {
       // Alternative approach: execute each statement separately
       console.log('Trying alternative approach...');
       
-      // Drop table if exists
-      await supabase.rpc('run_sql', { query: 'DROP TABLE IF EXISTS "MatchPoints"' });
-      
-      // Create table
-      const createTableQuery = `
-        CREATE TABLE "MatchPoints" (
-          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-          "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
-          "teamId" TEXT NOT NULL,
-          hole INTEGER,
-          "homePoints" NUMERIC NOT NULL DEFAULT 0,
-          "awayPoints" NUMERIC NOT NULL DEFAULT 0,
-          "points" NUMERIC NOT NULL DEFAULT 0,
-          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-      `;
-      
-      const { error: createError } = await supabase.rpc('run_sql', { query: createTableQuery });
-      
-      if (createError) {
-        console.error('Error creating table:', createError);
-        return;
+      // Check if table exists first
+      const { data, error: checkError } = await supabase
+        .from('MatchPoints')
+        .select('*')
+        .limit(1);
+        
+      if (checkError && checkError.code === '42P01') { // table doesn't exist
+        // Create table
+        const createTableQuery = `
+          CREATE TABLE IF NOT EXISTS "MatchPoints" (
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+            "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
+            "teamId" TEXT NOT NULL,
+            hole INTEGER,
+            "homePoints" NUMERIC NOT NULL DEFAULT 0,
+            "awayPoints" NUMERIC NOT NULL DEFAULT 0,
+            "points" NUMERIC NOT NULL DEFAULT 0,
+            "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          )
+        `;
+        
+        const { error: createError } = await supabase.rpc('run_sql', { query: createTableQuery });
+        
+        if (createError) {
+          console.error('Error creating table:', createError);
+          return;
+        }
+        
+        // Create indexes
+        await supabase.rpc('run_sql', { 
+          query: 'CREATE INDEX IF NOT EXISTS "idx_match_points_match_id" ON "MatchPoints" ("matchId")' 
+        });
+        
+        await supabase.rpc('run_sql', { 
+          query: 'CREATE INDEX IF NOT EXISTS "idx_match_points_team_id" ON "MatchPoints" ("teamId")' 
+        });
+        
+        await supabase.rpc('run_sql', { 
+          query: `CREATE UNIQUE INDEX IF NOT EXISTS "idx_match_points_match_id_hole" 
+                  ON "MatchPoints" ("matchId", hole) 
+                  WHERE hole IS NOT NULL` 
+        });
+        
+        console.log('Table created successfully using alternative approach');
+      } else {
+        console.log('MatchPoints table already exists, no changes made');
       }
-      
-      // Create indexes
-      await supabase.rpc('run_sql', { 
-        query: 'CREATE INDEX IF NOT EXISTS "idx_match_points_match_id" ON "MatchPoints" ("matchId")' 
-      });
-      
-      await supabase.rpc('run_sql', { 
-        query: 'CREATE INDEX IF NOT EXISTS "idx_match_points_team_id" ON "MatchPoints" ("teamId")' 
-      });
-      
-      await supabase.rpc('run_sql', { 
-        query: `CREATE UNIQUE INDEX IF NOT EXISTS "idx_match_points_match_id_hole" 
-                ON "MatchPoints" ("matchId", hole) 
-                WHERE hole IS NOT NULL` 
-      });
-      
-      console.log('Table created successfully using alternative approach');
     } else {
       console.log('Table created successfully');
     }
