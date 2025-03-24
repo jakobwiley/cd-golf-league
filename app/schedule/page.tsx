@@ -9,12 +9,30 @@ export default async function SchedulePageServer() {
     // Fetch data from the API endpoint with explicit no-cache options
     console.log('Fetching data from API endpoint...');
     
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3007';
+    // Fix URL construction for Vercel deployments
+    let baseUrl = '';
+    
+    // Check for Vercel environment
+    if (process.env.VERCEL_URL) {
+      // For Vercel deployments
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+      console.log('Using Vercel URL:', baseUrl);
+    } else if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+      // Alternative Vercel environment variable
+      baseUrl = `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+      console.log('Using NEXT_PUBLIC_VERCEL_URL:', baseUrl);
+    } else if (process.env.VERCEL_ENV === 'development') {
+      // Local development
+      baseUrl = 'http://localhost:3007';
+      console.log('Using local development URL:', baseUrl);
+    } else {
+      // Fallback - use relative URL which works in all environments
+      baseUrl = '';
+      console.log('Using relative URL');
+    }
     
     const apiUrl = `${baseUrl}/api/schedule`;
-    console.log('Using API URL:', apiUrl);
+    console.log('Final API URL:', apiUrl);
     
     const response = await fetch(apiUrl, { 
       cache: 'no-store',
