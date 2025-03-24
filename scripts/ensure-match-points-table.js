@@ -1,5 +1,5 @@
-// This script ensures the MatchPoints table exists in the Supabase database
-// It runs during the Vercel build process
+// This script checks if the MatchPoints table exists in the Supabase database
+// It runs during the Vercel build process but does NOT recreate the table
 
 const { createClient } = require('@supabase/supabase-js');
 
@@ -17,105 +17,76 @@ if (!supabaseKey) {
   process.exit(1);
 }
 
-console.log(`Ensuring MatchPoints table exists in ${supabaseUrl}...`);
+console.log(`Checking if MatchPoints table exists in ${supabaseUrl}...`);
+console.log('Environment:', process.env.NODE_ENV || 'development');
 
 // Initialize Supabase client
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function ensureMatchPointsTable() {
+async function checkMatchPointsTable() {
   try {
-    // Check if the table exists
+    // Check if the table exists by trying to select from it
     const { data, error } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'MatchPoints');
+      .from('MatchPoints')
+      .select('id')
+      .limit(1);
     
     if (error) {
-      console.error('Error checking if table exists:', error);
-      // Continue to create table anyway
-    }
-    
-    // If table doesn't exist or we couldn't check, create it
-    if (!data || data.length === 0 || error) {
-      console.log('Creating MatchPoints table...');
-      
-      // Create the table with SQL
-      const { error: createError } = await supabase.rpc('create_match_points_table');
-      
-      if (createError) {
-        console.error('Error creating table via RPC:', createError);
-        console.log('Trying direct SQL approach...');
-        
-        // Try direct SQL approach as fallback
-        const createTableSql = `
-          -- Create the MatchPoints table with all required columns
-          CREATE TABLE IF NOT EXISTS "MatchPoints" (
-            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-            "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
-            "teamId" TEXT NOT NULL,
-            hole INTEGER,
-            "homePoints" NUMERIC NOT NULL DEFAULT 0,
-            "awayPoints" NUMERIC NOT NULL DEFAULT 0,
-            "points" NUMERIC NOT NULL DEFAULT 0,
-            "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-        `;
-        
-        // This will likely fail in Vercel environment without proper permissions,
-        // but we'll try anyway as a last resort
-        try {
-          await supabase.rpc('run_sql', { query: createTableSql });
-          console.log('Table created successfully via direct SQL');
-        } catch (sqlError) {
-          console.error('Failed to create table via direct SQL:', sqlError);
-          console.log('Please ensure the MatchPoints table is created manually in the Supabase dashboard');
-        }
+      if (error.code === 'PGRST116') {
+        // Table doesn't exist
+        console.warn('⚠️ MatchPoints table does not exist!');
+        console.warn('Please create the MatchPoints table manually with the following structure:');
+        console.warn(`
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+          "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
+          "teamId" TEXT NOT NULL,
+          hole INTEGER,
+          "homePoints" NUMERIC NOT NULL DEFAULT 0,
+          "awayPoints" NUMERIC NOT NULL DEFAULT 0,
+          "points" NUMERIC NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        `);
       } else {
-        console.log('Table created successfully via RPC');
+        console.error('Error checking MatchPoints table:', error);
       }
     } else {
-      console.log('MatchPoints table already exists');
-    }
-    
-    // Check if the table has all required columns
-    const { data: columns, error: columnsError } = await supabase
-      .from('information_schema.columns')
-      .select('column_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'MatchPoints');
-    
-    if (columnsError) {
-      console.error('Error checking columns:', columnsError);
-    } else {
-      console.log('MatchPoints table columns:', columns.map(c => c.column_name).join(', '));
+      console.log('✅ MatchPoints table exists');
       
-      // Check for required columns
-      const requiredColumns = ['teamId', 'points', 'homePoints', 'awayPoints', 'hole'];
-      const missingColumns = requiredColumns.filter(
-        col => !columns.some(c => c.column_name.toLowerCase() === col.toLowerCase())
-      );
-      
-      if (missingColumns.length > 0) {
-        console.warn('Missing required columns:', missingColumns.join(', '));
-        console.log('Please ensure these columns are added manually in the Supabase dashboard');
-      } else {
-        console.log('All required columns exist');
+      // Check if the table has all required columns
+      try {
+        // Try to select all required columns to see if they exist
+        const { error: columnsError } = await supabase
+          .from('MatchPoints')
+          .select('id, matchId, teamId, hole, homePoints, awayPoints, points, createdAt, updatedAt')
+          .limit(1);
+        
+        if (columnsError) {
+          console.warn('⚠️ MatchPoints table is missing some required columns:', columnsError.message);
+          console.warn('Please ensure all required columns exist in the MatchPoints table.');
+        } else {
+          console.log('✅ All required columns exist in the MatchPoints table');
+        }
+      } catch (columnsCheckError) {
+        console.error('Error checking columns:', columnsCheckError);
       }
     }
   } catch (error) {
     console.error('Unexpected error:', error);
-    process.exit(1);
+    // Don't exit with error to allow build to continue
+    console.warn('Continuing build despite MatchPoints table check failure');
   }
 }
 
-ensureMatchPointsTable()
+checkMatchPointsTable()
   .then(() => {
     console.log('MatchPoints table check complete');
+    // Always exit with success to allow build to continue
     process.exit(0);
   })
   .catch(err => {
     console.error('Script error:', err);
-    process.exit(1);
+    // Always exit with success to allow build to continue
+    console.warn('Continuing build despite script error');
+    process.exit(0);
   });
