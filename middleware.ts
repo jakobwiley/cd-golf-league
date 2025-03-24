@@ -2,8 +2,30 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { get } from '@vercel/edge-config';
 
-// This middleware handles both edge config and authentication
+// Helper function to add CORS headers to the response
+function addCorsHeaders(response: NextResponse, request: NextRequest): NextResponse {
+  // Get the origin from the request headers or use a wildcard as fallback
+  const origin = request.headers.get('origin') || '*';
+  
+  // Log the origin for debugging
+  console.log(`Setting CORS headers with origin: ${origin}`);
+  
+  // Add CORS headers to the response
+  response.headers.set('Access-Control-Allow-Origin', origin);
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
+  return response;
+}
+
+// This function can be marked `async` if using `await` inside
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Log the request for debugging
+  console.log(`Middleware handling request: ${request.method} ${pathname}`);
+
   // Handle WebSocket upgrade requests
   if (request.nextUrl.pathname.startsWith('/api/scores/ws')) {
     const upgrade = request.headers.get('upgrade')
@@ -23,40 +45,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json(greeting);
   }
 
-  // Get the origin for CORS
-  const origin = request.headers.get('origin') || '*';
-  
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
-    return new NextResponse(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Max-Age': '86400',
-      },
-    })
+    console.log('Handling CORS preflight request');
+    const response = new NextResponse(null, { status: 204 });
+    return addCorsHeaders(response, request);
   }
 
-  // Allow all API routes without authentication but with proper CORS headers
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    const response = NextResponse.next();
-    
-    // Add CORS headers to all API responses
-    response.headers.set('Access-Control-Allow-Origin', origin);
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
-    
-    // Special handling for match-points and scores endpoints
-    if (request.nextUrl.pathname.includes('/api/match-points') || 
-        request.nextUrl.pathname.includes('/api/scores')) {
-      console.log(`CORS headers set for ${request.nextUrl.pathname} with origin: ${origin}`);
+  // Handle API routes that need CORS headers
+  const isApiRoute = pathname.startsWith('/api/');
+  const isMatchPointsRoute = pathname.includes('/api/match-points');
+  const isScoresRoute = pathname.includes('/api/scores');
+  const isMatchesRoute = pathname.startsWith('/matches/');
+  
+  if (isApiRoute || isMatchesRoute) {
+    // For API routes, add CORS headers to the response
+    if (isMatchPointsRoute || isScoresRoute) {
+      console.log(`Special handling for route: ${pathname}`);
     }
     
-    return response;
+    const response = NextResponse.next();
+    return addCorsHeaders(response, request);
   }
 
   // Skip authentication in development mode
@@ -90,15 +99,23 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// See: https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
+// Configure middleware to run on specific paths
 export const config = {
   matcher: [
-    '/welcome',
+    // Match all API routes
+    '/api/:path*',
+    // Match all admin routes
     '/admin/:path*',
+    // Match all profile routes
     '/profile/:path*',
+    // Match all settings routes
     '/settings/:path*',
-    '/api/:path*', 
+    // Match all match detail pages
+    '/matches/:path*',
+    // Match welcome route
+    '/welcome',
+    // Match WebSocket connections
     '/api/scores/ws/:path*',
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ]
+  ],
 }
