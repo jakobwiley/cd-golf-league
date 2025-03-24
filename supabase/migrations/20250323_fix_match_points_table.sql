@@ -1,16 +1,5 @@
 -- Create stored procedures to manage the MatchPoints table
 
--- Function to drop the MatchPoints table
-CREATE OR REPLACE FUNCTION drop_match_points_table()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  DROP TABLE IF EXISTS "MatchPoints";
-END;
-$$;
-
 -- Function to create the MatchPoints table with the correct structure
 CREATE OR REPLACE FUNCTION create_match_points_table()
 RETURNS void
@@ -18,26 +7,62 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  CREATE TABLE IF NOT EXISTS "MatchPoints" (
-    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-    "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
-    "teamId" TEXT NOT NULL,
-    hole INTEGER,
-    "homePoints" NUMERIC NOT NULL DEFAULT 0,
-    "awayPoints" NUMERIC NOT NULL DEFAULT 0,
-    "points" NUMERIC NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-  );
-  
-  -- Create indexes for better performance
-  CREATE INDEX IF NOT EXISTS "idx_match_points_match_id" ON "MatchPoints" ("matchId");
-  CREATE INDEX IF NOT EXISTS "idx_match_points_team_id" ON "MatchPoints" ("teamId");
-  
-  -- Create a unique index to prevent duplicate entries for the same match and hole
-  CREATE UNIQUE INDEX IF NOT EXISTS "idx_match_points_match_id_hole" 
-  ON "MatchPoints" ("matchId", hole) 
-  WHERE hole IS NOT NULL;
+  -- Only create the table if it doesn't exist
+  IF NOT EXISTS (
+    SELECT FROM pg_tables 
+    WHERE schemaname = 'public' 
+    AND tablename = 'MatchPoints'
+  ) THEN
+    CREATE TABLE "MatchPoints" (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+      "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
+      "teamId" TEXT NOT NULL,
+      hole INTEGER,
+      "homePoints" NUMERIC NOT NULL DEFAULT 0,
+      "awayPoints" NUMERIC NOT NULL DEFAULT 0,
+      "points" NUMERIC NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    -- Create indexes for better performance
+    CREATE INDEX "idx_match_points_match_id" ON "MatchPoints" ("matchId");
+    CREATE INDEX "idx_match_points_team_id" ON "MatchPoints" ("teamId");
+    
+    -- Create a unique index to prevent duplicate entries for the same match and hole
+    CREATE UNIQUE INDEX "idx_match_points_match_id_hole" 
+    ON "MatchPoints" ("matchId", hole) 
+    WHERE hole IS NOT NULL;
+  END IF;
+END;
+$$;
+
+-- Create a function to check if the MatchPoints table exists and has the correct structure
+CREATE OR REPLACE FUNCTION check_match_points_table()
+RETURNS TABLE(exists boolean, has_required_columns boolean)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Check if the table exists
+  IF EXISTS (
+    SELECT FROM pg_tables 
+    WHERE schemaname = 'public' 
+    AND tablename = 'MatchPoints'
+  ) THEN
+    -- Check if all required columns exist
+    RETURN QUERY
+    SELECT 
+      true as exists,
+      (
+        SELECT COUNT(*) = 9 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'MatchPoints' 
+        AND column_name IN ('id', 'matchId', 'teamId', 'hole', 'homePoints', 'awayPoints', 'points', 'createdAt', 'updatedAt')
+      ) as has_required_columns;
+  ELSE
+    RETURN QUERY SELECT false as exists, false as has_required_columns;
+  END IF;
 END;
 $$;
 
