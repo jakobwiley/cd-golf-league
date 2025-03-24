@@ -16,6 +16,8 @@ export default function MatchPointTracker({ match, homePoints, awayPoints, onVie
     return null
   }
 
+  const isFinalized = match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized';
+
   return (
     <div className="max-w-6xl mx-auto mb-2 md:mb-4 relative" data-component-name="MatchPointTracker">
       {/* Futuristic background elements */}
@@ -34,7 +36,14 @@ export default function MatchPointTracker({ match, homePoints, awayPoints, onVie
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
         
         <div className="relative">
-          <h2 className="text-sm md:text-xl font-audiowide text-white text-center mb-1 md:mb-4">Match Scorecard</h2>
+          <div className="flex justify-between items-center mb-1 md:mb-4">
+            <h2 className="text-sm md:text-xl font-audiowide text-white text-center">Match Scorecard</h2>
+            {isFinalized && (
+              <span className="text-xs md:text-sm font-orbitron text-[#00df82] bg-[#001a0d]/80 px-2 py-1 rounded-md border border-[#00df82]/30">
+                FINALIZED
+              </span>
+            )}
+          </div>
           
           <div className="bg-[#001a0d]/80 border border-[#00df82]/10 rounded-lg p-2 md:p-4 backdrop-blur-sm">
             <div className="flex items-center justify-between">

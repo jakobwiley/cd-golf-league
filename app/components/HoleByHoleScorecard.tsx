@@ -197,6 +197,8 @@ export default function HoleByHoleScorecard({
   const [showSummary, setShowSummary] = useState(false);
   const summaryRef = React.createRef<HTMLDivElement>();
   const [showScorecard, setShowScorecard] = useState(false)
+  // New state variable to track if confirmation dialog is shown
+  const [showConfirmation, setShowConfirmation] = useState(false)
   // WebSocket reference
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -898,6 +900,126 @@ export default function HoleByHoleScorecard({
     }
   }
 
+  // Add a function to check if all 9 holes have scores for all players
+  const areAllHolesFilled = () => {
+    // Get all players
+    const allPlayerIds = [...homeTeamPlayers, ...awayTeamPlayers].map(player => player.id);
+    
+    // Check if each player has scores for all 9 holes
+    for (const playerId of allPlayerIds) {
+      // If player doesn't have scores array, return false
+      if (!playerScores[playerId]) return false;
+      
+      // Check if all 9 holes have scores
+      for (let hole = 1; hole <= 9; hole++) {
+        const holeScore = playerScores[playerId]?.find(score => score.hole === hole);
+        if (!holeScore || holeScore.score === null) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  };
+
+  // Function to finalize the match
+  const finalizeMatch = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      // First, ensure all scores are saved
+      await saveScores();
+      
+      // Format hole points in the expected structure for the API
+      const formattedHolePoints: Record<string, { home: number, away: number }> = {};
+      
+      // Convert hole points to the expected format
+      Object.entries(holePoints).forEach(([holeStr, points]) => {
+        formattedHolePoints[holeStr] = {
+          home: points.home,
+          away: points.away
+        };
+      });
+      
+      // Save the final match points to the MatchPoints table
+      try {
+        const matchPointsResponse = await fetch('/api/match-points', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            matchId: match.id,
+            totalPoints: {
+              home: totalPoints.home,
+              away: totalPoints.away
+            },
+            holePoints: formattedHolePoints
+          }),
+        });
+        
+        if (!matchPointsResponse.ok) {
+          const errorText = await matchPointsResponse.text();
+          console.error('Failed to save match points:', errorText);
+          throw new Error(`Failed to save match points: ${errorText}`);
+        }
+      } catch (pointsError) {
+        console.error('Error saving match points:', pointsError);
+        throw pointsError;
+      }
+      
+      // Then update the match status to completed (only status, not points)
+      const response = await fetch(`/api/matches/${match.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          status: 'FINALIZED'
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Failed to finalize match:', response.status, errorData);
+        throw new Error(`Failed to finalize match: ${response.status} ${errorData}`);
+      }
+      
+      setSuccess('Match finalized successfully!');
+      
+      // Redirect to matches list after a short delay
+      setTimeout(() => {
+        if (onClose) {
+          onClose();
+        }
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Error finalizing match:', err);
+      setError('Failed to finalize match');
+    } finally {
+      setSaving(false);
+      setShowConfirmation(false);
+    }
+  };
+
+  // Function to handle finalize button click
+  const handleFinalizeClick = () => {
+    // Check if match is already finalized
+    if (match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized') {
+      setSuccess('This match has already been finalized');
+      setTimeout(() => setSuccess(null), 3000);
+      return;
+    }
+    setShowConfirmation(true);
+  };
+
+  // Close confirmation dialog
+  const closeConfirmation = () => {
+    setShowConfirmation(false);
+  };
+
   // Navigate to next hole
   const goToNextHole = () => {
     setActiveHole(current => {
@@ -1158,10 +1280,17 @@ export default function HoleByHoleScorecard({
             Close Match
           </button>
           <button
-            onClick={saveScores}
-            className="group relative overflow-hidden px-3 md:px-5 py-1.5 md:py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-xs md:text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105"
+            onClick={handleFinalizeClick}
+            disabled={!areAllHolesFilled() || saving || match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized'}
+            className={`group relative overflow-hidden px-3 md:px-5 py-1.5 md:py-2 text-white rounded-lg transition-all duration-300 border backdrop-blur-sm text-xs md:text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] transform ${
+              match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized'
+                ? 'bg-gray-500/30 border-gray-500/30 cursor-not-allowed'
+                : areAllHolesFilled() && !saving
+                  ? 'bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 border-[#00df82]/50 hover:border-[#00df82] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] hover:scale-105' 
+                  : 'bg-gray-500/30 border-gray-500/30 cursor-not-allowed'
+            }`}
           >
-            Save Score
+            {saving ? 'Processing...' : match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized' ? 'Match Finalized' : 'Finalize Match'}
           </button>
         </div>
 
@@ -1178,6 +1307,44 @@ export default function HoleByHoleScorecard({
           </div>
         )}
       </div>
+      
+      {/* Confirmation Dialog */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#030f0f] border border-[#00df82]/30 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-audiowide text-white mb-4">Finalize Match</h3>
+            <p className="text-white/80 mb-6">
+              Are you sure you want to finalize this match? This will mark the match as completed and update the standings. This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={closeConfirmation}
+                className="px-4 py-2 text-white bg-gray-600/50 hover:bg-gray-600/70 rounded-lg transition-colors"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={finalizeMatch}
+                className="px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] flex items-center justify-center"
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  'Confirm'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

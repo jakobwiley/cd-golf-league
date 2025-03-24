@@ -204,7 +204,10 @@ function processStandings(teams: any[], matches: any[], matchPoints: any[]) {
 
   // Process completed matches
   matches.forEach(match => {
-    if (match.status === 'FINALIZED') {
+    if (match.status === 'FINALIZED' || 
+        match.status === 'COMPLETED' ||
+        match.status?.toLowerCase() === 'finalized' ||
+        match.status?.toLowerCase() === 'completed') {
       // Get the home and away teams
       const homeTeam = standings[match.homeTeamId];
       const awayTeam = standings[match.awayTeamId];
@@ -214,68 +217,48 @@ function processStandings(teams: any[], matches: any[], matchPoints: any[]) {
         homeTeam.matchesPlayed++;
         awayTeam.matchesPlayed++;
         
-        // Find match points for this match
-        const matchPointsRecords = matchPoints.filter(mp => mp.matchId === match.id);
+        // Process match points for this match
+        const matchPointsForThisMatch = matchPoints.filter(mp => mp.matchId === match.id && mp.hole === null);
         
-        if (matchPointsRecords.length > 0) {
-          // Sort by createdAt in descending order (most recent first)
-          matchPointsRecords.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
+        if (matchPointsForThisMatch.length > 0) {
+          // Sort by createdAt to get the most recent match points
+          const sortedMatchPoints = matchPointsForThisMatch.sort((a, b) => {
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
           
-          // Use the most recent record
-          const mostRecentRecord = matchPointsRecords[0];
-          let homePoints = mostRecentRecord.homePoints || 0;
-          let awayPoints = mostRecentRecord.awayPoints || 0;
+          const mostRecentMatchPoints = sortedMatchPoints[0];
+          console.log(`Match ${match.id}: Home Points = ${mostRecentMatchPoints.homePoints}, Away Points = ${mostRecentMatchPoints.awayPoints}`);
+          
+          // Update team standings with the actual match points
+          homeTeam.leaguePoints += mostRecentMatchPoints.homePoints;
+          homeTeam.totalHomePoints += mostRecentMatchPoints.homePoints;
+          
+          awayTeam.leaguePoints += mostRecentMatchPoints.awayPoints;
+          awayTeam.totalAwayPoints += mostRecentMatchPoints.awayPoints;
+          
+          // Determine match result
           let homeResult: 'W' | 'L' | 'T' = 'T';
           let awayResult: 'W' | 'L' | 'T' = 'T';
           
-          if (homePoints === 0 && awayPoints === 0) {
-            // If the most recent record has 0-0 points, look for the most recent non-zero record
-            const nonZeroRecords = matchPointsRecords.filter(mp => 
-              (mp.homePoints > 0 || mp.awayPoints > 0)
-            );
-            
-            if (nonZeroRecords.length > 0) {
-              const mostRecentNonZeroRecord = nonZeroRecords[0];
-              console.log(`Most recent record has 0-0 points. Using most recent non-zero record:`, mostRecentNonZeroRecord);
-              homePoints = mostRecentNonZeroRecord.homePoints || 0;
-              awayPoints = mostRecentNonZeroRecord.awayPoints || 0;
-            }
-          }
-          
-          console.log(`Match ${match.id}: Home Points = ${homePoints}, Away Points = ${awayPoints}`);
-          
-          // Determine match result and update team statistics
-          if (homePoints > awayPoints) {
-            homeTeam.matchesWon++;
-            homeResult = 'W';
-            awayTeam.matchesLost++;
-            awayResult = 'L';
-          } else if (homePoints < awayPoints) {
-            homeTeam.matchesLost++;
-            homeResult = 'L';
-            awayTeam.matchesWon++;
-            awayResult = 'W';
+          if (mostRecentMatchPoints.homePoints > mostRecentMatchPoints.awayPoints) {
+            homeTeam.matchesWon += 1;
+            awayTeam.matchesLost += 1;
+            homeResult = 'W' as 'W';
+            awayResult = 'L' as 'L';
+          } else if (mostRecentMatchPoints.homePoints < mostRecentMatchPoints.awayPoints) {
+            homeTeam.matchesLost += 1;
+            awayTeam.matchesWon += 1;
+            homeResult = 'L' as 'L';
+            awayResult = 'W' as 'W';
           } else {
-            homeTeam.matchesTied++;
-            homeResult = 'T';
-            awayTeam.matchesTied++;
-            awayResult = 'T';
+            homeTeam.matchesTied += 1;
+            awayTeam.matchesTied += 1;
           }
           
-          // Update league points (sum of match points)
-          homeTeam.leaguePoints += homePoints;
-          awayTeam.leaguePoints += awayPoints;
-          
-          // Update total points
-          homeTeam.totalHomePoints += homePoints;
-          awayTeam.totalAwayPoints += awayPoints;
-          
-          // Update weekly points
+          // Add weekly points
           homeTeam.weeklyPoints.push({
             weekNumber: match.weekNumber || 0,
-            points: homePoints,
+            points: mostRecentMatchPoints.homePoints,
             matchId: match.id,
             opponent: awayTeam.teamName,
             result: homeResult
@@ -283,16 +266,93 @@ function processStandings(teams: any[], matches: any[], matchPoints: any[]) {
           
           awayTeam.weeklyPoints.push({
             weekNumber: match.weekNumber || 0,
-            points: awayPoints,
+            points: mostRecentMatchPoints.awayPoints,
             matchId: match.id,
             opponent: homeTeam.teamName,
             result: awayResult
           });
+        } else {
+          // If no match points found, use default win/loss/tie logic
+          // Find match points for this match
+          const matchPointsRecords = matchPoints.filter(mp => mp.matchId === match.id);
+          
+          if (matchPointsRecords.length > 0) {
+            // Sort by createdAt in descending order (most recent first)
+            matchPointsRecords.sort((a, b) => 
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            
+            // Use the most recent record
+            const mostRecentRecord = matchPointsRecords[0];
+            let homePoints = mostRecentRecord.homePoints || 0;
+            let awayPoints = mostRecentRecord.awayPoints || 0;
+            let homeResult: 'W' | 'L' | 'T' = 'T';
+            let awayResult: 'W' | 'L' | 'T' = 'T';
+            
+            if (homePoints === 0 && awayPoints === 0) {
+              // If the most recent record has 0-0 points, look for the most recent non-zero record
+              const nonZeroRecords = matchPointsRecords.filter(mp => 
+                (mp.homePoints > 0 || mp.awayPoints > 0)
+              );
+              
+              if (nonZeroRecords.length > 0) {
+                const mostRecentNonZeroRecord = nonZeroRecords[0];
+                console.log(`Most recent record has 0-0 points. Using most recent non-zero record:`, mostRecentNonZeroRecord);
+                homePoints = mostRecentNonZeroRecord.homePoints || 0;
+                awayPoints = mostRecentNonZeroRecord.awayPoints || 0;
+              }
+            }
+            
+            console.log(`Match ${match.id}: Home Points = ${homePoints}, Away Points = ${awayPoints}`);
+            
+            // Determine match result and update team statistics
+            if (homePoints > awayPoints) {
+              homeTeam.matchesWon++;
+              homeResult = 'W' as 'W';
+              awayTeam.matchesLost++;
+              awayResult = 'L' as 'L';
+            } else if (homePoints < awayPoints) {
+              homeTeam.matchesLost++;
+              homeResult = 'L' as 'L';
+              awayTeam.matchesWon++;
+              awayResult = 'W' as 'W';
+            } else {
+              homeTeam.matchesTied++;
+              homeResult = 'T' as 'T';
+              awayTeam.matchesTied++;
+              awayResult = 'T' as 'T';
+            }
+            
+            // Update league points (sum of match points)
+            homeTeam.leaguePoints += homePoints;
+            awayTeam.leaguePoints += awayPoints;
+            
+            // Update total points
+            homeTeam.totalHomePoints += homePoints;
+            awayTeam.totalAwayPoints += awayPoints;
+            
+            // Update weekly points
+            homeTeam.weeklyPoints.push({
+              weekNumber: match.weekNumber || 0,
+              points: homePoints,
+              matchId: match.id,
+              opponent: awayTeam.teamName,
+              result: homeResult
+            });
+            
+            awayTeam.weeklyPoints.push({
+              weekNumber: match.weekNumber || 0,
+              points: awayPoints,
+              matchId: match.id,
+              opponent: homeTeam.teamName,
+              result: awayResult
+            });
+          }
+          
+          // Update streaks
+          updateStreak(homeTeam, homeTeam.weeklyPoints[homeTeam.weeklyPoints.length - 1]?.result || 'T');
+          updateStreak(awayTeam, awayTeam.weeklyPoints[awayTeam.weeklyPoints.length - 1]?.result || 'T');
         }
-        
-        // Update streaks
-        updateStreak(homeTeam, homeTeam.weeklyPoints[homeTeam.weeklyPoints.length - 1]?.result || 'T');
-        updateStreak(awayTeam, awayTeam.weeklyPoints[awayTeam.weeklyPoints.length - 1]?.result || 'T');
       }
     }
   });
