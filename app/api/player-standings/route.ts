@@ -24,97 +24,94 @@ function processPlayerStandings(players: any[], completedMatches: any[], scores:
       totalNetScore: 0,
       matchesPlayed: 0,
       roundsPlayed: 0,
+      averageGrossScore: 0,
+      averageNetScore: 0,
       teamId: player.teamId,
+      scores: []
     };
   });
   
   // Process player scores
-  const playerMatchScores: Record<string, Record<string, { 
-    grossScores: number[], 
-    holes: number[] 
-  }>> = {};
+  if (scores && scores.length > 0) {
+    // Group scores by player and match
+    const playerMatchScores: Record<string, Record<string, { 
+      grossScores: number[], 
+      holes: number[] 
+    }>> = {};
 
-  scores.forEach(score => {
-    // Skip if player is not in our primary players list
-    if (!playerStandings[score.playerId]) {
-      return;
-    }
-
-    // Initialize player's match records if needed
-    if (!playerMatchScores[score.playerId]) {
-      playerMatchScores[score.playerId] = {};
-    }
-
-    // Initialize match record for this player if needed
-    if (!playerMatchScores[score.playerId][score.matchId]) {
-      playerMatchScores[score.playerId][score.matchId] = {
-        grossScores: [],
-        holes: []
-      };
-    }
-
-    // Add score to the player's match record
-    playerMatchScores[score.playerId][score.matchId].grossScores.push(score.score || 0);
-    playerMatchScores[score.playerId][score.matchId].holes.push(score.hole || 0);
-  });
-
-  // Get player handicaps
-  const playerHandicaps: Record<string, number> = {};
-  players.forEach(player => {
-    playerHandicaps[player.id] = player.handicapIndex || 0;
-  });
-
-  // Calculate totals for each player
-  Object.entries(playerMatchScores).forEach(([playerId, matches]) => {
-    const playerStanding = playerStandings[playerId];
-    if (playerStanding) {
-      playerStanding.matchesPlayed = Object.keys(matches).length;
-      
-      Object.values(matches).forEach(match => {
-        // Only count rounds with at least 9 holes
-        if (match.grossScores.length >= 9) {
-          playerStanding.roundsPlayed++;
-          
-          // Calculate gross score
-          const totalGrossScore = match.grossScores.reduce((sum, score) => sum + score, 0);
-          playerStanding.totalGrossScore += totalGrossScore;
-          
-          // Calculate net score based on handicap
-          // For simplicity, we'll just subtract the player's handicap from their gross score
-          // In a real golf league, you might have a more complex calculation
-          const handicap = playerHandicaps[playerId] || 0;
-          const totalNetScore = totalGrossScore - Math.round(handicap * (match.grossScores.length / 18));
-          playerStanding.totalNetScore += totalNetScore;
-        }
-      });
-    }
-  });
-
-  // Convert standings object to array and sort by total net score (ascending)
-  const standingsArray = Object.values(playerStandings)
-    .filter(player => player.roundsPlayed > 0) // Only include players who have played at least one round
-    .sort((a, b) => {
-      // Sort by total net score (ascending)
-      if (a.totalNetScore !== b.totalNetScore) {
-        return a.totalNetScore - b.totalNetScore;
+    scores.forEach(score => {
+      // Skip if player is not in our primary players list
+      if (!playerStandings[score.playerId]) {
+        return;
       }
-      
-      // If net scores are tied, sort by total gross score (ascending)
-      if (a.totalGrossScore !== b.totalGrossScore) {
-        return a.totalGrossScore - b.totalGrossScore;
+
+      // Initialize player's match records if needed
+      if (!playerMatchScores[score.playerId]) {
+        playerMatchScores[score.playerId] = {};
       }
-      
-      // If still tied, sort by matches played (descending)
-      if (a.matchesPlayed !== b.matchesPlayed) {
-        return b.matchesPlayed - a.matchesPlayed;
+
+      // Initialize match record for this player if needed
+      if (!playerMatchScores[score.playerId][score.matchId]) {
+        playerMatchScores[score.playerId][score.matchId] = {
+          grossScores: [],
+          holes: []
+        };
       }
-      
-      // If still tied, sort alphabetically by name
-      return a.playerName.localeCompare(b.playerName);
+
+      // Add score to the player's match record
+      playerMatchScores[score.playerId][score.matchId].grossScores.push(score.score || 0);
+      playerMatchScores[score.playerId][score.matchId].holes.push(score.hole || 0);
     });
 
-  console.log(`Player Standings API: Returning standings for ${standingsArray.length} players`);
-  return NextResponse.json(standingsArray);
+    // Get player handicaps
+    const playerHandicaps: Record<string, number> = {};
+    players.forEach(player => {
+      playerHandicaps[player.id] = player.handicapIndex || 0;
+    });
+
+    // Calculate totals for each player
+    Object.entries(playerMatchScores).forEach(([playerId, matches]) => {
+      const playerStanding = playerStandings[playerId];
+      if (playerStanding) {
+        playerStanding.matchesPlayed = Object.keys(matches).length;
+        
+        Object.entries(matches).forEach(([matchId, matchData]) => {
+          // Only count rounds with at least 9 holes
+          if (matchData.grossScores.length >= 9) {
+            playerStanding.roundsPlayed++;
+            
+            // Calculate gross score
+            const totalGrossScore = matchData.grossScores.reduce((sum, score) => sum + score, 0);
+            playerStanding.totalGrossScore += totalGrossScore;
+            
+            // Calculate net score based on handicap
+            const handicap = playerHandicaps[playerId] || 0;
+            const totalNetScore = totalGrossScore - Math.round(handicap * (matchData.grossScores.length / 18));
+            playerStanding.totalNetScore += totalNetScore;
+          }
+        });
+      }
+    });
+  }
+  
+  // Calculate averages
+  Object.values(playerStandings).forEach((player: any) => {
+    if (player.roundsPlayed > 0) {
+      player.averageGrossScore = player.totalGrossScore / player.roundsPlayed;
+      player.averageNetScore = player.totalNetScore / player.roundsPlayed;
+    }
+  });
+  
+  // Convert to array and sort by averageNetScore
+  const playerStandingsArray = Object.values(playerStandings)
+    .filter((player: any) => player.roundsPlayed > 0) // Only include players who have played
+    .sort((a: any, b: any) => {
+      // Sort by average net score (ascending)
+      return a.averageNetScore - b.averageNetScore;
+    });
+  
+  console.log(`Player Standings API: Returning standings for ${playerStandingsArray.length} players`);
+  return NextResponse.json(playerStandingsArray);
 }
 
 export async function GET() {
@@ -174,9 +171,10 @@ export async function GET() {
 
     // Filter completed matches using the same criteria as the standings API
     const completedMatches = matches?.filter(match => 
-      match.status?.toLowerCase() === 'completed' || 
+      match.status === 'FINALIZED' || 
+      match.status === 'COMPLETED' ||
       match.status?.toLowerCase() === 'finalized' ||
-      match.status === 'COMPLETED'
+      match.status?.toLowerCase() === 'completed'
     ) || [];
     const completedMatchIds = completedMatches.map(match => match.id);
     console.log(`Player Standings API: Found ${completedMatchIds.length} completed matches`);
@@ -218,7 +216,32 @@ export async function GET() {
         );
       }
 
-      return processPlayerStandings(players, completedMatches, [], matchPoints);
+      // Get all match scores
+      console.log(`Player Standings API: Fetching scores for ${completedMatchIds.length} completed matches`);
+      const { data: scores, error: scoresError } = await supabase
+        .from('MatchScore')
+        .select(`
+          id,
+          playerId,
+          matchId,
+          hole,
+          score,
+          createdAt
+        `)
+        .in('matchId', completedMatchIds);
+
+      if (scoresError) {
+        console.error('Player Standings API: Error fetching scores:', scoresError);
+        return NextResponse.json(
+          { error: 'Failed to fetch scores from database', details: scoresError },
+          { status: 500 }
+        );
+      }
+
+      console.log(`Player Standings API: Successfully fetched ${scores?.length || 0} scores`);
+
+      // Calculate standings for each player
+      return processPlayerStandings(players || [], completedMatches, scores || [], matchPoints || []);
     } catch (error) {
       console.error('Player Standings API: Error:', error);
       return NextResponse.json(
@@ -226,34 +249,6 @@ export async function GET() {
         { status: 500 }
       );
     }
-
-    // Get all match scores
-    console.log('Player Standings API: Fetching match scores');
-    const { data: scores, error: scoresError } = await supabase
-      .from('MatchScore')
-      .select(`
-        id,
-        matchId,
-        playerId,
-        hole,
-        score
-      `)
-      .in('matchId', completedMatchIds)
-      .order('matchId', { ascending: true })
-      .order('hole', { ascending: true });
-
-    if (scoresError) {
-      console.error('Player Standings API: Error fetching scores:', scoresError);
-      return NextResponse.json(
-        { error: 'Failed to fetch scores from database', details: scoresError },
-        { status: 500 }
-      );
-    }
-
-    console.log(`Player Standings API: Successfully fetched ${scores?.length || 0} scores`);
-
-    // Calculate standings for each player
-    return processPlayerStandings(players || [], completedMatches, scores || [], []);
   } catch (error) {
     console.error('Player Standings API: Error calculating player standings:', error);
     return NextResponse.json(
