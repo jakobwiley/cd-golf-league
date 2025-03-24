@@ -125,283 +125,210 @@ export async function GET() {
 
     // Get match points for all completed matches
     console.log('Standings API: Fetching match points');
-    try {
-      const { data: matchPoints, error: matchPointsError } = await supabase
-        .from('MatchPoints')
-        .select(`
-          id,
-          matchId,
-          teamId,
-          hole,
-          homePoints,
-          awayPoints,
-          points,
-          createdAt
-        `);
+    const { data: matchPoints, error: matchPointsError } = await supabase
+      .from('MatchPoints')
+      .select(`
+        id,
+        matchId,
+        teamId,
+        hole,
+        homePoints,
+        awayPoints,
+        points,
+        createdAt
+      `);
 
-      if (matchPointsError) {
-        console.error('Standings API: Error fetching match points:', matchPointsError);
-        // If the table doesn't exist, return standings without match points
-        if (matchPointsError.code === '42P01' || matchPointsError.message.includes('does not exist')) {
-          console.warn('MatchPoints table does not exist, returning standings without match points');
-          // Return standings without match points
-          const standings: Record<string, Standing> = {}
-          teams.forEach(team => {
-            standings[team.id] = {
-              teamId: team.id,
-              teamName: team.name,
-              matchesPlayed: 0,
-              matchesWon: 0,
-              matchesLost: 0,
-              matchesTied: 0,
-              leaguePoints: 0,
-              weeklyPoints: [],
-              totalHomePoints: 0,
-              totalAwayPoints: 0,
-              winPercentage: 0,
-              streak: {
-                type: 'T',
-                count: 0
-              }
-            }
-          });
-          const standingsArray = Object.values(standings);
-          console.log(`Standings API: Returning standings for ${standingsArray.length} teams`)
-          return NextResponse.json(standingsArray);
-        }
-        
-        return NextResponse.json(
-          { error: 'Failed to fetch match points from database', details: matchPointsError },
-          { status: 500 }
-        );
+    if (matchPointsError) {
+      console.error('Standings API: Error fetching match points:', matchPointsError);
+      // If the table doesn't exist, continue without match points
+      if (matchPointsError.code === '42P01' || matchPointsError.message.includes('does not exist')) {
+        console.warn('MatchPoints table does not exist, continuing with empty match points');
+        // Continue with empty match points array
+        const emptyMatchPoints: any[] = [];
+        return processStandings(teams, matches, emptyMatchPoints);
       }
-    } catch (error) {
-      console.error('Standings API: Error fetching match points:', error);
+      
       return NextResponse.json(
-        { error: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
+        { error: 'Failed to fetch match points from database', details: matchPointsError },
         { status: 500 }
       );
     }
 
-    console.log(`Standings API: Found ${matchPoints?.length || 0} match points records`);
-
-    // Group match points by matchId to handle multiple records
-    const matchPointsByMatchId: Record<string, any[]> = {};
-    if (matchPoints && matchPoints.length > 0) {
-      // Group by matchId
-      matchPoints.forEach(mp => {
-        if (!matchPointsByMatchId[mp.matchId]) {
-          matchPointsByMatchId[mp.matchId] = [];
-        }
-        matchPointsByMatchId[mp.matchId].push(mp);
-      });
-    }
-
-    // Initialize standings for all teams
-    const standings: Record<string, Standing> = {}
-    teams.forEach(team => {
-      standings[team.id] = {
-        teamId: team.id,
-        teamName: team.name,
-        matchesPlayed: 0,
-        matchesWon: 0,
-        matchesLost: 0,
-        matchesTied: 0,
-        leaguePoints: 0,
-        weeklyPoints: [],
-        totalHomePoints: 0,
-        totalAwayPoints: 0,
-        winPercentage: 0,
-        streak: {
-          type: 'T',
-          count: 0
-        }
-      }
-    })
-
-    // Calculate standings
-    const completedMatches = matches.filter(match => 
-      match.status?.toLowerCase() === 'completed' || 
-      match.status?.toLowerCase() === 'finalized' ||
-      match.status === 'COMPLETED'
-    );
-    console.log(`Standings API: Processing ${completedMatches.length} completed matches`)
+    // Log match points for debugging
+    console.log(`Standings API: Found ${matchPoints?.length || 0} total match points records`);
     
-    completedMatches.forEach(match => {
-      const homeTeam = standings[match.homeTeamId]
-      const awayTeam = standings[match.awayTeamId]
+    // Filter for total points (where hole is null)
+    const totalMatchPoints = matchPoints?.filter(mp => mp.hole === null) || [];
+    console.log(`Standings API: Found ${totalMatchPoints.length} total match points records (hole is null)`);
+    
+    // Log match points for specific match ID
+    const specificMatchPoints = matchPoints?.filter(mp => mp.matchId === 'd0b585dd-09e4-4171-b133-2f5376bcc59a') || [];
+    console.log(`Standings API: Found ${specificMatchPoints.length} match points records for match ID d0b585dd-09e4-4171-b133-2f5376bcc59a`);
+    console.log('Specific match points:', JSON.stringify(specificMatchPoints, null, 2));
 
+    return processStandings(teams, matches, matchPoints);
+  } catch (error) {
+    console.error('Standings API: Error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+// Helper function to process standings with or without match points
+function processStandings(teams: any[], matches: any[], matchPoints: any[]) {
+  // Initialize standings object
+  const standings: Record<string, Standing> = {};
+  
+  // Initialize standings for each team
+  teams.forEach(team => {
+    standings[team.id] = {
+      teamId: team.id,
+      teamName: team.name,
+      matchesPlayed: 0,
+      matchesWon: 0,
+      matchesLost: 0,
+      matchesTied: 0,
+      leaguePoints: 0,
+      weeklyPoints: [],
+      totalHomePoints: 0,
+      totalAwayPoints: 0,
+      winPercentage: 0,
+      streak: {
+        type: 'T',
+        count: 0
+      }
+    };
+  });
+
+  // Process completed matches
+  matches.forEach(match => {
+    if (match.status === 'FINALIZED') {
+      // Get the home and away teams
+      const homeTeam = standings[match.homeTeamId];
+      const awayTeam = standings[match.awayTeamId];
+      
       if (homeTeam && awayTeam) {
-        homeTeam.matchesPlayed++
-        awayTeam.matchesPlayed++
+        // Increment matches played
+        homeTeam.matchesPlayed++;
+        awayTeam.matchesPlayed++;
         
-        // Determine match result and update team statistics
-        let homeResult: 'W' | 'L' | 'T' = 'T'; // Initialize with default value
-        let awayResult: 'W' | 'L' | 'T' = 'T'; // Initialize with default value
+        // Find match points for this match
+        const matchPointsRecords = matchPoints.filter(mp => mp.matchId === match.id);
         
-        if (matchPointsByMatchId[match.id] && matchPointsByMatchId[match.id].length > 0) {
-          console.log(`Looking for match points for match ID: ${match.id}`);
-          
-          // Sort by createdAt (newest first)
-          matchPointsByMatchId[match.id].sort((a, b) => 
+        if (matchPointsRecords.length > 0) {
+          // Sort by createdAt in descending order (most recent first)
+          matchPointsRecords.sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
           
-          // Get the most recent record
-          const mostRecentRecord = matchPointsByMatchId[match.id][0];
-          console.log(`Using most recent record:`, mostRecentRecord);
+          // Use the most recent record
+          const mostRecentRecord = matchPointsRecords[0];
+          let homePoints = mostRecentRecord.homePoints || 0;
+          let awayPoints = mostRecentRecord.awayPoints || 0;
+          let homeResult: 'W' | 'L' | 'T' = 'T';
+          let awayResult: 'W' | 'L' | 'T' = 'T';
           
-          // Check if the most recent record has non-zero points
-          if (mostRecentRecord.homePoints > 0 || mostRecentRecord.awayPoints > 0) {
-            const homePoints = mostRecentRecord.homePoints || 0;
-            const awayPoints = mostRecentRecord.awayPoints || 0;
-            
-            console.log(`Match ${match.id}: Home Points = ${homePoints}, Away Points = ${awayPoints}`);
-            
-            // Determine match result and update team statistics
-            if (homePoints > awayPoints) {
-              homeTeam.matchesWon++;
-              homeResult = 'W';
-              awayTeam.matchesLost++;
-              awayResult = 'L';
-            } else if (homePoints < awayPoints) {
-              homeTeam.matchesLost++;
-              homeResult = 'L';
-              awayTeam.matchesWon++;
-              awayResult = 'W';
-            } else {
-              homeTeam.matchesTied++;
-              homeResult = 'T';
-              awayTeam.matchesTied++;
-              awayResult = 'T';
-            }
-            
-            // Update league points (sum of match points)
-            homeTeam.leaguePoints += homePoints;
-            awayTeam.leaguePoints += awayPoints;
-            
-            // Update total points
-            homeTeam.totalHomePoints += homePoints;
-            awayTeam.totalAwayPoints += awayPoints;
-            
-            // Update weekly points
-            homeTeam.weeklyPoints.push({
-              weekNumber: match.weekNumber || 0,
-              points: homePoints,
-              matchId: match.id,
-              opponent: awayTeam.teamName,
-              result: homeResult
-            });
-            
-            awayTeam.weeklyPoints.push({
-              weekNumber: match.weekNumber || 0,
-              points: awayPoints,
-              matchId: match.id,
-              opponent: homeTeam.teamName,
-              result: awayResult
-            });
-          } else {
+          if (homePoints === 0 && awayPoints === 0) {
             // If the most recent record has 0-0 points, look for the most recent non-zero record
-            const nonZeroRecords = matchPointsByMatchId[match.id].filter(mp => 
+            const nonZeroRecords = matchPointsRecords.filter(mp => 
               (mp.homePoints > 0 || mp.awayPoints > 0)
             );
             
             if (nonZeroRecords.length > 0) {
               const mostRecentNonZeroRecord = nonZeroRecords[0];
               console.log(`Most recent record has 0-0 points. Using most recent non-zero record:`, mostRecentNonZeroRecord);
-              const homePoints = mostRecentNonZeroRecord.homePoints || 0;
-              const awayPoints = mostRecentNonZeroRecord.awayPoints || 0;
-              
-              console.log(`Match ${match.id}: Home Points = ${homePoints}, Away Points = ${awayPoints}`);
-              
-              // Determine match result and update team statistics
-              if (homePoints > awayPoints) {
-                homeTeam.matchesWon++;
-                homeResult = 'W';
-                awayTeam.matchesLost++;
-                awayResult = 'L';
-              } else if (homePoints < awayPoints) {
-                homeTeam.matchesLost++;
-                homeResult = 'L';
-                awayTeam.matchesWon++;
-                awayResult = 'W';
-              } else {
-                homeTeam.matchesTied++;
-                homeResult = 'T';
-                awayTeam.matchesTied++;
-                awayResult = 'T';
-              }
-              
-              // Update league points (sum of match points)
-              homeTeam.leaguePoints += homePoints;
-              awayTeam.leaguePoints += awayPoints;
-              
-              // Update total points
-              homeTeam.totalHomePoints += homePoints;
-              awayTeam.totalAwayPoints += awayPoints;
-              
-              // Update weekly points
-              homeTeam.weeklyPoints.push({
-                weekNumber: match.weekNumber || 0,
-                points: homePoints,
-                matchId: match.id,
-                opponent: awayTeam.teamName,
-                result: homeResult
-              });
-              
-              awayTeam.weeklyPoints.push({
-                weekNumber: match.weekNumber || 0,
-                points: awayPoints,
-                matchId: match.id,
-                opponent: homeTeam.teamName,
-                result: awayResult
-              });
+              homePoints = mostRecentNonZeroRecord.homePoints || 0;
+              awayPoints = mostRecentNonZeroRecord.awayPoints || 0;
             }
           }
+          
+          console.log(`Match ${match.id}: Home Points = ${homePoints}, Away Points = ${awayPoints}`);
+          
+          // Determine match result and update team statistics
+          if (homePoints > awayPoints) {
+            homeTeam.matchesWon++;
+            homeResult = 'W';
+            awayTeam.matchesLost++;
+            awayResult = 'L';
+          } else if (homePoints < awayPoints) {
+            homeTeam.matchesLost++;
+            homeResult = 'L';
+            awayTeam.matchesWon++;
+            awayResult = 'W';
+          } else {
+            homeTeam.matchesTied++;
+            homeResult = 'T';
+            awayTeam.matchesTied++;
+            awayResult = 'T';
+          }
+          
+          // Update league points (sum of match points)
+          homeTeam.leaguePoints += homePoints;
+          awayTeam.leaguePoints += awayPoints;
+          
+          // Update total points
+          homeTeam.totalHomePoints += homePoints;
+          awayTeam.totalAwayPoints += awayPoints;
+          
+          // Update weekly points
+          homeTeam.weeklyPoints.push({
+            weekNumber: match.weekNumber || 0,
+            points: homePoints,
+            matchId: match.id,
+            opponent: awayTeam.teamName,
+            result: homeResult
+          });
+          
+          awayTeam.weeklyPoints.push({
+            weekNumber: match.weekNumber || 0,
+            points: awayPoints,
+            matchId: match.id,
+            opponent: homeTeam.teamName,
+            result: awayResult
+          });
         }
         
-        // Update streak
-        updateStreak(homeTeam, homeResult);
-        updateStreak(awayTeam, awayResult);
+        // Update streaks
+        updateStreak(homeTeam, homeTeam.weeklyPoints[homeTeam.weeklyPoints.length - 1]?.result || 'T');
+        updateStreak(awayTeam, awayTeam.weeklyPoints[awayTeam.weeklyPoints.length - 1]?.result || 'T');
       }
-    })
-
-    // Calculate win percentages and sort weekly points
-    Object.values(standings).forEach(team => {
-      if (team.matchesPlayed > 0) {
-        team.winPercentage = (team.matchesWon / team.matchesPlayed) * 100;
-      }
-      
-      // Sort weekly points by week number
-      team.weeklyPoints.sort((a, b) => a.weekNumber - b.weekNumber);
-    });
-
-    // Convert standings object to array and sort by leaguePoints
-    const standingsArray = Object.values(standings).sort((a, b) => {
-      if (b.leaguePoints !== a.leaguePoints) {
-        return b.leaguePoints - a.leaguePoints;
-      }
-      // If leaguePoints are equal, sort by matches won
-      if (b.matchesWon !== a.matchesWon) {
-        return b.matchesWon - a.matchesWon;
-      }
-      // If matches won are equal, sort by win percentage
-      if (b.winPercentage !== a.winPercentage) {
-        return b.winPercentage - a.winPercentage;
-      }
-      // If win percentage is equal, sort by matches played (fewer is better)
-      return a.matchesPlayed - b.matchesPlayed;
-    });
-
-    console.log(`Standings API: Returning standings for ${standingsArray.length} teams`)
-    return NextResponse.json(standingsArray);
-  } catch (error) {
-    console.error('Standings API: Error calculating standings:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
-  }
+    }
+  });
+  
+  // Calculate win percentages
+  Object.values(standings).forEach(team => {
+    if (team.matchesPlayed > 0) {
+      team.winPercentage = (team.matchesWon + (team.matchesTied * 0.5)) / team.matchesPlayed;
+    }
+  });
+  
+  // Convert standings object to array and sort by league points (descending)
+  const standingsArray = Object.values(standings).sort((a, b) => {
+    // Sort by league points (descending)
+    if (b.leaguePoints !== a.leaguePoints) {
+      return b.leaguePoints - a.leaguePoints;
+    }
+    
+    // If league points are tied, sort by win percentage (descending)
+    if (b.winPercentage !== a.winPercentage) {
+      return b.winPercentage - a.winPercentage;
+    }
+    
+    // If win percentage is tied, sort by total points (descending)
+    const aTotalPoints = a.totalHomePoints + a.totalAwayPoints;
+    const bTotalPoints = b.totalHomePoints + b.totalAwayPoints;
+    if (bTotalPoints !== aTotalPoints) {
+      return bTotalPoints - aTotalPoints;
+    }
+    
+    // If total points are tied, sort by team name (alphabetical)
+    return a.teamName.localeCompare(b.teamName);
+  });
+  
+  console.log(`Standings API: Returning standings for ${standingsArray.length} teams`);
+  return NextResponse.json(standingsArray);
 }
 
 // Helper function to update team streak
