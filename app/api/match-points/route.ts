@@ -252,8 +252,27 @@ export async function POST(request: Request) {
       }
     }
 
+    // After saving all the points, update the match status to 'completed'
+    console.log('Updating match status to completed...')
+    const { error: matchUpdateError } = await supabase
+      .from('Match')
+      .update({
+        status: 'completed'.toLowerCase()
+      })
+      .eq('id', validatedData.matchId)
+
+    if (matchUpdateError) {
+      console.error('Error updating match status:', matchUpdateError)
+      // Don't return an error here, as the points have been saved successfully
+      // Just log the error and continue
+    }
+
+    // Return success response
+    console.log('Match points saved successfully')
     return addCorsHeaders(NextResponse.json({ 
-      message: 'Match points saved successfully'
+      success: true, 
+      message: 'Match points saved successfully',
+      matchId: validatedData.matchId
     }), request)
   } catch (error) {
     console.error('Unexpected error:', error)
