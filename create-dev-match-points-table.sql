@@ -1,5 +1,5 @@
--- SQL to create the MatchPoints table in Supabase
--- Copy and paste this into the Supabase dashboard SQL editor
+-- SQL to create the MatchPoints table in the development Supabase database
+-- Copy and paste this into the Supabase dashboard SQL editor for the development database
 
 -- Only create the table if it doesn't exist
 DO $$
