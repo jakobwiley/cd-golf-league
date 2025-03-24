@@ -23,21 +23,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json(greeting);
   }
 
-  // Allow all API routes without authentication
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    return NextResponse.next()
-  }
-
+  // Get the origin for CORS
+  const origin = request.headers.get('origin') || '*';
+  
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
     return new NextResponse(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': origin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400',
       },
     })
+  }
+
+  // Allow all API routes without authentication but with proper CORS headers
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    const response = NextResponse.next();
+    
+    // Add CORS headers to all API responses
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    
+    // Special handling for match-points and scores endpoints
+    if (request.nextUrl.pathname.includes('/api/match-points') || 
+        request.nextUrl.pathname.includes('/api/scores')) {
+      console.log(`CORS headers set for ${request.nextUrl.pathname} with origin: ${origin}`);
+    }
+    
+    return response;
   }
 
   // Skip authentication in development mode
@@ -78,7 +97,8 @@ export const config = {
     '/admin/:path*',
     '/profile/:path*',
     '/settings/:path*',
+    '/api/:path*', 
     '/api/scores/ws/:path*',
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ]
-} 
+}

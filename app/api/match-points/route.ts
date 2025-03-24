@@ -33,6 +33,24 @@ const batchMatchPointsSchema = z.object({
   holePoints: holePointsSchema
 })
 
+// Helper function to add CORS headers to responses
+function addCorsHeaders(response: NextResponse, request?: Request) {
+  // Get the origin from the request or default to '*'
+  const origin = request?.headers.get('origin') || '*';
+  
+  response.headers.set('Access-Control-Allow-Origin', origin);
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
+  
+  return response;
+}
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS(request: Request) {
+  return addCorsHeaders(new NextResponse(null, { status: 204 }), request);
+}
+
 export async function GET(request: Request) {
   try {
     // Get the match ID from the query params
@@ -40,7 +58,7 @@ export async function GET(request: Request) {
     const matchId = searchParams.get('matchId')
 
     if (!matchId) {
-      return NextResponse.json({ error: 'Match ID is required' }, { status: 400 })
+      return addCorsHeaders(NextResponse.json({ error: 'Match ID is required' }, { status: 400 }), request)
     }
 
     // Fetch match points from the database
@@ -51,18 +69,23 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Error fetching match points:', error)
-      return NextResponse.json({ error: 'Failed to fetch match points' }, { status: 500 })
+      return addCorsHeaders(NextResponse.json({ error: 'Failed to fetch match points' }, { status: 500 }), request)
     }
 
-    return NextResponse.json({ data })
+    return addCorsHeaders(NextResponse.json({ data }), request)
   } catch (error) {
     console.error('Unexpected error:', error)
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 })
+    return addCorsHeaders(NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 }), request)
   }
 }
 
 export async function POST(request: Request) {
   try {
+    // Log request details for debugging
+    console.log('POST request to /api/match-points');
+    console.log('Request headers:', JSON.stringify(Object.fromEntries(request.headers)));
+    console.log('Environment:', process.env.NODE_ENV);
+    
     const body = await request.json()
     console.log('Received match points data:', JSON.stringify(body))
     
@@ -84,10 +107,10 @@ export async function POST(request: Request) {
 
     if (matchError) {
       console.error('Error fetching match details:', matchError)
-      return NextResponse.json({ 
+      return addCorsHeaders(NextResponse.json({ 
         error: 'Failed to fetch match details', 
         details: matchError 
-      }, { status: 500 })
+      }, { status: 500 }), request)
     }
 
     // Use the homeTeamId as the teamId for the MatchPoints record
@@ -105,10 +128,10 @@ export async function POST(request: Request) {
 
     if (existingTotalPointsError && existingTotalPointsError.code !== 'PGRST116') {
       console.error('Error checking for existing total points:', existingTotalPointsError)
-      return NextResponse.json({ 
+      return addCorsHeaders(NextResponse.json({ 
         error: 'Failed to check for existing total points', 
         details: existingTotalPointsError 
-      }, { status: 500 })
+      }, { status: 500 }), request)
     }
 
     console.log('Existing total points record:', existingTotalPoints)
@@ -128,10 +151,10 @@ export async function POST(request: Request) {
 
       if (updateError) {
         console.error('Error updating total points:', updateError)
-        return NextResponse.json({ 
+        return addCorsHeaders(NextResponse.json({ 
           error: 'Failed to update total match points', 
           details: updateError 
-        }, { status: 500 })
+        }, { status: 500 }), request)
       }
       
       console.log('Total points updated successfully')
@@ -154,10 +177,10 @@ export async function POST(request: Request) {
 
       if (insertError) {
         console.error('Error inserting total points:', insertError)
-        return NextResponse.json({ 
+        return addCorsHeaders(NextResponse.json({ 
           error: 'Failed to save total match points', 
           details: insertError 
-        }, { status: 500 })
+        }, { status: 500 }), request)
       }
       
       console.log('Total points inserted successfully')
@@ -211,7 +234,7 @@ export async function POST(request: Request) {
           .insert({
             id: randomUUID(),
             matchId: validatedData.matchId,
-            teamId: teamId, // Add the required teamId
+            teamId: teamId, 
             hole: hole,
             homePoints: points.home,
             awayPoints: points.away,
@@ -229,14 +252,14 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ 
+    return addCorsHeaders(NextResponse.json({ 
       message: 'Match points saved successfully'
-    })
+    }), request)
   } catch (error) {
     console.error('Unexpected error:', error)
-    return NextResponse.json({ 
+    return addCorsHeaders(NextResponse.json({ 
       error: 'An unexpected error occurred', 
       details: error 
-    }, { status: 500 })
+    }, { status: 500 }), request)
   }
 }
