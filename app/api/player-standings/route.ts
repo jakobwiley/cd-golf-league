@@ -80,61 +80,86 @@ export async function GET() {
       return NextResponse.json([]);
     }
 
-    // Get match points for all completed matches
-    console.log(`Player Standings API: Fetching match points for ${completedMatches.length} completed matches`);
-    const { data: matchPoints, error: matchPointsError } = await supabase
-      .from('MatchPoints')
-      .select(`
-        id,
-        matchId,
-        teamId,
-        hole,
-        homePoints,
-        awayPoints,
-        createdAt
-      `)
-      .is('hole', null)
-      .in('matchId', completedMatches.map(m => m.id));
+    // Fetch match points data
+    try {
+      const { data: matchPoints, error: matchPointsError } = await supabase
+        .from('MatchPoints')
+        .select(`
+          id,
+          matchId,
+          teamId,
+          hole,
+          homePoints,
+          awayPoints,
+          createdAt
+        `)
+        .is('hole', null)
+        .in('matchId', completedMatches.map(m => m.id));
 
-    if (matchPointsError) {
-      console.error('Player Standings API: Error fetching match points:', matchPointsError);
-      return NextResponse.json(
-        { error: 'Failed to fetch match points from database', details: matchPointsError },
-        { status: 500 }
-      );
-    }
-
-    // Group match points by matchId to handle multiple records
-    const matchPointsByMatchId = {};
-    if (matchPoints && matchPoints.length > 0) {
-      // Group by matchId
-      matchPoints.forEach(mp => {
-        if (!matchPointsByMatchId[mp.matchId]) {
-          matchPointsByMatchId[mp.matchId] = [];
+      if (matchPointsError) {
+        console.error('Player Standings API: Error fetching match points:', matchPointsError);
+        // If the table doesn't exist, return standings without match points
+        if (matchPointsError.code === '42P01' || matchPointsError.message.includes('does not exist')) {
+          console.warn('MatchPoints table does not exist, returning player standings without match points');
+          // Return standings without match points
+          return NextResponse.json(
+            players.map(player => ({
+              playerId: player.id,
+              playerName: player.name,
+              totalGrossScore: 0,
+              totalNetScore: 0,
+              matchesPlayed: 0,
+              roundsPlayed: 0
+            }))
+          );
         }
-        matchPointsByMatchId[mp.matchId].push(mp);
-      });
-      
-      // For each match, sort by createdAt and keep only the most recent
-      Object.keys(matchPointsByMatchId).forEach(matchId => {
-        matchPointsByMatchId[matchId].sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
         
-        // If the most recent record has 0-0 points, look for the most recent non-zero record
-        const mostRecentRecord = matchPointsByMatchId[matchId][0];
-        if (mostRecentRecord && mostRecentRecord.homePoints === 0 && mostRecentRecord.awayPoints === 0) {
-          const nonZeroRecords = matchPointsByMatchId[matchId].filter(mp => 
-            (mp.homePoints > 0 || mp.awayPoints > 0)
+        return NextResponse.json(
+          { error: 'Failed to fetch match points from database', details: matchPointsError },
+          { status: 500 }
+        );
+      }
+
+      console.log(`Player Standings API: Successfully fetched ${matchPoints?.length || 0} match points`);
+
+      // Group match points by matchId to handle multiple records
+      const matchPointsByMatchId = {};
+      if (matchPoints && matchPoints.length > 0) {
+        // Group by matchId
+        matchPoints.forEach(mp => {
+          if (!matchPointsByMatchId[mp.matchId]) {
+            matchPointsByMatchId[mp.matchId] = [];
+          }
+          matchPointsByMatchId[mp.matchId].push(mp);
+        });
+        
+        // For each match, sort by createdAt and keep only the most recent
+        Object.keys(matchPointsByMatchId).forEach(matchId => {
+          matchPointsByMatchId[matchId].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
           
-          if (nonZeroRecords.length > 0) {
-            // Replace the most recent record with the most recent non-zero record
-            matchPointsByMatchId[matchId][0] = nonZeroRecords[0];
-            console.log(`Player Standings API: Found non-zero record for match ${matchId}`);
+          // If the most recent record has 0-0 points, look for the most recent non-zero record
+          const mostRecentRecord = matchPointsByMatchId[matchId][0];
+          if (mostRecentRecord && mostRecentRecord.homePoints === 0 && mostRecentRecord.awayPoints === 0) {
+            const nonZeroRecords = matchPointsByMatchId[matchId].filter(mp => 
+              (mp.homePoints > 0 || mp.awayPoints > 0)
+            );
+            
+            if (nonZeroRecords.length > 0) {
+              // Replace the most recent record with the most recent non-zero record
+              matchPointsByMatchId[matchId][0] = nonZeroRecords[0];
+              console.log(`Player Standings API: Found non-zero record for match ${matchId}`);
+            }
           }
-        }
-      });
+        });
+      }
+    } catch (error) {
+      console.error('Player Standings API: Error fetching match points:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch match points from database', details: error },
+        { status: 500 }
+      );
     }
 
     // Get all match scores
