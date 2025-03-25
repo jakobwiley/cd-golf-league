@@ -1290,7 +1290,13 @@ export default function HoleByHoleScorecard({
                   : 'bg-gray-500/30 border-gray-500/30 cursor-not-allowed'
             }`}
           >
-            {saving ? 'Processing...' : match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized' ? 'Match Finalized' : 'Finalize Match'}
+            {saving 
+              ? 'Processing...' 
+              : match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized' 
+                ? 'Match Finalized' 
+                : areAllHolesFilled() 
+                  ? 'Finalize Match' 
+                  : 'Finalize Match (Complete All Holes)'}
           </button>
         </div>
 
