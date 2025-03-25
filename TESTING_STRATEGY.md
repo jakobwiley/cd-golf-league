@@ -71,6 +71,32 @@ UI tests ensure the user interface works as expected.
    - Standings are calculated accurately
    - Sorting and filtering work as expected
 
+### MatchPoints Table and API Tests
+
+1. **Table Persistence**
+   - Verify the MatchPoints table exists in development database
+   - Verify the MatchPoints table exists in production database
+   - Confirm table structure matches expected schema (all required columns present)
+   - Ensure table is not deleted during deployments
+
+2. **API Functionality**
+   - Test saving match points for a valid match
+   - Test retrieving match points for a valid match
+   - Verify error handling for invalid match IDs
+   - Test batch updates of multiple hole points
+   - Confirm total points are calculated correctly
+
+3. **Deployment Verification**
+   - Run ensure-match-points-table.js script to verify table exists
+   - Test match-points API in preview deployment before promoting to production
+   - Verify CORS handling for cross-origin requests
+   - Confirm authentication is working correctly
+
+4. **Data Integrity**
+   - Verify ON DELETE CASCADE constraint works correctly when a match is deleted
+   - Test unique constraints prevent duplicate entries for the same match and hole
+   - Confirm default values are applied correctly for new records
+
 ### WebSocket Tests
 
 - Connection establishes correctly in all environments
