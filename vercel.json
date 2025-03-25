@@ -15,6 +15,7 @@
     "PORT": "3007"
   },
   "buildCommand": "npm run build",
+  "postbuildCommand": "node scripts/post-deploy-setup.js",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
@@ -23,6 +24,10 @@
     {
       "path": "/api/cron/update-standings",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/ensure-match-points",
+      "schedule": "0 0 * * *"
     }
   ],
   "headers": [
