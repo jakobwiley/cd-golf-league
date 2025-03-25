@@ -15,7 +15,6 @@
     "PORT": "3007"
   },
   "buildCommand": "npm run build",
-  "postbuildCommand": "node scripts/post-deploy-setup.js",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
