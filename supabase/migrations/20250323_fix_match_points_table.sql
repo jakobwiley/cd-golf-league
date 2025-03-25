@@ -1,41 +1,4 @@
--- Create stored procedures to manage the MatchPoints table
-
--- Function to create the MatchPoints table with the correct structure
-CREATE OR REPLACE FUNCTION create_match_points_table()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  -- Only create the table if it doesn't exist
-  IF NOT EXISTS (
-    SELECT FROM pg_tables 
-    WHERE schemaname = 'public' 
-    AND tablename = 'MatchPoints'
-  ) THEN
-    CREATE TABLE "MatchPoints" (
-      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-      "matchId" TEXT NOT NULL REFERENCES "Match"(id) ON DELETE CASCADE,
-      "teamId" TEXT NOT NULL,
-      hole INTEGER,
-      "homePoints" NUMERIC NOT NULL DEFAULT 0,
-      "awayPoints" NUMERIC NOT NULL DEFAULT 0,
-      "points" NUMERIC NOT NULL DEFAULT 0,
-      "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-    
-    -- Create indexes for better performance
-    CREATE INDEX "idx_match_points_match_id" ON "MatchPoints" ("matchId");
-    CREATE INDEX "idx_match_points_team_id" ON "MatchPoints" ("teamId");
-    
-    -- Create a unique index to prevent duplicate entries for the same match and hole
-    CREATE UNIQUE INDEX "idx_match_points_match_id_hole" 
-    ON "MatchPoints" ("matchId", hole) 
-    WHERE hole IS NOT NULL;
-  END IF;
-END;
-$$;
+-- Create stored procedures to check the MatchPoints table
 
 -- Create a function to check if the MatchPoints table exists and has the correct structure
 CREATE OR REPLACE FUNCTION check_match_points_table()
@@ -50,19 +13,48 @@ BEGIN
     WHERE schemaname = 'public' 
     AND tablename = 'MatchPoints'
   ) THEN
-    -- Check if all required columns exist
-    RETURN QUERY
-    SELECT 
-      true as exists,
-      (
-        SELECT COUNT(*) = 9 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'MatchPoints' 
-        AND column_name IN ('id', 'matchId', 'teamId', 'hole', 'homePoints', 'awayPoints', 'points', 'createdAt', 'updatedAt')
-      ) as has_required_columns;
+    -- Table exists, check if it has all required columns
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = 'MatchPoints'
+      AND column_name IN ('id', 'matchId', 'teamId', 'hole', 'homePoints', 'awayPoints', 'points', 'createdAt', 'updatedAt')
+      GROUP BY table_name
+      HAVING COUNT(*) = 9
+    ) THEN
+      -- All required columns exist
+      RETURN QUERY SELECT true::boolean, true::boolean;
+    ELSE
+      -- Some columns are missing
+      RETURN QUERY SELECT true::boolean, false::boolean;
+    END IF;
   ELSE
-    RETURN QUERY SELECT false as exists, false as has_required_columns;
+    -- Table doesn't exist
+    RETURN QUERY SELECT false::boolean, false::boolean;
   END IF;
+END;
+$$;
+
+-- Create a function to get table columns for a given table
+CREATE OR REPLACE FUNCTION get_table_columns(table_name text)
+RETURNS TABLE(column_name text, data_type text, is_nullable boolean)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    c.column_name::text,
+    c.data_type::text,
+    (c.is_nullable = 'YES')::boolean
+  FROM 
+    information_schema.columns c
+  WHERE 
+    c.table_schema = 'public'
+    AND c.table_name = table_name
+  ORDER BY 
+    c.ordinal_position;
 END;
 $$;
 
