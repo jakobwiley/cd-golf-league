@@ -976,7 +976,7 @@ export default function HoleByHoleScorecard({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          status: 'FINALIZED'
+          status: 'COMPLETED'
         }),
       });
       
