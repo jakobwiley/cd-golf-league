@@ -87,21 +87,56 @@ async function fixStandingsData() {
     const homePoints = 6;
     const awayPoints = 3;
     
-    // Update total points
-    const { error: totalPointsError } = await supabase
+    // Check if total points record exists
+    const { data: existingPoints, error: checkPointsError } = await supabase
       .from('MatchPoints')
-      .update({
-        homePoints: homePoints,
-        awayPoints: awayPoints,
-        points: homePoints
-      })
+      .select('*')
       .eq('matchId', matchId)
       .is('hole', null);
     
-    if (totalPointsError) {
-      console.error('Error updating total points:', totalPointsError);
+    if (checkPointsError) {
+      console.error('Error checking total points:', checkPointsError);
+      return;
+    }
+    
+    if (existingPoints && existingPoints.length > 0) {
+      // Update existing total points record
+      const { error: totalPointsError } = await supabase
+        .from('MatchPoints')
+        .update({
+          homePoints: homePoints,
+          awayPoints: awayPoints,
+          points: homePoints
+        })
+        .eq('matchId', matchId)
+        .is('hole', null);
+      
+      if (totalPointsError) {
+        console.error('Error updating total points:', totalPointsError);
+      } else {
+        console.log(`Updated total points: Home ${homePoints}, Away ${awayPoints}`);
+      }
     } else {
-      console.log(`Updated total points: Home ${homePoints}, Away ${awayPoints}`);
+      // Create new total points record
+      const { error: insertPointsError } = await supabase
+        .from('MatchPoints')
+        .insert({
+          id: uuidv4(),
+          matchId: matchId,
+          teamId: match.homeTeamId, // Use home team ID as the team ID
+          hole: null, // This indicates it's a total points record
+          homePoints: homePoints,
+          awayPoints: awayPoints,
+          points: homePoints,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      
+      if (insertPointsError) {
+        console.error('Error creating total points record:', insertPointsError);
+      } else {
+        console.log(`Created total points record: Home ${homePoints}, Away ${awayPoints}`);
+      }
     }
     
     // 2. Add score records for the Brew/Jake vs Clauss/Wade match
