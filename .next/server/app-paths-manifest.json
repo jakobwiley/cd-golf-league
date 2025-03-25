@@ -1,1 +1,11 @@
-{}
+{
+  "/api/db/check-match-points/route": "app/api/db/check-match-points/route.js",
+  "/api/match-points/route": "app/api/match-points/route.js",
+  "/standings/page": "app/standings/page.js",
+  "/api/standings/route": "app/api/standings/route.js",
+  "/api/player-standings/route": "app/api/player-standings/route.js",
+  "/matches/page": "app/matches/page.js",
+  "/api/scores/route": "app/api/scores/route.js",
+  "/api/players/route": "app/api/players/route.js",
+  "/api/matches/[id]/route": "app/api/matches/[id]/route.js"
+}

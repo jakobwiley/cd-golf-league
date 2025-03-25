@@ -6,7 +6,7 @@
     "prebuild": "lsof -ti:3007 | xargs kill -9 || true",
     "predev": "lsof -ti:3007 | xargs kill -9 || true",
     "dev": "node server.js",
-    "build": "node deploy-ensure-match-points.js && node scripts/ensure-match-points-table.js && node scripts/build.js",
+    "build": "node ensure-match-points-vercel.js && node deploy-ensure-match-points.js && node scripts/ensure-match-points-table.js && node scripts/build.js",
     "start": "next start",
     "lint": "next lint",
     "db:init": "node scripts/init-db.js",

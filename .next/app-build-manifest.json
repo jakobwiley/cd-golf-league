@@ -31,15 +31,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/not-found.js"
     ],
-    "/schedule/page": [
+    "/standings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/schedule/page.js"
-    ],
-    "/matches/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/matches/[id]/page.js"
+      "static/chunks/app/standings/page.js"
     ],
     "/matches/page": [
       "static/chunks/webpack.js",

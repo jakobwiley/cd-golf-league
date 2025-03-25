@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase'
 import { z } from 'zod'
+import { NextResponse } from 'next/server'
 
 interface Match {
   id: string
@@ -26,7 +26,11 @@ const matchUpdateSchema = z.object({
   startingHole: z.number().optional(),
   homeTeamId: z.string().optional(),
   awayTeamId: z.string().optional(),
-  status: z.enum(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']).optional()
+  status: z.enum(['scheduled', 'in_progress', 'completed', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'])
+    .transform(value => value.toLowerCase())
+    .optional(),
+  homePoints: z.number().optional(),
+  awayPoints: z.number().optional()
 })
 
 export async function GET(
@@ -135,6 +139,8 @@ export async function PATCH(
         ...(validatedData.awayTeamId && { awayTeamId: validatedData.awayTeamId }),
         ...(validatedData.startingHole && { startingHole: validatedData.startingHole }),
         ...(validatedData.status && { status: validatedData.status }),
+        ...(validatedData.homePoints !== undefined && { homePoints: validatedData.homePoints }),
+        ...(validatedData.awayPoints !== undefined && { awayPoints: validatedData.awayPoints }),
         updatedAt: new Date().toISOString()
       })
       .eq('id', params.id)

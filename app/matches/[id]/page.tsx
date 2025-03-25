@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import HoleByHoleScorecard from '../../components/HoleByHoleScorecard'
 import MatchPointTracker from '../../components/MatchPointTracker'
+import { CheckCircle } from 'lucide-react';
 import { Match } from '../../types'
 
 export default function MatchPage() {
@@ -106,13 +107,15 @@ export default function MatchPage() {
       </div>
       
       <div className="relative z-10 pt-8">
-        <MatchPointTracker 
-          match={match}
-          homePoints={homePoints}
-          awayPoints={awayPoints}
-          onViewScorecard={handleViewScorecard}
-        />
-        
+        <div className="relative">
+          {/* Remove the duplicate FINALIZED badge since MatchPointTracker already shows it */}
+          <MatchPointTracker 
+            match={match}
+            homePoints={homePoints}
+            awayPoints={awayPoints}
+            onViewScorecard={handleViewScorecard}
+          />
+        </div>
         <HoleByHoleScorecard 
           match={match} 
           onPointsUpdate={updatePoints}

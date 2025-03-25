@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Match, Team } from '../types';
 import { calculateHolePoints } from '../lib/scoring';
@@ -247,15 +247,19 @@ export default function LiveMatchesPage({ initialMatches = [], initialTeams = []
                       console.log('Detailed match data:', detailedMatch);
                       const { totalHomePoints, totalAwayPoints } = calculateHolePoints(detailedMatch);
                       console.log('Calculated points:', { totalHomePoints, totalAwayPoints });
+                      const isFinalized = detailedMatch.status?.toLowerCase() === 'completed';
                       
                       return (
                         <div key={match.id} className="pt-4 first:pt-0">
-                          <MatchPointTracker 
-                            match={detailedMatch}
-                            homePoints={totalHomePoints}
-                            awayPoints={totalAwayPoints}
-                            onViewScorecard={() => router.push(`/matches/${match.id}/scorecard-summary`)}
-                          />
+                          <div className="relative">
+                            {/* Remove the duplicate FINALIZED badge since MatchPointTracker already shows it */}
+                            <MatchPointTracker 
+                              match={detailedMatch}
+                              homePoints={totalHomePoints}
+                              awayPoints={totalAwayPoints}
+                              onViewScorecard={() => router.push(`/matches/${match.id}/scorecard-summary`)}
+                            />
+                          </div>
                         </div>
                       );
                     })}
