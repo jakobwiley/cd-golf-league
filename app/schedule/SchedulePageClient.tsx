@@ -4,14 +4,19 @@ import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import ScheduleForm from '../components/ScheduleForm'
-import type { Team, Match } from '@prisma/client'
+import type { Team, Match } from '../types'
 import { formatDateForForm, formatDisplayDate, formatDateForAPI } from '../lib/date-utils'
 
 interface ExtendedMatch extends Match {
+  id: string
   homeTeam: Team
   awayTeam: Team
+  homeTeamId: string
+  awayTeamId: string
   weekNumber: number
   date: string
+  startingHole: number
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'FINALIZED' | 'CANCELED'
 }
 
 interface SchedulePageClientProps {
@@ -259,7 +264,7 @@ export default function SchedulePageClient({ teams, matches }: SchedulePageClien
                       homeTeamId: editingMatch.homeTeamId,
                       awayTeamId: editingMatch.awayTeamId,
                       startingHole: editingMatch.startingHole,
-                      status: editingMatch.status as 'SCHEDULED' | 'CANCELED' | 'COMPLETED'
+                      status: editingMatch.status as 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'FINALIZED' | 'CANCELED'
                     }}
                     onCancel={() => setEditingMatch(null)}
                   />
@@ -357,7 +362,7 @@ export default function SchedulePageClient({ teams, matches }: SchedulePageClien
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    match.status === 'COMPLETED' 
+                                    match.status === 'COMPLETED' || match.status === 'FINALIZED'
                                       ? 'bg-green-500/20 text-green-400' 
                                       : match.status === 'CANCELED' 
                                         ? 'bg-red-500/20 text-red-400' 

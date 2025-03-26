@@ -72,9 +72,9 @@ app.prepare().then(() => {
 
   // Handle WebSocket upgrade
   server.on('upgrade', (request, socket, head) => {
-    const pathname = parse(request.url).pathname
+    const { pathname } = parse(request.url)
 
-    if (pathname === '/api/scores/ws') {
+    if (pathname.startsWith('/api/') && pathname.includes('/ws')) {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request)
       })
