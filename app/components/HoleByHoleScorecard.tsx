@@ -969,7 +969,7 @@ export default function HoleByHoleScorecard({
         throw pointsError;
       }
       
-      // Then update the match status to completed (only status, not points)
+      // Then update the match status to COMPLETED (only status, not points)
       const response = await fetch(`/api/matches/${match.id}`, {
         method: 'PATCH',
         headers: {
@@ -1007,7 +1007,7 @@ export default function HoleByHoleScorecard({
   // Function to handle finalize button click
   const handleFinalizeClick = () => {
     // Check if match is already finalized
-    if (match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized') {
+    if (match.status?.toLowerCase() === 'completed') {
       setSuccess('This match has already been finalized');
       setTimeout(() => setSuccess(null), 3000);
       return;
@@ -1281,9 +1281,9 @@ export default function HoleByHoleScorecard({
           </button>
           <button
             onClick={handleFinalizeClick}
-            disabled={!areAllHolesFilled() || saving || match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized'}
+            disabled={!areAllHolesFilled() || saving || match.status?.toLowerCase() === 'completed'}
             className={`group relative overflow-hidden px-3 md:px-5 py-1.5 md:py-2 text-white rounded-lg transition-all duration-300 border backdrop-blur-sm text-xs md:text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] transform ${
-              match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized'
+              match.status?.toLowerCase() === 'completed'
                 ? 'bg-gray-500/30 border-gray-500/30 cursor-not-allowed'
                 : areAllHolesFilled() && !saving
                   ? 'bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 border-[#00df82]/50 hover:border-[#00df82] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] hover:scale-105' 
@@ -1292,7 +1292,7 @@ export default function HoleByHoleScorecard({
           >
             {saving 
               ? 'Processing...' 
-              : match.status?.toLowerCase() === 'completed' || match.status?.toLowerCase() === 'finalized' 
+              : match.status?.toLowerCase() === 'completed' 
                 ? 'Match Finalized' 
                 : areAllHolesFilled() 
                   ? 'Finalize Match' 
