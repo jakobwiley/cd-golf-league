@@ -300,20 +300,34 @@ export default function SchedulePage({
                           
                           {/* Action Buttons */}
                           <div className="flex flex-col md:flex-row mt-2 md:mt-0 space-y-2 md:space-y-0 md:space-x-2 md:ml-auto w-full md:w-auto">
-                            <button
-                              onClick={() => router.push(`/matches/${match.id}`)}
-                              className="group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105 w-full md:w-auto"
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
-                              <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
-                              <span className="relative flex items-center justify-center">
-                                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#00df82" strokeWidth="2"/>
-                                  <path d="M15 12L10 15.4641V8.5359L15 12Z" fill="#00df82"/>
-                                </svg>
-                                Play Match
-                              </span>
-                            </button>
+                            {match.status && match.status.toLowerCase && ['completed', 'finalized'].includes(match.status.toLowerCase()) ? (
+                              <div
+                                className="group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#4CAF50]/40 to-[#4CAF50]/30 rounded-lg border border-[#4CAF50]/50 backdrop-blur-sm text-sm font-audiowide shadow-[0_0_15px_rgba(76,175,80,0.3)] w-full md:w-auto flex items-center justify-center"
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-br from-[#4CAF50]/20 to-transparent opacity-50"></div>
+                                <span className="relative flex items-center justify-center">
+                                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M20 6L9 17L4 12" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                  Match Finalized
+                                </span>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => router.push(`/matches/${match.id}`)}
+                                className="group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105 w-full md:w-auto"
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-transparent opacity-50"></div>
+                                <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
+                                <span className="relative flex items-center justify-center">
+                                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#00df82" strokeWidth="2"/>
+                                    <path d="M15 12L10 15.4641V8.5359L15 12Z" fill="#00df82"/>
+                                  </svg>
+                                  Play Match
+                                </span>
+                              </button>
+                            )}
                             <button
                               onClick={() => router.push(`/matches/${match.id}/scorecard-summary`)}
                               className="group relative overflow-hidden px-4 py-2 text-white bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 rounded-lg transition-all duration-300 border border-[#00df82]/50 hover:border-[#00df82] backdrop-blur-sm text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] transform hover:scale-105 w-full md:w-auto"
