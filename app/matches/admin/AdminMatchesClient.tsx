@@ -6,6 +6,7 @@ import { FaEdit, FaCheck, FaTimes, FaExchangeAlt, FaChevronDown, FaChevronRight 
 import { toast } from 'react-hot-toast'
 import { useSocket } from '../../../lib/useSocket'
 import { SocketEvents } from '../../../app/utils/websocketConnection'
+import { apiConfig } from '../../../lib/apiConfig'
 
 type Player = {
   id: string
@@ -28,7 +29,7 @@ type Match = {
   awayTeamId: string
   homeTeam: Team
   awayTeam: Team
-  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'FINALIZED'
   startingHole: number
 }
 
@@ -81,7 +82,7 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
   // Fetch all matches
   const fetchMatches = async () => {
     try {
-      const response = await fetch('/api/schedule')
+      const response = await fetch(apiConfig.getUrl('/api/schedule'))
       if (!response.ok) throw new Error('Failed to fetch matches')
       const data = await response.json()
       setMatches(data.matches || [])
@@ -95,7 +96,7 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
   const fetchMatchPlayers = async (matchId: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/matches/${matchId}/players`)
+      const response = await fetch(apiConfig.getUrl(`/api/matches/${matchId}/players`))
       if (!response.ok) throw new Error('Failed to fetch match players')
       const data = await response.json()
       setMatchPlayers(data)
@@ -111,7 +112,7 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
   useEffect(() => {
     const fetchAllPlayers = async () => {
       try {
-        const response = await fetch('/api/players')
+        const response = await fetch(apiConfig.getUrl('/api/players'))
         if (!response.ok) throw new Error('Failed to fetch players')
         const data = await response.json()
         setAllPlayers(data.players)
@@ -217,7 +218,7 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
         ]
       }
 
-      const response = await fetch(`/api/matches/${selectedMatch.id}/players`, {
+      const response = await fetch(apiConfig.getUrl(`/api/matches/${selectedMatch.id}/players`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -307,13 +308,13 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
                           </div>
                           <div className="mt-2 text-xs text-white/50 flex justify-end">
                             <span className={`px-2 py-1 rounded-full ${
-                              match.status === 'COMPLETED' 
+                              match.status === 'COMPLETED' || match.status === 'FINALIZED'
                                 ? 'bg-green-900/50 text-green-400' 
                                 : match.status === 'IN_PROGRESS' 
                                   ? 'bg-yellow-900/50 text-yellow-400'
                                   : 'bg-blue-900/50 text-blue-400'
                             }`}>
-                              {match.status.replace('_', ' ')}
+                              {match.status === 'IN_PROGRESS' ? 'IN PROGRESS' : match.status}
                             </span>
                           </div>
                         </div>
@@ -558,4 +559,4 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
       </div>
     </div>
   )
-} 
+}

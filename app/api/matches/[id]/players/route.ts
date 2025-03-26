@@ -37,6 +37,19 @@ const MatchPlayerAssignmentsSchema = z.object({
   playerAssignments: z.array(PlayerAssignmentSchema),
 })
 
+// Helper function to handle errors
+function handleError(error: any, message: string) {
+  console.error(`${message}:`, error);
+  return NextResponse.json(
+    { 
+      error: message, 
+      details: String(error),
+      stack: error.stack
+    },
+    { status: 500 }
+  );
+}
+
 // Function to emit match updated event
 async function emitMatchUpdated(matchId: string) {
   try {
@@ -49,14 +62,21 @@ async function emitMatchUpdated(matchId: string) {
       console.error('Failed to get Socket.io server instance')
       return
     }
-    
-    // Emit the match updated event
-    const socketIo = (global as any).socketIo
-    if (socketIo) {
-      console.log(`Emitting ${SocketEvents.MATCH_UPDATED} event for match ${matchId}`)
-      socketIo.emit(SocketEvents.MATCH_UPDATED, { matchId })
-    } else {
-      console.warn('Socket.io server not initialized')
+
+    // Emit match updated event
+    const socketRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/socket`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event: SocketEvents.MATCH_UPDATED,
+        data: { matchId },
+      }),
+    })
+
+    if (!socketRes.ok) {
+      console.error('Failed to emit match updated event')
     }
   } catch (error) {
     console.error('Error emitting match updated event:', error)
@@ -69,138 +89,145 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get the match first to get team IDs
-    const { data: matchData, error: matchError } = await supabase
+    const matchId = params.id
+    const url = new URL(request.url)
+    const forScorecard = url.searchParams.get('forScorecard') === 'true'
+
+    // Get match details
+    const { data: match, error: matchError } = await supabase
       .from('Match')
-      .select('homeTeamId, awayTeamId')
-      .eq('id', params.id)
+      .select(`
+        id,
+        date,
+        weekNumber,
+        startingHole,
+        status,
+        homeTeamId,
+        awayTeamId,
+        homeTeam:homeTeamId (
+          id,
+          name
+        ),
+        awayTeam:awayTeamId (
+          id,
+          name
+        )
+      `)
+      .eq('id', matchId)
       .single()
 
     if (matchError) {
       throw matchError
     }
 
-    console.log(`Fetching players for match ${params.id} with homeTeamId: ${matchData.homeTeamId}, awayTeamId: ${matchData.awayTeamId}`);
+    if (!match) {
+      return NextResponse.json(
+        { error: 'Match not found' },
+        { status: 404 }
+      )
+    }
 
-    const { data, error } = await supabase
+    // Get all players for the match
+    const matchPlayersQuery = supabase
       .from('MatchPlayer')
       .select(`
         id,
         matchId,
         playerId,
         isSubstitute,
-        Player:Player (
+        Player (
           id,
           name,
           handicapIndex,
           teamId,
-          playerType
+          playerType,
+          Team (
+            id,
+            name
+          )
         )
       `)
-      .eq('matchId', params.id)
-
-    if (error) {
-      throw error
+      .eq('matchId', matchId)
+    
+    // If this is for a scorecard, only get non-substitute players
+    if (forScorecard) {
+      matchPlayersQuery.eq('isSubstitute', false)
     }
 
-    console.log(`Found ${data?.length || 0} MatchPlayer records for match ${params.id}`);
+    const { data: matchPlayers, error: matchPlayersError } = await matchPlayersQuery
 
-    // If no MatchPlayer records exist, fetch players directly from the teams
-    if (!data || data.length === 0) {
-      console.log(`No MatchPlayer records found, fetching players directly from teams`);
-      
-      // Get home team players
-      const { data: homeTeamPlayers, error: homeTeamError } = await supabase
-        .from('Player')
-        .select('id, name, handicapIndex, teamId, playerType')
-        .eq('teamId', matchData.homeTeamId)
-        .eq('playerType', 'PRIMARY')
-        .limit(2);
-      
-      if (homeTeamError) {
-        console.error('Error fetching home team players:', homeTeamError);
-      }
-      
-      // Get away team players
-      const { data: awayTeamPlayers, error: awayTeamError } = await supabase
-        .from('Player')
-        .select('id, name, handicapIndex, teamId, playerType')
-        .eq('teamId', matchData.awayTeamId)
-        .eq('playerType', 'PRIMARY')
-        .limit(2);
-      
-      if (awayTeamError) {
-        console.error('Error fetching away team players:', awayTeamError);
-      }
-      
-      // Map home players
-      const mappedHomePlayers = (homeTeamPlayers || []).map(player => ({
-        playerId: player.id,
-        teamId: player.teamId,
-        name: player.name,
-        handicapIndex: player.handicapIndex,
-        isSubstitute: false
-      }));
-      
-      // Map away players
-      const mappedAwayPlayers = (awayTeamPlayers || []).map(player => ({
-        playerId: player.id,
-        teamId: player.teamId,
-        name: player.name,
-        handicapIndex: player.handicapIndex,
-        isSubstitute: false
-      }));
-      
-      return NextResponse.json({
-        homePlayers: mappedHomePlayers,
-        awayPlayers: mappedAwayPlayers
-      });
+    if (matchPlayersError) {
+      throw matchPlayersError
     }
 
-    // Convert raw data to typed data
-    const matchPlayers = (data as any[]).map(item => ({
-      ...item,
-      Player: Array.isArray(item.Player) ? item.Player[0] : item.Player
-    })) as MatchPlayerData[]
+    // Get all players from both teams
+    const homeTeamPlayersQuery = supabase
+      .from('Player')
+      .select(`
+        id,
+        name,
+        handicapIndex,
+        teamId,
+        playerType,
+        Team (
+          id,
+          name
+        )
+      `)
+      .eq('teamId', match.homeTeamId)
+    
+    // If this is for a scorecard, only get primary players
+    if (forScorecard) {
+      homeTeamPlayersQuery.eq('playerType', 'PRIMARY')
+    }
 
-    // Filter home players to get only the active ones (max 2)
-    const homePlayers = matchPlayers
-      .filter(mp => mp.Player.teamId === matchData.homeTeamId && !mp.isSubstitute)
-      .slice(0, 2)
+    const { data: homeTeamPlayers, error: homeTeamPlayersError } = await homeTeamPlayersQuery
 
-    // Filter away players to get only the active ones (max 2)
-    const awayPlayers = matchPlayers
-      .filter(mp => mp.Player.teamId === matchData.awayTeamId && !mp.isSubstitute)
-      .slice(0, 2)
+    if (homeTeamPlayersError) {
+      throw homeTeamPlayersError
+    }
 
-    // Map home players with substitution info
-    const mappedHomePlayers = homePlayers.map(mp => ({
-      playerId: mp.Player.id,
-      teamId: mp.Player.teamId,
-      name: mp.Player.name,
-      handicapIndex: mp.Player.handicapIndex,
-      isSubstitute: mp.isSubstitute
-    }))
+    const awayTeamPlayersQuery = supabase
+      .from('Player')
+      .select(`
+        id,
+        name,
+        handicapIndex,
+        teamId,
+        playerType,
+        Team (
+          id,
+          name
+        )
+      `)
+      .eq('teamId', match.awayTeamId)
+    
+    // If this is for a scorecard, only get primary players
+    if (forScorecard) {
+      awayTeamPlayersQuery.eq('playerType', 'PRIMARY')
+    }
 
-    // Map away players with substitution info
-    const mappedAwayPlayers = awayPlayers.map(mp => ({
-      playerId: mp.Player.id,
-      teamId: mp.Player.teamId,
-      name: mp.Player.name,
-      handicapIndex: mp.Player.handicapIndex,
-      isSubstitute: mp.isSubstitute
-    }))
+    const { data: awayTeamPlayers, error: awayTeamPlayersError } = await awayTeamPlayersQuery
 
-    return NextResponse.json({
-      homePlayers: mappedHomePlayers,
-      awayPlayers: mappedAwayPlayers
-    })
+    if (awayTeamPlayersError) {
+      throw awayTeamPlayersError
+    }
+
+    // Combine all players
+    const allPlayers = [...(homeTeamPlayers || []), ...(awayTeamPlayers || [])]
+
+    // Format the response
+    const response = {
+      match,
+      matchPlayers: matchPlayers || [],
+      homeTeamPlayers: homeTeamPlayers || [],
+      awayTeamPlayers: awayTeamPlayers || [],
+      allPlayers,
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching match players:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch match players' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error fetching match players');
   }
 }
 
@@ -278,9 +305,41 @@ export async function PUT(
         )
       }
 
-      // In a mock implementation, we'll just return success
-      // In a real implementation, you would update the MatchPlayer model
-      console.log(`Substituting player ${substitutePlayerId} for ${originalPlayerId} in match ${matchId}`);
+      // Find the match player entry for the original player
+      const { data: matchPlayerData, error: matchPlayerError } = await supabase
+        .from('MatchPlayer')
+        .select('id')
+        .eq('matchId', matchId)
+        .eq('playerId', originalPlayerId)
+        .single();
+
+      if (matchPlayerError) {
+        console.error('Error finding match player:', matchPlayerError);
+        return NextResponse.json(
+          { error: `Failed to find match player for ${originalPlayerId}`, details: String(matchPlayerError) },
+          { status: 500 }
+        );
+      }
+
+      // Update the match player with the substitute
+      const { error: updateError } = await supabase
+        .from('MatchPlayer')
+        .update({
+          playerId: substitutePlayerId,
+          isSubstitute: true,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', matchPlayerData.id);
+
+      if (updateError) {
+        console.error('Error updating match player:', updateError);
+        return NextResponse.json(
+          { error: `Failed to update match player with substitute ${substitutePlayerId}`, details: String(updateError) },
+          { status: 500 }
+        );
+      }
+
+      console.log(`Substituted player ${substitutePlayerId} for ${originalPlayerId} in match ${matchId}`);
     }
 
     // Emit match updated event
@@ -288,7 +347,13 @@ export async function PUT(
 
     // Get team name for the response
     const teamId = playerAssignments[0].teamId;
-    const teamName = teamId === 'homeTeamId' ? 'Home Team' : 'Away Team';
+    const { data: team } = await supabase
+      .from('Team')
+      .select('name')
+      .eq('id', teamId)
+      .single();
+    
+    const teamName = team ? team.name : (teamId === 'homeTeamId' ? 'Home Team' : 'Away Team');
 
     return NextResponse.json({
       success: true,
@@ -296,11 +361,7 @@ export async function PUT(
       teamName: teamName
     })
   } catch (error) {
-    console.error('Error updating match players:', error)
-    return NextResponse.json(
-      { error: 'Failed to update match players' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error updating match players');
   }
 }
 
@@ -312,6 +373,21 @@ export async function POST(
   try {
     const body = await request.json()
     const player = playerSchema.parse(body)
+
+    // Check if the player is already assigned to this match
+    const { data: existingPlayer, error: checkError } = await supabase
+      .from('MatchPlayer')
+      .select('id')
+      .eq('matchId', params.id)
+      .eq('playerId', player.id)
+      .single();
+
+    if (!checkError && existingPlayer) {
+      return NextResponse.json(
+        { error: 'Player is already assigned to this match' },
+        { status: 400 }
+      );
+    }
 
     const { data, error } = await supabase
       .from('MatchPlayer')
@@ -326,16 +402,16 @@ export async function POST(
       .single()
 
     if (error) {
+      console.error('Supabase error adding match player:', error);
       throw error
     }
 
+    // Emit match updated event
+    await emitMatchUpdated(params.id);
+
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error adding match player:', error)
-    return NextResponse.json(
-      { error: 'Failed to add match player' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error adding match player');
   }
 }
 
@@ -345,7 +421,15 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { playerId } = await request.json()
+    const { searchParams } = new URL(request.url)
+    const playerId = searchParams.get('playerId')
+
+    if (!playerId) {
+      return NextResponse.json(
+        { error: 'Player ID is required' },
+        { status: 400 }
+      )
+    }
 
     const { error } = await supabase
       .from('MatchPlayer')
@@ -357,12 +441,11 @@ export async function DELETE(
       throw error
     }
 
+    // Emit match updated event
+    await emitMatchUpdated(params.id);
+
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error removing match player:', error)
-    return NextResponse.json(
-      { error: 'Failed to remove match player' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error removing match player');
   }
 }

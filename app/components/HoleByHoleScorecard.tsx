@@ -382,22 +382,37 @@ export default function HoleByHoleScorecard({
       try {
         setLoading(true)
         
-        // Fetch match players using the updated API endpoint
-        // This will return only the active players (max 2 per team)
+        // Fetch match players using the forScorecard parameter to get only primary players
         try {
-          const matchPlayersResponse = await fetch(`/api/matches/${match.id}/players`);
+          const matchPlayersResponse = await fetch(`/api/matches/${match.id}/players?forScorecard=true`);
           if (matchPlayersResponse.ok) {
             const matchPlayersData = await matchPlayersResponse.json();
             
             if (matchPlayersData.homePlayers && matchPlayersData.homePlayers.length > 0) {
               // Convert the API response format to our Player type
-              const homePlayers = matchPlayersData.homePlayers.map((player: any) => ({
-                id: player.playerId,
-                name: player.name,
-                handicapIndex: player.handicapIndex,
-                teamId: player.teamId,
-                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
-              }));
+              const homePlayers = matchPlayersData.homePlayers
+                .filter((player: any) => player.playerType === 'PRIMARY')
+                .slice(0, 2)
+                .map((player: any) => ({
+                  id: player.id,
+                  name: player.name,
+                  handicapIndex: player.handicapIndex,
+                  teamId: player.teamId,
+                  playerType: 'PRIMARY'
+                }));
+              setHomeTeamPlayers(homePlayers);
+            } else if (match.homeTeam && match.homeTeam.players && match.homeTeam.players.length > 0) {
+              // Use players from the match object if available
+              const homePlayers = match.homeTeam.players
+                .filter((player: any) => player.playerType === 'PRIMARY' || !player.playerType)
+                .slice(0, 2)
+                .map((player: any) => ({
+                  id: player.id,
+                  name: player.name,
+                  handicapIndex: player.handicapIndex,
+                  teamId: match.homeTeamId,
+                  playerType: 'PRIMARY'
+                }));
               setHomeTeamPlayers(homePlayers);
             } else {
               console.warn('No home team players found, using fallback data');
@@ -406,13 +421,29 @@ export default function HoleByHoleScorecard({
             }
             
             if (matchPlayersData.awayPlayers && matchPlayersData.awayPlayers.length > 0) {
-              const awayPlayers = matchPlayersData.awayPlayers.map((player: any) => ({
-                id: player.playerId,
-                name: player.name,
-                handicapIndex: player.handicapIndex,
-                teamId: player.teamId,
-                playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
-              }));
+              const awayPlayers = matchPlayersData.awayPlayers
+                .filter((player: any) => player.playerType === 'PRIMARY')
+                .slice(0, 2)
+                .map((player: any) => ({
+                  id: player.id,
+                  name: player.name,
+                  handicapIndex: player.handicapIndex,
+                  teamId: player.teamId,
+                  playerType: 'PRIMARY'
+                }));
+              setAwayTeamPlayers(awayPlayers);
+            } else if (match.awayTeam && match.awayTeam.players && match.awayTeam.players.length > 0) {
+              // Use players from the match object if available
+              const awayPlayers = match.awayTeam.players
+                .filter((player: any) => player.playerType === 'PRIMARY' || !player.playerType)
+                .slice(0, 2)
+                .map((player: any) => ({
+                  id: player.id,
+                  name: player.name,
+                  handicapIndex: player.handicapIndex,
+                  teamId: match.awayTeamId,
+                  playerType: 'PRIMARY'
+                }));
               setAwayTeamPlayers(awayPlayers);
             } else {
               console.warn('No away team players found, using fallback data');
@@ -422,16 +453,23 @@ export default function HoleByHoleScorecard({
             
             // Set all players
             let allPlayersData: Player[] = [];
-            if (matchPlayersData.homePlayers && matchPlayersData.homePlayers.length > 0) {
+            
+            // Add home team players
+            if (homeTeamPlayers.length > 0) {
+              allPlayersData = [...allPlayersData, ...homeTeamPlayers];
+            } else if (match.homeTeam && match.homeTeam.players && match.homeTeam.players.length > 0) {
               allPlayersData = [
                 ...allPlayersData,
-                ...matchPlayersData.homePlayers.map((player: any) => ({
-                  id: player.playerId,
-                  name: player.name,
-                  handicapIndex: player.handicapIndex,
-                  teamId: player.teamId,
-                  playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
-                }))
+                ...match.homeTeam.players
+                  .filter((player: any) => player.playerType === 'PRIMARY' || !player.playerType)
+                  .slice(0, 2)
+                  .map((player: any) => ({
+                    id: player.id,
+                    name: player.name,
+                    handicapIndex: player.handicapIndex,
+                    teamId: match.homeTeamId,
+                    playerType: 'PRIMARY'
+                  }))
               ];
             } else {
               allPlayersData = [
@@ -440,16 +478,22 @@ export default function HoleByHoleScorecard({
               ];
             }
             
-            if (matchPlayersData.awayPlayers && matchPlayersData.awayPlayers.length > 0) {
+            // Add away team players
+            if (awayTeamPlayers.length > 0) {
+              allPlayersData = [...allPlayersData, ...awayTeamPlayers];
+            } else if (match.awayTeam && match.awayTeam.players && match.awayTeam.players.length > 0) {
               allPlayersData = [
                 ...allPlayersData,
-                ...matchPlayersData.awayPlayers.map((player: any) => ({
-                  id: player.playerId,
-                  name: player.name,
-                  handicapIndex: player.handicapIndex,
-                  teamId: player.teamId,
-                  playerType: player.isSubstitute ? 'SUBSTITUTE' : 'PRIMARY'
-                }))
+                ...match.awayTeam.players
+                  .filter((player: any) => player.playerType === 'PRIMARY' || !player.playerType)
+                  .slice(0, 2)
+                  .map((player: any) => ({
+                    id: player.id,
+                    name: player.name,
+                    handicapIndex: player.handicapIndex,
+                    teamId: match.awayTeamId,
+                    playerType: 'PRIMARY'
+                  }))
               ];
             } else {
               allPlayersData = [
@@ -459,24 +503,54 @@ export default function HoleByHoleScorecard({
             }
             
             setAllPlayers(allPlayersData);
-            
-            // Now that we have players, fetch scores
-            await fetchLatestScores(allPlayersData);
           } else {
             throw new Error('Failed to fetch match players');
           }
         } catch (error) {
           console.error('Error fetching match players:', error);
-          // Use fallback data
-          const homePlayers = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2);
-          const awayPlayers = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2);
           
-          setHomeTeamPlayers(homePlayers);
-          setAwayTeamPlayers(awayPlayers);
-          setAllPlayers([...homePlayers, ...awayPlayers]);
+          // Fallback to using players from the match object if available
+          if (match.homeTeam && match.homeTeam.players && match.homeTeam.players.length > 0) {
+            const homePlayers = match.homeTeam.players
+              .filter((player: any) => player.playerType === 'PRIMARY' || !player.playerType)
+              .slice(0, 2)
+              .map((player: any) => ({
+                id: player.id,
+                name: player.name,
+                handicapIndex: player.handicapIndex,
+                teamId: match.homeTeamId,
+                playerType: 'PRIMARY'
+              }));
+            setHomeTeamPlayers(homePlayers);
+          } else {
+            const homePlayers = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2);
+            setHomeTeamPlayers(homePlayers);
+          }
           
-          // Now that we have players, fetch scores
-          await fetchLatestScores([...homePlayers, ...awayPlayers]);
+          if (match.awayTeam && match.awayTeam.players && match.awayTeam.players.length > 0) {
+            const awayPlayers = match.awayTeam.players
+              .filter((player: any) => player.playerType === 'PRIMARY' || !player.playerType)
+              .slice(0, 2)
+              .map((player: any) => ({
+                id: player.id,
+                name: player.name,
+                handicapIndex: player.handicapIndex,
+                teamId: match.awayTeamId,
+                playerType: 'PRIMARY'
+              }));
+            setAwayTeamPlayers(awayPlayers);
+          } else {
+            const awayPlayers = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2);
+            setAwayTeamPlayers(awayPlayers);
+          }
+          
+          // Set all players
+          const allPlayersData = [
+            ...homeTeamPlayers,
+            ...awayTeamPlayers
+          ];
+          
+          setAllPlayers(allPlayersData);
         }
       } catch (error) {
         console.error('Error loading scores:', error);

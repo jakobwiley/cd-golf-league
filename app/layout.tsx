@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Orbitron, Audiowide } from 'next/font/google'
 import Navigation from './components/Navigation'
+import { Toaster } from 'react-hot-toast'
 
 const inter = Inter({ subsets: ['latin'] })
 const orbitron = Orbitron({ 
@@ -51,6 +52,7 @@ export default function RootLayout({
         <main>
           {children}
         </main>
+        <Toaster position="top-right" />
       </body>
     </html>
   )

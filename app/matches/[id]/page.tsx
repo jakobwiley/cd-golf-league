@@ -23,6 +23,22 @@ export default function MatchPage() {
         const response = await fetch(`/api/matches/${params.id}`)
         if (!response.ok) throw new Error('Failed to fetch match')
         const data = await response.json()
+        
+        // Ensure players are loaded for the match
+        if (!data.homeTeam.players || !data.awayTeam.players) {
+          // Fetch primary players for both teams
+          const homePlayersResponse = await fetch(`/api/players?teamId=${data.homeTeamId}&playerType=PRIMARY`)
+          const awayPlayersResponse = await fetch(`/api/players?teamId=${data.awayTeamId}&playerType=PRIMARY`)
+          
+          if (homePlayersResponse.ok && awayPlayersResponse.ok) {
+            const homePlayersData = await homePlayersResponse.json()
+            const awayPlayersData = await awayPlayersResponse.json()
+            
+            data.homeTeam.players = homePlayersData.players || []
+            data.awayTeam.players = awayPlayersData.players || []
+          }
+        }
+        
         setMatch(data)
       } catch (err) {
         console.error('Error fetching match:', err)
