@@ -34,14 +34,48 @@ export default function ScorecardSummaryPage() {
   // Function to fetch match data with scores
   const fetchMatchData = async () => {
     try {
+      // First get the basic match data
       const { data: match, error } = await supabase
         .from('Match')
-        .select('*, homeTeam:Team!Match_homeTeamId_fkey(*, players:Player(id, name, handicapIndex, teamId)), awayTeam:Team!Match_awayTeamId_fkey(*, players:Player(id, name, handicapIndex, teamId))')
+        .select(`
+          *,
+          homeTeam:homeTeamId (
+            id, 
+            name
+          ),
+          awayTeam:awayTeamId (
+            id,
+            name
+          )
+        `)
         .eq('id', params.id)
         .single()
 
       if (error) throw error
       if (!match) throw new Error('Match not found')
+      
+      // Then get only PRIMARY players for each team
+      const { data: homePlayers, error: homePlayersError } = await supabase
+        .from('Player')
+        .select('id, name, handicapIndex, teamId, playerType')
+        .eq('teamId', match.homeTeamId)
+        .eq('playerType', 'PRIMARY')
+        .limit(2)
+      
+      if (homePlayersError) throw homePlayersError
+      
+      const { data: awayPlayers, error: awayPlayersError } = await supabase
+        .from('Player')
+        .select('id, name, handicapIndex, teamId, playerType')
+        .eq('teamId', match.awayTeamId)
+        .eq('playerType', 'PRIMARY')
+        .limit(2)
+      
+      if (awayPlayersError) throw awayPlayersError
+      
+      // Attach players to the teams
+      match.homeTeam.players = homePlayers || []
+      match.awayTeam.players = awayPlayers || []
       
       // Fetch scores for this match
       const scoresResponse = await fetch(`/api/scores?matchId=${params.id}`, {

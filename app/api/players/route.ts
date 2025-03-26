@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
 import { z } from 'zod'
+import { randomUUID } from 'crypto'
 
 // Validation schema for player data
 const playerSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
-  playerType: z.enum(['PRIMARY', 'SUB']).default('PRIMARY'),
+  playerType: z.enum(['PRIMARY', 'SUBSTITUTE']).default('PRIMARY'),
   handicapIndex: z.number().min(-10).max(54).default(0),
   teamId: z.string().optional()
 })
@@ -43,9 +44,14 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { data, error } = await supabase
+    const url = new URL(request.url);
+    const teamId = url.searchParams.get('teamId');
+    const playerType = url.searchParams.get('playerType');
+    
+    // Build the query
+    let query = supabase
       .from('Player')
       .select(`
         id,
@@ -58,32 +64,52 @@ export async function GET() {
           name
         )
       `)
-      .order('name', { ascending: true })
+      .order('name');
+    
+    // Apply filters if provided
+    if (teamId) {
+      query = query.eq('teamId', teamId);
+    }
+    
+    if (playerType) {
+      query = query.eq('playerType', playerType);
+    }
+    
+    // Execute the query
+    const { data, error } = await query;
 
     if (error) {
-      throw error
+      throw error;
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json({ 
+      players: data 
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
   } catch (error) {
-    console.error('Error fetching players:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch players' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error fetching players');
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    console.log('Received player data:', body);
 
-    // Validate required fields
-    if (!body.name || !body.teamId) {
+    // Validate the input data
+    try {
+      playerSchema.parse(body);
+    } catch (validationError: any) {
+      console.error('Validation error:', validationError);
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Invalid player data', details: validationError.errors },
         { status: 400 }
-      )
+      );
     }
 
     // Check if team exists
@@ -94,20 +120,26 @@ export async function POST(request: Request) {
       .single()
 
     if (teamError) {
-      throw teamError
+      console.error('Team lookup error:', teamError);
+      if (teamError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Team not found' },
+          { status: 404 }
+        );
+      }
+      throw teamError;
     }
 
-    if (!team) {
-      return NextResponse.json(
-        { error: 'Team not found' },
-        { status: 404 }
-      )
-    }
+    // Generate a UUID for the new player
+    const playerId = body.id || randomUUID();
+    
+    console.log('Creating player with ID:', playerId);
 
-    // Create player
+    // Create player using the service role client (which has admin privileges)
     const { data, error } = await supabase
       .from('Player')
       .insert([{
+        id: playerId,
         name: body.name,
         handicapIndex: body.handicapIndex || 0,
         teamId: body.teamId,
@@ -129,50 +161,57 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
+      console.error('Supabase error:', error);
       throw error
     }
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error creating player:', error)
-    return NextResponse.json(
-      { error: 'Failed to create player' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error creating player');
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    const { id, ...updateData } = await request.json()
+    const body = await request.json()
 
-    if (!id) {
+    if (!body.id) {
       return NextResponse.json(
         { error: 'Player ID is required' },
         { status: 400 }
       )
     }
 
-    // Ensure handicapIndex is a number
-    if (updateData.handicapIndex !== undefined) {
-      updateData.handicapIndex = parseFloat(updateData.handicapIndex);
+    // Check if player exists
+    const { data: existingPlayer, error: playerError } = await supabase
+      .from('Player')
+      .select('id')
+      .eq('id', body.id)
+      .single()
+
+    if (playerError) {
+      throw playerError
     }
 
+    if (!existingPlayer) {
+      return NextResponse.json(
+        { error: 'Player not found' },
+        { status: 404 }
+      )
+    }
+
+    // Update player
     const { data, error } = await supabase
       .from('Player')
-      .update([updateData])
-      .eq('id', id)
-      .select(`
-        id,
-        name,
-        handicapIndex,
-        teamId,
-        playerType,
-        Team (
-          id,
-          name
-        )
-      `)
+      .update({
+        name: body.name,
+        handicapIndex: body.handicapIndex || 0,
+        teamId: body.teamId,
+        playerType: body.playerType || 'PRIMARY',
+        updatedAt: new Date().toISOString()
+      })
+      .eq('id', body.id)
+      .select()
       .single()
 
     if (error) {
@@ -181,26 +220,23 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error updating player:', error)
-    return NextResponse.json(
-      { error: 'Failed to update player' },
-      { status: 500 }
-    )
+    return handleError(error, 'Error updating player');
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
     if (!id) {
       return NextResponse.json(
         { error: 'Player ID is required' },
         { status: 400 }
-      );
+      )
     }
-    
+
+    // Delete player
     const { error } = await supabase
       .from('Player')
       .delete()
@@ -209,14 +245,10 @@ export async function DELETE(request: Request) {
     if (error) {
       throw error
     }
-    
-    return NextResponse.json({ message: 'Player deleted successfully' });
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting player:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete player' },
-      { status: 500 }
-    );
+    return handleError(error, 'Error deleting player');
   }
 }
 
@@ -227,4 +259,4 @@ export const handler = {
   PUT,
   DELETE,
   OPTIONS
-} 
+}
