@@ -199,6 +199,8 @@ export default function HoleByHoleScorecard({
   const [showScorecard, setShowScorecard] = useState(false)
   // New state variable to track if confirmation dialog is shown
   const [showConfirmation, setShowConfirmation] = useState(false)
+  // New state variable to track if finalize warning is shown
+  const [showFinalizeWarning, setShowFinalizeWarning] = useState(false);
   // WebSocket reference
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -928,6 +930,13 @@ export default function HoleByHoleScorecard({
       setSaving(true);
       setError(null);
       
+      // Check if all 9 holes have scores for all players
+      if (!areAllHolesFilled()) {
+        setError('Cannot finalize match: All 9 holes must have scores for all players');
+        setSaving(false);
+        return;
+      }
+      
       // First, ensure all scores are saved
       await saveScores();
       
@@ -1007,17 +1016,28 @@ export default function HoleByHoleScorecard({
   // Function to handle finalize button click
   const handleFinalizeClick = () => {
     // Check if match is already finalized
-    if (match.status?.toLowerCase() === 'completed') {
+    if (['completed', 'finalized'].includes(match.status?.toLowerCase())) {
       setSuccess('This match has already been finalized');
       setTimeout(() => setSuccess(null), 3000);
       return;
     }
-    setShowConfirmation(true);
+    
+    // Check if all holes are filled
+    if (!areAllHolesFilled()) {
+      setShowFinalizeWarning(true);
+    } else {
+      setShowConfirmation(true);
+    }
   };
 
   // Close confirmation dialog
   const closeConfirmation = () => {
     setShowConfirmation(false);
+  };
+
+  // Close finalize warning dialog
+  const closeFinalizeWarning = () => {
+    setShowFinalizeWarning(false);
   };
 
   // Navigate to next hole
@@ -1281,9 +1301,9 @@ export default function HoleByHoleScorecard({
           </button>
           <button
             onClick={handleFinalizeClick}
-            disabled={!areAllHolesFilled() || saving || match.status?.toLowerCase() === 'completed'}
+            disabled={!areAllHolesFilled() || saving || ['completed', 'finalized'].includes(match.status?.toLowerCase())}
             className={`group relative overflow-hidden px-3 md:px-5 py-1.5 md:py-2 text-white rounded-lg transition-all duration-300 border backdrop-blur-sm text-xs md:text-sm font-audiowide shadow-[0_0_15px_rgba(0,223,130,0.3)] transform ${
-              match.status?.toLowerCase() === 'completed'
+              ['completed', 'finalized'].includes(match.status?.toLowerCase())
                 ? 'bg-gray-500/30 border-gray-500/30 cursor-not-allowed'
                 : areAllHolesFilled() && !saving
                   ? 'bg-gradient-to-r from-[#00df82]/40 to-[#4CAF50]/30 hover:from-[#00df82]/60 hover:to-[#4CAF50]/50 border-[#00df82]/50 hover:border-[#00df82] hover:shadow-[0_0_20px_rgba(0,223,130,0.5)] hover:scale-105' 
@@ -1292,7 +1312,7 @@ export default function HoleByHoleScorecard({
           >
             {saving 
               ? 'Processing...' 
-              : match.status?.toLowerCase() === 'completed' 
+              : ['completed', 'finalized'].includes(match.status?.toLowerCase())
                 ? 'Match Finalized' 
                 : areAllHolesFilled() 
                   ? 'Finalize Match' 
@@ -1346,6 +1366,32 @@ export default function HoleByHoleScorecard({
                 ) : (
                   'Confirm'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Finalize Warning Dialog */}
+      {showFinalizeWarning && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#030f0f] border border-[#00df82]/30 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-audiowide text-white mb-4">Cannot Finalize Match</h3>
+            <p className="text-white/80 mb-6">
+              This match cannot be finalized because not all holes have scores for all players.
+            </p>
+            <p className="text-white/80 mb-6">
+              Please ensure that all 9 holes have scores entered for each player before finalizing the match.
+            </p>
+            <p className="text-white/80">
+              Missing scores can affect player standings and match results.
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={closeFinalizeWarning}
+                className="px-4 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700"
+              >
+                I Understand
               </button>
             </div>
           </div>
