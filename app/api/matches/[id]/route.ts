@@ -26,12 +26,55 @@ const matchUpdateSchema = z.object({
   startingHole: z.number().optional(),
   homeTeamId: z.string().optional(),
   awayTeamId: z.string().optional(),
-  status: z.enum(['scheduled', 'in_progress', 'completed', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'])
+  status: z.enum(['scheduled', 'in_progress', 'completed', 'finalized', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'FINALIZED'])
     .transform(value => value.toLowerCase())
     .optional(),
   homePoints: z.number().optional(),
   awayPoints: z.number().optional()
 })
+
+// Helper function to check if all holes are filled for a match
+async function areAllHolesFilled(matchId: string) {
+  try {
+    // 1. Get all players in the match
+    const { data: matchPlayers, error: playersError } = await supabase
+      .from('MatchPlayer')
+      .select('playerId')
+      .eq('matchId', matchId);
+    
+    if (playersError) throw playersError;
+    if (!matchPlayers || matchPlayers.length === 0) return false;
+    
+    const playerIds = matchPlayers.map(mp => mp.playerId);
+    
+    // 2. For each player, check if they have scores for all 9 holes
+    for (const playerId of playerIds) {
+      // Get scores for this player in this match
+      const { data: scores, error: scoresError } = await supabase
+        .from('Score')
+        .select('hole, score')
+        .eq('matchId', matchId)
+        .eq('playerId', playerId);
+      
+      if (scoresError) throw scoresError;
+      
+      // If no scores or less than 9 holes, return false
+      if (!scores || scores.length < 9) return false;
+      
+      // Check if all holes 1-9 have scores
+      const holesWithScores = new Set(scores.map(s => s.hole));
+      for (let hole = 1; hole <= 9; hole++) {
+        if (!holesWithScores.has(hole)) return false;
+      }
+    }
+    
+    // All players have scores for all 9 holes
+    return true;
+  } catch (error) {
+    console.error('Error checking if all holes are filled:', error);
+    return false;
+  }
+}
 
 export async function GET(
   request: Request,
@@ -92,7 +135,7 @@ export async function PATCH(
     // Check if match exists
     const { data: existingMatch, error: existingMatchError } = await supabase
       .from('Match')
-      .select('id, homeTeamId, awayTeamId')
+      .select('id, homeTeamId, awayTeamId, status')
       .eq('id', params.id)
       .single()
 
@@ -105,6 +148,26 @@ export async function PATCH(
         { error: 'Match not found' },
         { status: 404 }
       )
+    }
+
+    // If status is being updated to COMPLETED or FINALIZED, validate that all holes are filled
+    if (validatedData.status && 
+        (validatedData.status.toLowerCase() === 'completed' || validatedData.status.toLowerCase() === 'finalized') && 
+        existingMatch.status.toLowerCase() !== 'completed' && 
+        existingMatch.status.toLowerCase() !== 'finalized') {
+      
+      // Check if all holes are filled for all players
+      const allHolesFilled = await areAllHolesFilled(params.id);
+      
+      if (!allHolesFilled) {
+        return NextResponse.json(
+          { error: 'Cannot mark match as completed: All 9 holes must have scores for all players' },
+          { status: 400 }
+        );
+      }
+      
+      // Standardize to 'completed' status (as per memory, this is the valid enum value in the database)
+      validatedData.status = 'completed';
     }
 
     // If teams are being updated, check if they exist
