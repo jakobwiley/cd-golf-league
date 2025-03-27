@@ -450,7 +450,13 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
                           ) : (
                             <button 
                               onClick={() => handleStartEdit('home', player.playerId)}
-                              className="p-1 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
+                              className={`p-1 ${
+                                selectedMatch.status === 'SCHEDULED' 
+                                  ? 'text-[#00df82] hover:text-[#00df82]/80 cursor-pointer' 
+                                  : 'text-gray-500 cursor-not-allowed'
+                              } transition-colors`}
+                              disabled={selectedMatch.status !== 'SCHEDULED'}
+                              title={selectedMatch.status !== 'SCHEDULED' ? 'Substitutions are only allowed for scheduled matches' : 'Substitute player'}
                             >
                               <FaExchangeAlt />
                             </button>
@@ -538,7 +544,13 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
                           ) : (
                             <button 
                               onClick={() => handleStartEdit('away', player.playerId)}
-                              className="p-1 text-[#00df82] hover:text-[#00df82]/80 transition-colors"
+                              className={`p-1 ${
+                                selectedMatch.status === 'SCHEDULED' 
+                                  ? 'text-[#00df82] hover:text-[#00df82]/80 cursor-pointer' 
+                                  : 'text-gray-500 cursor-not-allowed'
+                              } transition-colors`}
+                              disabled={selectedMatch.status !== 'SCHEDULED'}
+                              title={selectedMatch.status !== 'SCHEDULED' ? 'Substitutions are only allowed for scheduled matches' : 'Substitute player'}
                             >
                               <FaExchangeAlt />
                             </button>

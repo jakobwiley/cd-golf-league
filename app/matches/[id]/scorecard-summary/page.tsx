@@ -207,7 +207,7 @@ export default function ScorecardSummaryPage() {
   }, [])
 
   const goBackToMatch = () => {
-    router.push(`/matches/${params.id}`)
+    router.push(`/matches`)
   }
 
   if (loading) {
@@ -284,7 +284,7 @@ export default function ScorecardSummaryPage() {
               <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
               <span className="relative flex items-center">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Match
+                Back to Matches
               </span>
             </button>
           </div>
