@@ -99,7 +99,51 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
       const response = await fetch(apiConfig.getUrl(`/api/matches/${matchId}/players`))
       if (!response.ok) throw new Error('Failed to fetch match players')
       const data = await response.json()
-      setMatchPlayers(data)
+      
+      // Extract the home and away players from the response
+      const homePlayers = data.homeTeamPlayers?.map((player: any) => ({
+        playerId: player.id,
+        teamId: player.teamId,
+        name: player.name,
+        handicapIndex: player.handicapIndex,
+        isSubstitute: false
+      })) || [];
+      
+      const awayPlayers = data.awayTeamPlayers?.map((player: any) => ({
+        playerId: player.id,
+        teamId: player.teamId,
+        name: player.name,
+        handicapIndex: player.handicapIndex,
+        isSubstitute: false
+      })) || [];
+      
+      // Check for match players and update with substitute information
+      if (data.matchPlayers && data.matchPlayers.length > 0) {
+        data.matchPlayers.forEach((mp: any) => {
+          const player = mp.Player;
+          const isHomeTeam = player.teamId === data.match.homeTeamId;
+          const playersList = isHomeTeam ? homePlayers : awayPlayers;
+          
+          // Find the player in the list
+          const playerIndex = playersList.findIndex((p: any) => p.playerId === player.id);
+          
+          // If this is a substitute, add them to the list
+          if (mp.isSubstitute) {
+            playersList.push({
+              playerId: player.id,
+              teamId: player.teamId,
+              name: player.name,
+              handicapIndex: player.handicapIndex,
+              isSubstitute: true
+            });
+          }
+        });
+      }
+      
+      setMatchPlayers({
+        homePlayers,
+        awayPlayers
+      });
     } catch (error) {
       console.error('Error fetching match players:', error)
       toast.error('Failed to load match players')
