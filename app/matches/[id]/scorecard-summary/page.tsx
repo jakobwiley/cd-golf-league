@@ -6,7 +6,6 @@ import { format } from 'date-fns'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import CollapsibleScorecard from '../../../components/CollapsibleScorecard';
-import { Match } from '../../../types'
 import { getWebSocketUrl, SocketEvents } from '../../../utils/websocketConnection'
 
 // Create Supabase client
@@ -21,135 +20,221 @@ interface PageParams extends Record<string, string | string[]> {
 
 // Define a player type that includes isSubstitute
 interface PlayerWithSubstitute {
-  id: string;
-  name: string;
-  handicapIndex: number;
-  teamId: string;
-  playerType: string;
-  isSubstitute: boolean;
+  id: string
+  name: string
+  handicapIndex: number
+  teamId: string
+  playerType: "PRIMARY" | "SUBSTITUTE"
+  isSubstitute: boolean
 }
 
 // Define type for match player
 interface MatchPlayer {
-  id: string;
-  matchId: string;
-  playerId: string;
-  isSubstitute: boolean;
-  substitutingForId: string | null;
+  id: string
+  matchId: string
+  playerId: string
+  isSubstitute: boolean
+  substituteFor: string | null
+  originalPlayerId: string | null
   Player: {
-    id: string;
-    name: string;
-    handicapIndex: number;
-    teamId: string;
-    playerType: string;
-  } | null;
+    id: string
+    name: string
+    handicapIndex: number
+    teamId: string
+    playerType: "PRIMARY" | "SUBSTITUTE"
+  } | null
+}
+
+// Define a type for the Supabase response
+interface SupabaseMatchPlayer {
+  id: string
+  matchId: string
+  playerId: string
+  isSubstitute: boolean
+  substituteFor: string | null
+  originalPlayerId: string | null
+  Player: {
+    id: string
+    name: string
+    handicapIndex: number
+    teamId: string
+    playerType: string
+  } | null
+}
+
+// Define the LocalMatch type
+interface LocalMatch {
+  id: string
+  date: string
+  status: "COMPLETED" | "SCHEDULED" | "IN_PROGRESS"
+  homeTeamId: string
+  awayTeamId: string
+  weekNumber?: number
+  startingHole: number
+  homeTeam: {
+    id: string
+    name: string
+    players?: PlayerWithSubstitute[]
+  }
+  awayTeam: {
+    id: string
+    name: string
+    players?: PlayerWithSubstitute[]
+  }
+  scores?: any[]
 }
 
 export default function ScorecardSummaryPage() {
   const rawParams = useParams()
   const params: PageParams = rawParams as PageParams
   const router = useRouter()
-  const [match, setMatch] = React.useState<Match | null>(null)
+  const [match, setMatch] = React.useState<LocalMatch | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [isPortrait, setIsPortrait] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now())
   const socketRef = useRef<WebSocket | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastFetchTimeRef = useRef<number>(0)
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Function to fetch match data with scores
-  const fetchMatchData = async () => {
-    setLoading(true)
+  const fetchMatchData = async (force = false) => {
+    // Debounce fetches to prevent too many updates
+    const now = Date.now();
+    if (!force && now - lastFetchTimeRef.current < 5000) {
+      // If less than 5 seconds since last fetch, debounce the request
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      
+      debounceTimeoutRef.current = setTimeout(() => {
+        fetchMatchData(true);
+      }, 5000 - (now - lastFetchTimeRef.current));
+      
+      return;
+    }
+    
+    lastFetchTimeRef.current = now;
+    
+    // Only show loading state on initial load, not on updates
+    if (!match) {
+      setLoading(true)
+    }
     try {
       // Fetch match details
       const { data: matchData, error: matchError } = await supabase
         .from('Match')
         .select(`
-          *,
-          homeTeam:homeTeamId (
-            id,
-            name
-          ),
-          awayTeam:awayTeamId (
-            id,
-            name
-          )
+          id,
+          date,
+          status,
+          homeTeamId,
+          awayTeamId,
+          weekNumber,
+          startingHole,
+          homeTeam:homeTeamId(id, name),
+          awayTeam:awayTeamId(id, name)
         `)
         .eq('id', params.id)
         .single()
-      
+
       if (matchError) throw matchError
-      
-      const match = matchData as Match
-      if (!match) throw new Error('Match not found')
-      
-      // Fetch match players including substitutes
-      const response = await fetch(`/api/matches/${params.id}/players`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch match players');
+
+      if (!matchData) {
+        throw new Error('Match not found')
       }
-      
-      const data = await response.json();
-      const matchPlayers = data.matchPlayers;
-      
+
+      const match = matchData as unknown as LocalMatch
+
+      // Fetch players for this match
+      const { data: matchPlayers, error: matchPlayersError } = await supabase
+        .from('MatchPlayer')
+        .select(`
+          id,
+          matchId,
+          playerId,
+          isSubstitute,
+          substituteFor,
+          originalPlayerId,
+          Player:playerId(id, name, handicapIndex, teamId, playerType)
+        `)
+        .eq('matchId', params.id)
+
+      if (matchPlayersError) throw matchPlayersError
+
       // Group players by team
-      const homeTeamPlayers: any[] = []
-      const awayTeamPlayers: any[] = []
-      
-      if (matchPlayers) {
-        // Special case for the Brew/Jake team in week 2
-        const isBrewJakeWeek2Match = match.awayTeamId === "9753d64a-f88e-463d-b4da-f803a2fa7f0c" && 
-                                     match.weekNumber === 2;
+      const homeTeamPlayers: PlayerWithSubstitute[] = []
+      const awayTeamPlayers: PlayerWithSubstitute[] = []
+
+      // Process match players and handle substitutes
+      if (matchPlayers && matchPlayers.length > 0) {
+        // Type the matchPlayers array - first convert to unknown then to our type
+        const typedMatchPlayers = (matchPlayers as unknown) as SupabaseMatchPlayer[];
         
-        // Get all players for the home team (Brett/Tony)
-        const homePrimaryPlayers = matchPlayers
-          .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.homeTeamId)
-          .map((mp: any) => ({
-            ...mp.Player,
+        // Filter players by team
+        const homePlayers = typedMatchPlayers.filter(mp => mp.Player && mp.Player.teamId === match.homeTeamId)
+        const awayPlayers = typedMatchPlayers.filter(mp => mp.Player && mp.Player.teamId === match.awayTeamId)
+
+        // Process home team players
+        const homePrimaryPlayers: PlayerWithSubstitute[] = homePlayers
+          .filter(mp => !mp.isSubstitute && mp.Player)
+          .map(mp => ({
+            id: mp.Player!.id,
+            name: mp.Player!.name,
+            handicapIndex: mp.Player!.handicapIndex,
+            teamId: mp.Player!.teamId,
+            playerType: mp.Player!.playerType as "PRIMARY" | "SUBSTITUTE",
             isSubstitute: false
           }));
-          
-        // For the away team
-        let awayActivePlayers: any[] = [];
+
+        const homeSubstitutes: PlayerWithSubstitute[] = homePlayers
+          .filter(mp => mp.isSubstitute && mp.Player)
+          .map(mp => ({
+            id: mp.Player!.id,
+            name: mp.Player!.name,
+            handicapIndex: mp.Player!.handicapIndex,
+            teamId: mp.Player!.teamId,
+            playerType: mp.Player!.playerType as "PRIMARY" | "SUBSTITUTE",
+            isSubstitute: true
+          }));
+
+        // Process away team players
+        const awayPrimaryPlayers: PlayerWithSubstitute[] = awayPlayers
+          .filter(mp => !mp.isSubstitute && mp.Player)
+          .map(mp => ({
+            id: mp.Player!.id,
+            name: mp.Player!.name,
+            handicapIndex: mp.Player!.handicapIndex,
+            teamId: mp.Player!.teamId,
+            playerType: mp.Player!.playerType as "PRIMARY" | "SUBSTITUTE",
+            isSubstitute: false
+          }));
+
+        const awaySubstitutes: PlayerWithSubstitute[] = awayPlayers
+          .filter(mp => mp.isSubstitute && mp.Player)
+          .map(mp => ({
+            id: mp.Player!.id,
+            name: mp.Player!.name,
+            handicapIndex: mp.Player!.handicapIndex,
+            teamId: mp.Player!.teamId,
+            playerType: mp.Player!.playerType as "PRIMARY" | "SUBSTITUTE",
+            isSubstitute: true
+          }));
+
+        // Add all players to their respective teams
+        homeTeamPlayers.push(...homePrimaryPlayers);
         
-        if (isBrewJakeWeek2Match) {
-          // For the Brew/Jake match in week 2, we want to show Greg and Jake
-          // Find Jake (primary player)
-          const jakePlayer = matchPlayers.find((mp: any) => 
-            mp.Player && mp.Player.name === "Jake" && !mp.isSubstitute
-          );
-          
-          if (jakePlayer) {
-            awayActivePlayers.push({
-              ...jakePlayer.Player,
-              isSubstitute: false
-            });
-          }
-          
-          // Find Greg (substitute player)
-          const gregPlayer = matchPlayers.find((mp: any) => 
-            mp.Player && mp.Player.name === "Greg"
-          );
-          
-          if (gregPlayer) {
-            awayActivePlayers.push({
-              ...gregPlayer.Player,
-              isSubstitute: false // Show as active for scorecard
-            });
-          }
-        } else {
-          // For all other matches, get non-substitute players
-          awayActivePlayers = matchPlayers
-            .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.awayTeamId)
-            .map((mp: any) => ({
-              ...mp.Player,
-              isSubstitute: false
-            }));
+        // Determine active players (primary or substitutes)
+        if (homeSubstitutes.length > 0) {
+          homeTeamPlayers.push(...homeSubstitutes);
         }
         
-        // Add players to the teams
-        homeTeamPlayers.push(...homePrimaryPlayers);
-        awayTeamPlayers.push(...awayActivePlayers);
+        awayTeamPlayers.push(...awayPrimaryPlayers);
+        
+        if (awaySubstitutes.length > 0) {
+          awayTeamPlayers.push(...awaySubstitutes);
+        }
       }
       
       // Ensure we only have 2 players per team
@@ -178,8 +263,25 @@ export default function ScorecardSummaryPage() {
       // Attach scores to the match object
       match.scores = scores
       
-      setMatch(match as Match)
-      setLastUpdated(Date.now())
+      // Update state in a way that minimizes re-renders
+      const now = Date.now();
+      
+      // Only do a full update on initial load or if it's been more than 30 seconds
+      if (!match || !lastUpdated || (now - lastUpdated > 30000)) {
+        setMatch(match as LocalMatch);
+        setLastUpdated(now);
+      } else {
+        // For more frequent updates, just update the scores to prevent full re-renders
+        setMatch(prevMatch => {
+          if (!prevMatch) return match as LocalMatch;
+          
+          // Create a shallow copy to avoid unnecessary re-renders
+          const updatedMatch = { ...prevMatch };
+          updatedMatch.scores = scores;
+          
+          return updatedMatch;
+        });
+      }
     } catch (error) {
       console.error('Error fetching match:', error)
       setError('Failed to load match')
@@ -218,7 +320,8 @@ export default function ScorecardSummaryPage() {
             const data = JSON.parse(event.data);
             if (data.event === SocketEvents.SCORE_UPDATED && data.matchId === params.id) {
               console.log('Received score update via WebSocket');
-              fetchMatchData();
+              // Use the debounced fetch to prevent flashing
+              fetchMatchData(false);
             }
           } catch (error) {
             console.error('Error processing WebSocket message:', error);
@@ -251,8 +354,9 @@ export default function ScorecardSummaryPage() {
         console.log('Setting up polling for score updates');
         pollingIntervalRef.current = setInterval(() => {
           console.log('Polling for score updates');
-          fetchMatchData();
-        }, 5000); // Poll every 5 seconds
+          // Use the debounced fetch to prevent flashing
+          fetchMatchData(false);
+        }, 30000); // Poll every 30 seconds instead of 10 to reduce updates
       }
     };
     
@@ -271,6 +375,12 @@ export default function ScorecardSummaryPage() {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
+      }
+      
+      // Clear any pending debounce timeouts
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
       }
     };
   }, [params.id]);
@@ -395,9 +505,14 @@ export default function ScorecardSummaryPage() {
             </div>
           )}
           
+          {/* Hidden but useful for debugging */}
+          <div className="hidden text-xs text-gray-500 text-right">
+            Last updated: {new Date(lastUpdated).toLocaleTimeString()}
+          </div>
+          
           {match && (
-            <div className="bg-[#030f0f]/70 border border-[#00df82]/20 rounded-lg overflow-hidden">
-              <CollapsibleScorecard match={match} />
+            <div className="bg-[#030f0f]/70 border border-[#00df82]/20 rounded-lg overflow-hidden transition-opacity duration-300 ease-in-out">
+              <CollapsibleScorecard match={match as any} />
             </div>
           )}
         </div>

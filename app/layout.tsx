@@ -48,11 +48,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${orbitron.variable} ${audiowide.variable}`}>
       <body className={`${inter.className} min-h-screen bg-[#030f0f]`}>
-        <Navigation />
-        <main>
-          {children}
-        </main>
-        <Toaster position="top-right" />
+        <div className="flex flex-col min-h-screen">
+          <Navigation />
+          <main className="flex-grow pt-16">
+            {children}
+          </main>
+          <Toaster position="top-right" />
+        </div>
       </body>
     </html>
   )
