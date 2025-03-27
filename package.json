@@ -14,6 +14,7 @@
     "secrets:scan": "git secrets --scan",
     "vercel:setup": "node scripts/setup-vercel-db.js",
     "vercel:deploy": "vercel --prod",
+    "deploy:secure": "node scripts/secure-deploy.js",
     "postdeploy": "node scripts/post-deploy-setup.js",
     "fix-match-points": "node scripts/supabase/fix-all-match-points.js",
     "refresh-standings": "node scripts/refresh-standings-api.js",
