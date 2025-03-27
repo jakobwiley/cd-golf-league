@@ -1,3 +1,6 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { calculateCourseHandicap } from '../../lib/handicap'
 
@@ -48,53 +51,88 @@ const fallbackTeamData = [
   { id: 'team10', name: 'Brett/Tony' }
 ];
 
-export default async function TeamsPage() {
-  let teams = [];
-  
-  try {
-    // Get teams with players
-    const { data: teamsData, error: teamsError } = await supabase
-      .from('Team')
-      .select(`
-        *,
-        players:Player(*)
-      `)
-      .order('name');
-      
-    if (teamsError) {
-      console.error('Error fetching teams:', teamsError);
-      throw teamsError;
+export default function TeamsPage() {
+  const [expandedSubstitutes, setExpandedSubstitutes] = useState<Set<string>>(new Set());
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Function to toggle substitute visibility
+  const toggleSubstitutes = (teamId: string) => {
+    const newExpandedSubstitutes = new Set(expandedSubstitutes);
+    if (expandedSubstitutes.has(teamId)) {
+      newExpandedSubstitutes.delete(teamId);
+    } else {
+      newExpandedSubstitutes.add(teamId);
     }
-    
-    teams = teamsData;
-    
-    // Check if teams have players, if not, use fallback data
-    const hasPlayers = teams.some(team => team.players && team.players.length > 0);
-    
-    if (!hasPlayers) {
-      console.log('No players found in teams, using fallback data');
-      
-      // Create teams with players from fallback data
-      teams = fallbackTeamData.map(team => {
-        const teamPlayers = fallbackPlayerData.filter(player => player.teamId === team.id);
-        return {
-          ...team,
-          players: teamPlayers
-        };
-      });
-    }
-  } catch (error) {
-    console.error('Error fetching teams:', error);
-    
-    // Use fallback data in case of error
-    teams = fallbackTeamData.map(team => {
-      const teamPlayers = fallbackPlayerData.filter(player => player.teamId === team.id);
-      return {
-        ...team,
-        players: teamPlayers
-      };
-    });
-  }
+    setExpandedSubstitutes(newExpandedSubstitutes);
+  };
+
+  // Helper functions to filter players by type
+  const getPrimaryPlayers = (players: any[]) => {
+    return players.filter(p => p.playerType === 'PRIMARY');
+  };
+
+  const getSubstitutePlayers = (players: any[]) => {
+    return players.filter(p => p.playerType === 'SUBSTITUTE');
+  };
+
+  // Fetch teams data on component mount
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        // Get teams with players
+        const { data: teamsData, error: teamsError } = await supabase
+          .from('Team')
+          .select(`
+            *,
+            players:Player(*)
+          `)
+          .order('name');
+          
+        if (teamsError) {
+          console.error('Error fetching teams:', teamsError);
+          throw teamsError;
+        }
+        
+        let fetchedTeams = teamsData;
+        
+        // Check if teams have players, if not, use fallback data
+        const hasPlayers = fetchedTeams.some(team => team.players && team.players.length > 0);
+        
+        if (!hasPlayers) {
+          console.log('No players found in teams, using fallback data');
+          
+          // Create teams with players from fallback data
+          fetchedTeams = fallbackTeamData.map(team => {
+            const teamPlayers = fallbackPlayerData.filter(player => player.teamId === team.id);
+            return {
+              ...team,
+              players: teamPlayers
+            };
+          });
+        }
+
+        setTeams(fetchedTeams);
+      } catch (error) {
+        console.error('Error fetching teams:', error);
+        
+        // Use fallback data in case of error
+        const fallbackTeams = fallbackTeamData.map(team => {
+          const teamPlayers = fallbackPlayerData.filter(player => player.teamId === team.id);
+          return {
+            ...team,
+            players: teamPlayers
+          };
+        });
+        
+        setTeams(fallbackTeams);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeams();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#030f0f] relative overflow-hidden">
@@ -124,39 +162,91 @@ export default async function TeamsPage() {
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
         </div>
 
-        {/* Read-only Teams Display */}
+        {/* Teams Display */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {teams.map((team) => (
-            <div key={team.id} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
-              <div className="p-6 relative">
-                <h3 className="text-xl font-audiowide text-white mb-4">{team.name}</h3>
-                
-                <div className="space-y-3 mb-6">
-                  {team.players.map((player) => (
-                    <div key={player.id} className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 p-3">
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
-                      <div className="relative">
-                        <div className="text-white font-orbitron">{player.name}</div>
-                        <div className="text-sm text-[#00df82]/80 font-audiowide space-x-2">
-                          <span>HCP: {player.handicapIndex}</span>
-                          <span>•</span>
-                          <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
+          {teams.map((team) => {
+            const primaryPlayers = getPrimaryPlayers(team.players || []);
+            const substitutePlayers = getSubstitutePlayers(team.players || []);
+            
+            return (
+              <div key={team.id} className="relative overflow-hidden rounded-2xl border border-[#00df82]/30 backdrop-blur-sm bg-[#030f0f]/50">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00df82]/10 rounded-full blur-3xl"></div>
+                <div className="p-6 relative">
+                  <div className="mb-4">
+                    <h3 className="text-xl font-audiowide text-white mb-1">{team.name}</h3>
+                    <p className="text-sm text-gray-400 font-orbitron">Primary Players</p>
+                  </div>
+                  
+                  {/* Primary Players */}
+                  <div className="space-y-3 mb-4">
+                    {primaryPlayers.map((player) => (
+                      <div key={player.id} className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 p-3">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                        <div className="relative">
+                          <div className="text-white font-orbitron">{player.name}</div>
+                          <div className="text-sm text-[#00df82]/80 font-audiowide space-x-2">
+                            <span>HCP: {player.handicapIndex}</span>
+                            <span>•</span>
+                            <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                    
+                    {primaryPlayers.length === 0 && (
+                      <div className="text-white/50 text-center py-4 font-orbitron">No primary players</div>
+                    )}
+                  </div>
                   
-                  {team.players.length === 0 && (
-                    <div className="text-white/50 text-center py-4 font-orbitron">No players added yet</div>
+                  {/* Substitute Players Section */}
+                  {substitutePlayers.length > 0 && (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => toggleSubstitutes(team.id)}
+                        className="w-full flex items-center justify-between p-3 rounded-lg bg-[#030f0f]/30 border border-[#00df82]/10 hover:bg-[#030f0f]/40 transition-colors"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span className="text-white font-medium">Substitutes</span>
+                          <span className="text-sm text-gray-400">({substitutePlayers.length})</span>
+                        </div>
+                        <svg
+                          className={`w-5 h-5 text-[#00df82] transform transition-transform ${
+                            expandedSubstitutes.has(team.id) ? 'rotate-180' : ''
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      {expandedSubstitutes.has(team.id) && (
+                        <div className="mt-2 space-y-2">
+                          {substitutePlayers.map((player) => (
+                            <div key={player.id} className="relative overflow-hidden rounded-xl border border-[#00df82]/20 backdrop-blur-sm bg-[#030f0f]/70 p-3">
+                              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
+                              <div className="relative">
+                                <div className="text-white font-orbitron">{player.name}</div>
+                                <div className="text-sm text-[#00df82]/80 font-audiowide space-x-2">
+                                  <span>HCP: {player.handicapIndex}</span>
+                                  <span>•</span>
+                                  <span>CHP: {calculateCourseHandicap(player.handicapIndex)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
   )
-} 
+}
