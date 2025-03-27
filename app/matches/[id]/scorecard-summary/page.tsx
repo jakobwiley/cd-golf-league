@@ -207,7 +207,13 @@ export default function ScorecardSummaryPage() {
   }, [])
 
   const goBackToMatch = () => {
-    router.push(`/matches`)
+    // If match is completed, go to matches list
+    if (match && match.status === 'COMPLETED') {
+      router.push('/matches')
+    } else {
+      // Otherwise go back to the specific match
+      router.push(`/matches/${params.id}`)
+    }
   }
 
   if (loading) {
@@ -284,7 +290,9 @@ export default function ScorecardSummaryPage() {
               <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-[#00df82]/20 to-transparent skew-x-15 group-hover:animate-shimmer"></div>
               <span className="relative flex items-center">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Matches
+                {match && match.status === 'COMPLETED' 
+                  ? 'Back to Matches' 
+                  : 'Back to Match'}
               </span>
             </button>
           </div>
