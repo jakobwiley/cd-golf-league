@@ -100,6 +100,53 @@ The application uses Prisma ORM with the following models:
 4. Push to the branch: `git push origin feature/my-new-feature`
 5. Submit a pull request
 
+## Security Best Practices
+
+To maintain the security of this application, please follow these guidelines:
+
+### Environment Variables and Secrets
+
+1. **Never commit secrets to the repository**
+   - All sensitive information should be stored in environment variables
+   - Use `.env.local` for local development (this file is gitignored)
+   - Reference `.env.example` for required variables without using real values
+
+2. **Handling Environment Files**
+   - Copy `.env.example` to `.env.local` for local development
+   - Never commit any `.env*` files except for `.env.example`
+   - For production, use Vercel's environment variable management
+
+3. **API Keys and Credentials**
+   - Rotate API keys and credentials regularly
+   - Use different credentials for development and production
+   - Limit the permissions of service accounts to only what's necessary
+
+### Git Security
+
+1. **Pre-commit Hooks**
+   - The repository uses git-secrets to prevent accidental secret commits
+   - Run `git secrets --scan` before committing if you're unsure
+   - Never disable or bypass the pre-commit hooks
+
+2. **If You Accidentally Commit a Secret**
+   - Immediately rotate the compromised credentials
+   - Contact the repository administrator
+   - Do NOT simply delete the secret as it remains in Git history
+
+### Code Security
+
+1. **SQL Injection Prevention**
+   - Always use Prisma's parameterized queries
+   - Never concatenate user input directly into SQL queries
+
+2. **Authentication**
+   - Use Supabase authentication mechanisms
+   - Never implement custom authentication bypasses
+
+3. **Authorization**
+   - Respect Row Level Security (RLS) policies in Supabase
+   - Test all endpoints with different user roles
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
