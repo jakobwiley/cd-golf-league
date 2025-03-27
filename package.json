@@ -10,6 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:init": "node scripts/init-db.js",
+    "setup:env": "node scripts/setup-env.js",
+    "secrets:scan": "git secrets --scan",
     "vercel:setup": "node scripts/setup-vercel-db.js",
     "vercel:deploy": "vercel --prod",
     "postdeploy": "node scripts/post-deploy-setup.js",

@@ -1,0 +1,15 @@
+# Allowed patterns for git-secrets
+# Example database URLs in documentation
+DATABASE_URL="postgresql://username:password@hostname:port/database
+# Example code in setup-env.js
+key, ...valueParts
+exampleEnvVars\[key.trim\(\)\]
+updatedEnvVars\[key\]
+# Package references
+"secrets:scan"
+"next-auth"
+# Documentation references
+Run `npm run secrets:scan`
+# Template literals in code
+\$\{key\}
+\(\[key, value\]\) => `\$\{key\}=\$\{value\}`
