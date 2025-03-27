@@ -254,6 +254,7 @@ export async function PUT(
     // Process each player assignment
     for (const assignment of playerAssignments) {
       const { originalPlayerId, substitutePlayerId, teamId } = assignment
+      console.log(`Processing substitution: Original player ${originalPlayerId} -> Substitute player ${substitutePlayerId} for team ${teamId}`)
 
       // Verify players belong to the correct team
       let originalPlayer;
@@ -263,7 +264,7 @@ export async function PUT(
         // Try to use Supabase client if available
         const { data: players, error } = await supabase
           .from('Player')
-          .select('id, teamId')
+          .select('id, teamId, name, handicapIndex')
           .eq('id', originalPlayerId)
 
         if (error) {
@@ -274,7 +275,7 @@ export async function PUT(
 
         const { data: substitutePlayers, error: substituteError } = await supabase
           .from('Player')
-          .select('id, teamId')
+          .select('id, teamId, name, handicapIndex')
           .eq('id', substitutePlayerId)
 
         if (substituteError) {
@@ -314,11 +315,75 @@ export async function PUT(
         .single();
 
       if (matchPlayerError) {
-        console.error('Error finding match player:', matchPlayerError);
-        return NextResponse.json(
-          { error: `Failed to find match player for ${originalPlayerId}`, details: String(matchPlayerError) },
-          { status: 500 }
-        );
+        console.log(`Match player not found for player ${originalPlayerId} in match ${matchId}. Checking if this match exists...`);
+        
+        // Verify the match exists
+        const { data: matchData, error: matchError } = await supabase
+          .from('Match')
+          .select('id, status')
+          .eq('id', matchId)
+          .single();
+          
+        if (matchError) {
+          console.error('Match does not exist:', matchError);
+          return NextResponse.json(
+            { error: `Match ${matchId} does not exist`, details: String(matchError) },
+            { status: 404 }
+          );
+        }
+        
+        // Match exists but player assignment doesn't - create it first
+        if (matchData && matchData.status === 'SCHEDULED') {
+          console.log(`Creating new match player record for player ${originalPlayerId} in match ${matchId}`);
+          
+          // Create a new match player record for the original player
+          const { data: newMatchPlayer, error: createError } = await supabase
+            .from('MatchPlayer')
+            .insert({
+              matchId,
+              playerId: originalPlayerId,
+              isSubstitute: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            })
+            .select('id')
+            .single();
+            
+          if (createError) {
+            console.error('Error creating match player:', createError);
+            return NextResponse.json(
+              { error: `Failed to create match player for ${originalPlayerId}`, details: String(createError) },
+              { status: 500 }
+            );
+          }
+          
+          // Now update this newly created record with the substitute
+          const { error: updateError } = await supabase
+            .from('MatchPlayer')
+            .update({
+              playerId: substitutePlayerId,
+              isSubstitute: true,
+              updatedAt: new Date().toISOString()
+            })
+            .eq('id', newMatchPlayer.id);
+            
+          if (updateError) {
+            console.error('Error updating new match player:', updateError);
+            return NextResponse.json(
+              { error: `Failed to update new match player with substitute ${substitutePlayerId}`, details: String(updateError) },
+              { status: 500 }
+            );
+          }
+          
+          console.log(`Successfully created and substituted player ${substitutePlayerId} for ${originalPlayerId} in match ${matchId}`);
+          continue; // Skip to the next assignment
+        } else {
+          // Match exists but is not in SCHEDULED status
+          return NextResponse.json(
+            { error: `Cannot substitute players for match ${matchId} with status ${matchData?.status}` },
+            { status: 400 }
+          );
+        }
       }
 
       // Update the match player with the substitute
