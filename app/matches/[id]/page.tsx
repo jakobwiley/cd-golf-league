@@ -4,7 +4,6 @@ import { useParams, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import HoleByHoleScorecard from '../../components/HoleByHoleScorecard'
 import MatchPointTracker from '../../components/MatchPointTracker'
-import { CheckCircle } from 'lucide-react';
 import { Match } from '../../types'
 
 export default function MatchPage() {
@@ -23,22 +22,6 @@ export default function MatchPage() {
         const response = await fetch(`/api/matches/${params.id}`)
         if (!response.ok) throw new Error('Failed to fetch match')
         const data = await response.json()
-        
-        // Ensure players are loaded for the match
-        if (!data.homeTeam.players || !data.awayTeam.players) {
-          // Fetch primary players for both teams
-          const homePlayersResponse = await fetch(`/api/players?teamId=${data.homeTeamId}&playerType=PRIMARY`)
-          const awayPlayersResponse = await fetch(`/api/players?teamId=${data.awayTeamId}&playerType=PRIMARY`)
-          
-          if (homePlayersResponse.ok && awayPlayersResponse.ok) {
-            const homePlayersData = await homePlayersResponse.json()
-            const awayPlayersData = await awayPlayersResponse.json()
-            
-            data.homeTeam.players = homePlayersData.players || []
-            data.awayTeam.players = awayPlayersData.players || []
-          }
-        }
-        
         setMatch(data)
       } catch (err) {
         console.error('Error fetching match:', err)
@@ -124,7 +107,6 @@ export default function MatchPage() {
       
       <div className="relative z-10 pt-8">
         <div className="relative">
-          {/* Remove the duplicate FINALIZED badge since MatchPointTracker already shows it */}
           <MatchPointTracker 
             match={match}
             homePoints={homePoints}
@@ -132,6 +114,7 @@ export default function MatchPage() {
             onViewScorecard={handleViewScorecard}
           />
         </div>
+
         <HoleByHoleScorecard 
           match={match} 
           onPointsUpdate={updatePoints}

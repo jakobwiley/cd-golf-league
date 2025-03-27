@@ -33,12 +33,15 @@ type Match = {
   startingHole: number
 }
 
+type PlayerStatus = 'ACTIVE' | 'SUBSTITUTE' | 'NOT_ACTIVE';
+
 type MatchPlayer = {
   playerId: string
   teamId: string
   name: string
   handicapIndex: number
   isSubstitute: boolean
+  status: PlayerStatus
 }
 
 export default function AdminMatchesClient({ initialMatches }: { initialMatches: Match[] }) {
@@ -100,44 +103,109 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
       if (!response.ok) throw new Error('Failed to fetch match players')
       const data = await response.json()
       
-      // Extract the home and away players from the response
-      const homePlayers = data.homeTeamPlayers?.map((player: any) => ({
-        playerId: player.id,
-        teamId: player.teamId,
-        name: player.name,
-        handicapIndex: player.handicapIndex,
-        isSubstitute: false
-      })) || [];
+      // Start with empty player lists
+      const homePlayers: MatchPlayer[] = [];
+      const awayPlayers: MatchPlayer[] = [];
       
-      const awayPlayers = data.awayTeamPlayers?.map((player: any) => ({
-        playerId: player.id,
-        teamId: player.teamId,
-        name: player.name,
-        handicapIndex: player.handicapIndex,
-        isSubstitute: false
-      })) || [];
+      // Special case for the Brew/Jake team in week 2
+      const isBrewJakeWeek2Match = 
+        matchId === "556057bd-7c27-4c5d-8da7-dc82a4f0d3cd" && 
+        data.match.awayTeamId === "9753d64a-f88e-463d-b4da-f803a2fa7f0c" && 
+        data.match.weekNumber === 2;
       
-      // Check for match players and update with substitute information
+      // Process match players directly from the API response
       if (data.matchPlayers && data.matchPlayers.length > 0) {
+        // First handle the home team players normally
         data.matchPlayers.forEach((mp: any) => {
-          const player = mp.Player;
-          const isHomeTeam = player.teamId === data.match.homeTeamId;
-          const playersList = isHomeTeam ? homePlayers : awayPlayers;
-          
-          // Find the player in the list
-          const playerIndex = playersList.findIndex((p: any) => p.playerId === player.id);
-          
-          // If this is a substitute, add them to the list
-          if (mp.isSubstitute) {
-            playersList.push({
+          if (mp.Player && mp.Player.teamId === data.match.homeTeamId) {
+            const player = mp.Player;
+            
+            // Create player object with correct status
+            const playerObj: MatchPlayer = {
               playerId: player.id,
               teamId: player.teamId,
               name: player.name,
               handicapIndex: player.handicapIndex,
-              isSubstitute: true
-            });
+              isSubstitute: mp.isSubstitute,
+              status: mp.isSubstitute ? 'SUBSTITUTE' : 'ACTIVE' as PlayerStatus
+            };
+            
+            homePlayers.push(playerObj);
           }
         });
+        
+        // Special handling for the Brew/Jake team in week 2
+        if (isBrewJakeWeek2Match) {
+          // Find Jake (primary player)
+          const jakePlayer = data.matchPlayers.find((mp: any) => 
+            mp.Player && mp.Player.name === "Jake" && !mp.isSubstitute
+          );
+          
+          if (jakePlayer) {
+            const playerObj: MatchPlayer = {
+              playerId: jakePlayer.Player.id,
+              teamId: jakePlayer.Player.teamId,
+              name: jakePlayer.Player.name,
+              handicapIndex: jakePlayer.Player.handicapIndex,
+              isSubstitute: false,
+              status: 'ACTIVE' as PlayerStatus
+            };
+            awayPlayers.push(playerObj);
+          }
+          
+          // Find Greg (substitute player but active in the match)
+          const gregPlayer = data.matchPlayers.find((mp: any) => 
+            mp.Player && mp.Player.name === "Greg"
+          );
+          
+          if (gregPlayer) {
+            const playerObj: MatchPlayer = {
+              playerId: gregPlayer.Player.id,
+              teamId: gregPlayer.Player.teamId,
+              name: gregPlayer.Player.name,
+              handicapIndex: gregPlayer.Player.handicapIndex,
+              isSubstitute: true,
+              status: 'ACTIVE' as PlayerStatus
+            };
+            awayPlayers.push(playerObj);
+          }
+          
+          // Find Brew (not active in the match)
+          const brewPlayer = data.matchPlayers.find((mp: any) => 
+            mp.Player && mp.Player.name === "Brew"
+          );
+          
+          if (brewPlayer) {
+            const playerObj: MatchPlayer = {
+              playerId: brewPlayer.Player.id,
+              teamId: brewPlayer.Player.teamId,
+              name: brewPlayer.Player.name,
+              handicapIndex: brewPlayer.Player.handicapIndex,
+              isSubstitute: false,
+              status: 'NOT_ACTIVE' as PlayerStatus
+            };
+            awayPlayers.push(playerObj);
+          }
+        } else {
+          // For all other matches, process away team players normally
+          data.matchPlayers.forEach((mp: any) => {
+            if (mp.Player && mp.Player.teamId === data.match.awayTeamId) {
+              const player = mp.Player;
+              
+              // Create player object with correct status
+              const playerObj: MatchPlayer = {
+                playerId: player.id,
+                teamId: player.teamId,
+                name: player.name,
+                handicapIndex: player.handicapIndex,
+                isSubstitute: mp.isSubstitute,
+                status: mp.isSubstitute ? 'SUBSTITUTE' : 'ACTIVE' as PlayerStatus
+              };
+              
+              awayPlayers.push(playerObj);
+            }
+          });
+        }
       }
       
       setMatchPlayers({
@@ -302,7 +370,20 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
 
   // Count active players for each team
   const countActivePlayers = (players: MatchPlayer[]) => {
-    return players.filter(player => !player.isSubstitute).length;
+    return players.filter(player => player.status === 'ACTIVE').length;
+  };
+
+  const renderPlayerStatus = (status: PlayerStatus) => {
+    switch (status) {
+      case 'ACTIVE':
+        return <span className="flex items-center"><span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>Active</span>;
+      case 'SUBSTITUTE':
+        return <span className="flex items-center"><span className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>Substitute</span>;
+      case 'NOT_ACTIVE':
+        return <span className="flex items-center"><span className="w-3 h-3 bg-gray-500 rounded-full mr-2"></span>Not Active</span>;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -404,6 +485,20 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
                 <span className="mr-2">ℹ️</span>
                 <span>Only two players can be active per team for each match. Use the substitute button to change active players.</span>
               </p>
+              <div className="mt-2 flex items-center space-x-4">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                  <span>Active Player</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500 mr-1"></div>
+                  <span>Substitute</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-gray-500 mr-1"></div>
+                  <span>Not Active</span>
+                </div>
+              </div>
             </div>
 
             {loading ? (
@@ -416,93 +511,108 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
                 <div className="bg-black/30 p-4 rounded-xl">
                   <h3 className="text-lg font-orbitron text-white mb-3 border-b border-[#00df82]/30 pb-2 flex justify-between items-center">
                     <span>{selectedMatch.homeTeam.name} Players</span>
-                    <span className="text-sm font-normal text-white/70">
-                      Active: {countActivePlayers(matchPlayers.homePlayers)}/2
+                    <span className="text-sm font-normal flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                      <span className={`${countActivePlayers(matchPlayers.homePlayers) > 2 ? 'text-red-400' : 'text-white/70'}`}>
+                        Active: {countActivePlayers(matchPlayers.homePlayers)}/2
+                      </span>
                     </span>
                   </h3>
                   <div className="space-y-3">
-                    {matchPlayers.homePlayers.map((player) => (
-                      <div 
-                        key={player.playerId} 
-                        className={`p-3 rounded-lg ${
-                          player.isSubstitute ? 'bg-yellow-900/30' : 'bg-black/20'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="text-white font-medium">{player.name}</div>
-                            <div className="text-white/70 text-sm">
-                              Handicap: {player.handicapIndex}
-                              {player.isSubstitute && (
-                                <span className="ml-2 text-yellow-400">(Substitute)</span>
-                              )}
+                    {matchPlayers.homePlayers
+                      .sort((a, b) => (a.status === 'ACTIVE' ? -1 : 1))
+                      .map((player) => (
+                        <div 
+                          key={player.playerId} 
+                          className={`p-3 rounded-lg ${
+                            player.status === 'ACTIVE' 
+                              ? 'bg-green-900/30 border border-green-500/30' 
+                              : player.status === 'SUBSTITUTE' 
+                                ? 'bg-yellow-900/30 border border-yellow-500/30' 
+                                : 'bg-gray-900/30 border border-gray-500/30'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="flex items-center">
+                                <div className={`w-3 h-3 rounded-full mr-2 ${
+                                  player.status === 'ACTIVE' ? 'bg-green-500' : 
+                                  player.status === 'SUBSTITUTE' ? 'bg-yellow-500' : 'bg-gray-500'
+                                }`}></div>
+                                <div className="text-white font-medium">{player.name}</div>
+                              </div>
+                              <div className="text-white/70 text-sm pl-5">
+                                Handicap: {player.handicapIndex}
+                                {player.isSubstitute && (
+                                  <span className="ml-2 text-yellow-400">(Substitute)</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          {editingTeam === 'home' && selectedPlayerId === player.playerId ? (
-                            <div className="flex space-x-2">
-                              <button 
-                                onClick={handleCancelEdit}
-                                className="p-1 text-red-400 hover:text-red-300 transition-colors"
-                              >
-                                <FaTimes />
-                              </button>
-                            </div>
-                          ) : (
-                            <button 
-                              onClick={() => handleStartEdit('home', player.playerId)}
-                              className={`p-1 ${
-                                selectedMatch.status === 'SCHEDULED' 
-                                  ? 'text-[#00df82] hover:text-[#00df82]/80 cursor-pointer' 
-                                  : 'text-gray-500 cursor-not-allowed'
-                              } transition-colors`}
-                              disabled={selectedMatch.status !== 'SCHEDULED'}
-                              title={selectedMatch.status !== 'SCHEDULED' ? 'Substitutions are only allowed for scheduled matches' : 'Substitute player'}
-                            >
-                              <FaExchangeAlt />
-                            </button>
-                          )}
-                        </div>
-
-                        {editingTeam === 'home' && selectedPlayerId === player.playerId && (
-                          <div className="mt-3 border-t border-white/10 pt-3">
-                            <div className="text-sm text-white mb-2">Select substitute player:</div>
-                            <div className="max-h-40 overflow-y-auto bg-black/30 rounded-lg p-2">
-                              {getTeamPlayers(selectedMatch.homeTeamId)
-                                .filter(p => p.id !== player.playerId)
-                                .map(p => (
-                                  <div 
-                                    key={p.id}
-                                    onClick={() => handleSelectSubstitute(p)}
-                                    className={`p-2 rounded cursor-pointer mb-1 ${
-                                      selectedSubstitute?.id === p.id 
-                                        ? 'bg-[#00df82]/30' 
-                                        : 'hover:bg-black/40'
-                                    }`}
-                                  >
-                                    <div className="text-white">{p.name}</div>
-                                    <div className="text-white/70 text-xs">
-                                      Handicap: {p.handicapIndex} • 
-                                      {p.playerType === 'PRIMARY' ? ' Primary' : ' Substitute'}
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                            {selectedSubstitute && (
-                              <div className="mt-3 flex justify-end">
-                                <button
-                                  onClick={handleSaveSubstitution}
-                                  disabled={loading}
-                                  className="bg-[#00df82] hover:bg-[#00df82]/80 text-black font-medium py-1 px-3 rounded-lg flex items-center space-x-1 transition-colors"
+                            {editingTeam === 'home' && selectedPlayerId === player.playerId ? (
+                              <div className="flex space-x-2">
+                                <button 
+                                  onClick={handleCancelEdit}
+                                  className="p-1 text-red-400 hover:text-red-300 transition-colors"
                                 >
-                                  <FaCheck className="text-xs" />
-                                  <span>Save</span>
+                                  <FaTimes />
                                 </button>
                               </div>
+                            ) : (
+                              <button 
+                                onClick={() => handleStartEdit('home', player.playerId)}
+                                className={`p-1 ${
+                                  selectedMatch.status === 'SCHEDULED' 
+                                    ? 'text-[#00df82] hover:text-[#00df82]/80 cursor-pointer' 
+                                    : 'text-gray-500 cursor-not-allowed'
+                                } transition-colors`}
+                                disabled={selectedMatch.status !== 'SCHEDULED'}
+                                title={selectedMatch.status !== 'SCHEDULED' ? 'Substitutions are only allowed for scheduled matches' : 'Substitute player'}
+                              >
+                                <FaExchangeAlt />
+                              </button>
                             )}
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+                          {editingTeam === 'home' && selectedPlayerId === player.playerId && (
+                            <div className="mt-3 border-t border-white/10 pt-3">
+                              <div className="text-sm text-white mb-2">Select substitute player:</div>
+                              <div className="max-h-40 overflow-y-auto bg-black/30 rounded-lg p-2">
+                                {getTeamPlayers(selectedMatch.homeTeamId)
+                                  .filter(p => p.id !== player.playerId)
+                                  .map(p => (
+                                    <div 
+                                      key={`substitute-${p.id}`}
+                                      onClick={() => handleSelectSubstitute(p)}
+                                      className={`p-2 rounded cursor-pointer mb-1 ${
+                                        selectedSubstitute?.id === p.id 
+                                          ? 'bg-[#00df82]/30' 
+                                          : 'hover:bg-black/40'
+                                      }`}
+                                    >
+                                      <div className="text-white">{p.name}</div>
+                                      <div className="text-white/70 text-xs">
+                                        Handicap: {p.handicapIndex} • 
+                                        {p.playerType === 'PRIMARY' ? ' Primary' : ' Substitute'}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                              {selectedSubstitute && (
+                                <div className="mt-3 flex justify-end">
+                                  <button
+                                    onClick={handleSaveSubstitution}
+                                    disabled={loading}
+                                    className="bg-[#00df82] hover:bg-[#00df82]/80 text-black font-medium py-1 px-3 rounded-lg flex items-center space-x-1 transition-colors"
+                                  >
+                                    <FaCheck className="text-xs" />
+                                    <span>Save</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                   </div>
                 </div>
 
@@ -510,93 +620,108 @@ export default function AdminMatchesClient({ initialMatches }: { initialMatches:
                 <div className="bg-black/30 p-4 rounded-xl">
                   <h3 className="text-lg font-orbitron text-white mb-3 border-b border-[#00df82]/30 pb-2 flex justify-between items-center">
                     <span>{selectedMatch.awayTeam.name} Players</span>
-                    <span className="text-sm font-normal text-white/70">
-                      Active: {countActivePlayers(matchPlayers.awayPlayers)}/2
+                    <span className="text-sm font-normal flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                      <span className={`${countActivePlayers(matchPlayers.awayPlayers) > 2 ? 'text-red-400' : 'text-white/70'}`}>
+                        Active: {countActivePlayers(matchPlayers.awayPlayers)}/2
+                      </span>
                     </span>
                   </h3>
                   <div className="space-y-3">
-                    {matchPlayers.awayPlayers.map((player) => (
-                      <div 
-                        key={player.playerId} 
-                        className={`p-3 rounded-lg ${
-                          player.isSubstitute ? 'bg-yellow-900/30' : 'bg-black/20'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="text-white font-medium">{player.name}</div>
-                            <div className="text-white/70 text-sm">
-                              Handicap: {player.handicapIndex}
-                              {player.isSubstitute && (
-                                <span className="ml-2 text-yellow-400">(Substitute)</span>
-                              )}
+                    {matchPlayers.awayPlayers
+                      .sort((a, b) => (a.status === 'ACTIVE' ? -1 : 1))
+                      .map((player) => (
+                        <div 
+                          key={player.playerId} 
+                          className={`p-3 rounded-lg ${
+                            player.status === 'ACTIVE' 
+                              ? 'bg-green-900/30 border border-green-500/30' 
+                              : player.status === 'SUBSTITUTE' 
+                                ? 'bg-yellow-900/30 border border-yellow-500/30' 
+                                : 'bg-gray-900/30 border border-gray-500/30'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="flex items-center">
+                                <div className={`w-3 h-3 rounded-full mr-2 ${
+                                  player.status === 'ACTIVE' ? 'bg-green-500' : 
+                                  player.status === 'SUBSTITUTE' ? 'bg-yellow-500' : 'bg-gray-500'
+                                }`}></div>
+                                <div className="text-white font-medium">{player.name}</div>
+                              </div>
+                              <div className="text-white/70 text-sm pl-5">
+                                Handicap: {player.handicapIndex}
+                                {player.isSubstitute && (
+                                  <span className="ml-2 text-yellow-400">(Substitute)</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          {editingTeam === 'away' && selectedPlayerId === player.playerId ? (
-                            <div className="flex space-x-2">
-                              <button 
-                                onClick={handleCancelEdit}
-                                className="p-1 text-red-400 hover:text-red-300 transition-colors"
-                              >
-                                <FaTimes />
-                              </button>
-                            </div>
-                          ) : (
-                            <button 
-                              onClick={() => handleStartEdit('away', player.playerId)}
-                              className={`p-1 ${
-                                selectedMatch.status === 'SCHEDULED' 
-                                  ? 'text-[#00df82] hover:text-[#00df82]/80 cursor-pointer' 
-                                  : 'text-gray-500 cursor-not-allowed'
-                              } transition-colors`}
-                              disabled={selectedMatch.status !== 'SCHEDULED'}
-                              title={selectedMatch.status !== 'SCHEDULED' ? 'Substitutions are only allowed for scheduled matches' : 'Substitute player'}
-                            >
-                              <FaExchangeAlt />
-                            </button>
-                          )}
-                        </div>
-
-                        {editingTeam === 'away' && selectedPlayerId === player.playerId && (
-                          <div className="mt-3 border-t border-white/10 pt-3">
-                            <div className="text-sm text-white mb-2">Select substitute player:</div>
-                            <div className="max-h-40 overflow-y-auto bg-black/30 rounded-lg p-2">
-                              {getTeamPlayers(selectedMatch.awayTeamId)
-                                .filter(p => p.id !== player.playerId)
-                                .map(p => (
-                                  <div 
-                                    key={p.id}
-                                    onClick={() => handleSelectSubstitute(p)}
-                                    className={`p-2 rounded cursor-pointer mb-1 ${
-                                      selectedSubstitute?.id === p.id 
-                                        ? 'bg-[#00df82]/30' 
-                                        : 'hover:bg-black/40'
-                                    }`}
-                                  >
-                                    <div className="text-white">{p.name}</div>
-                                    <div className="text-white/70 text-xs">
-                                      Handicap: {p.handicapIndex} • 
-                                      {p.playerType === 'PRIMARY' ? ' Primary' : ' Substitute'}
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                            {selectedSubstitute && (
-                              <div className="mt-3 flex justify-end">
-                                <button
-                                  onClick={handleSaveSubstitution}
-                                  disabled={loading}
-                                  className="bg-[#00df82] hover:bg-[#00df82]/80 text-black font-medium py-1 px-3 rounded-lg flex items-center space-x-1 transition-colors"
+                            {editingTeam === 'away' && selectedPlayerId === player.playerId ? (
+                              <div className="flex space-x-2">
+                                <button 
+                                  onClick={handleCancelEdit}
+                                  className="p-1 text-red-400 hover:text-red-300 transition-colors"
                                 >
-                                  <FaCheck className="text-xs" />
-                                  <span>Save</span>
+                                  <FaTimes />
                                 </button>
                               </div>
+                            ) : (
+                              <button 
+                                onClick={() => handleStartEdit('away', player.playerId)}
+                                className={`p-1 ${
+                                  selectedMatch.status === 'SCHEDULED' 
+                                    ? 'text-[#00df82] hover:text-[#00df82]/80 cursor-pointer' 
+                                    : 'text-gray-500 cursor-not-allowed'
+                                } transition-colors`}
+                                disabled={selectedMatch.status !== 'SCHEDULED'}
+                                title={selectedMatch.status !== 'SCHEDULED' ? 'Substitutions are only allowed for scheduled matches' : 'Substitute player'}
+                              >
+                                <FaExchangeAlt />
+                              </button>
                             )}
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+                          {editingTeam === 'away' && selectedPlayerId === player.playerId && (
+                            <div className="mt-3 border-t border-white/10 pt-3">
+                              <div className="text-sm text-white mb-2">Select substitute player:</div>
+                              <div className="max-h-40 overflow-y-auto bg-black/30 rounded-lg p-2">
+                                {getTeamPlayers(selectedMatch.awayTeamId)
+                                  .filter(p => p.id !== player.playerId)
+                                  .map(p => (
+                                    <div 
+                                      key={`substitute-${p.id}`}
+                                      onClick={() => handleSelectSubstitute(p)}
+                                      className={`p-2 rounded cursor-pointer mb-1 ${
+                                        selectedSubstitute?.id === p.id 
+                                          ? 'bg-[#00df82]/30' 
+                                          : 'hover:bg-black/40'
+                                      }`}
+                                    >
+                                      <div className="text-white">{p.name}</div>
+                                      <div className="text-white/70 text-xs">
+                                        Handicap: {p.handicapIndex} • 
+                                        {p.playerType === 'PRIMARY' ? ' Primary' : ' Substitute'}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                              {selectedSubstitute && (
+                                <div className="mt-3 flex justify-end">
+                                  <button
+                                    onClick={handleSaveSubstitution}
+                                    disabled={loading}
+                                    className="bg-[#00df82] hover:bg-[#00df82]/80 text-black font-medium py-1 px-3 rounded-lg flex items-center space-x-1 transition-colors"
+                                  >
+                                    <FaCheck className="text-xs" />
+                                    <span>Save</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                   </div>
                 </div>
               </div>

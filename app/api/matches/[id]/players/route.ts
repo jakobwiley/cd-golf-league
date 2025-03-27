@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '../../../../../lib/supabase';
 import { z } from 'zod';
 import { SocketEvents } from '../../../../../app/utils/websocketConnection';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Player {
   id: string
@@ -16,6 +17,7 @@ interface MatchPlayerData {
   matchId: string
   playerId: string
   isSubstitute: boolean
+  originalPlayerId?: string
   Player: Player
 }
 
@@ -90,22 +92,16 @@ export async function GET(
 ) {
   try {
     const matchId = params.id
-    const url = new URL(request.url)
-    const forScorecard = url.searchParams.get('forScorecard') === 'true'
+    const searchParams = new URL(request.url).searchParams
+    const forScorecard = searchParams.get('forScorecard') === 'true'
 
     // Get match details
     const { data: match, error: matchError } = await supabase
       .from('Match')
       .select(`
-        id,
-        date,
-        weekNumber,
-        startingHole,
-        status,
-        homeTeamId,
-        awayTeamId,
+        *,
         homeTeam:homeTeamId (
-          id,
+          id, 
           name
         ),
         awayTeam:awayTeamId (
@@ -120,14 +116,7 @@ export async function GET(
       throw matchError
     }
 
-    if (!match) {
-      return NextResponse.json(
-        { error: 'Match not found' },
-        { status: 404 }
-      )
-    }
-
-    // Get all players for the match
+    // Get match players - specify the relationship to use with Player!MatchPlayer_playerId_fkey
     const matchPlayersQuery = supabase
       .from('MatchPlayer')
       .select(`
@@ -135,7 +124,8 @@ export async function GET(
         matchId,
         playerId,
         isSubstitute,
-        Player (
+        originalPlayerId,
+        Player:playerId (
           id,
           name,
           handicapIndex,
@@ -213,21 +203,17 @@ export async function GET(
       throw awayTeamPlayersError
     }
 
-    // Combine all players
-    const allPlayers = [...(homeTeamPlayers || []), ...(awayTeamPlayers || [])]
-
     // Format the response
     const response = {
       match,
-      matchPlayers: matchPlayers || [],
-      homeTeamPlayers: homeTeamPlayers || [],
-      awayTeamPlayers: awayTeamPlayers || [],
-      allPlayers,
+      matchPlayers,
+      homeTeamPlayers,
+      awayTeamPlayers
     }
 
     return NextResponse.json(response)
   } catch (error) {
-    return handleError(error, 'Error fetching match players');
+    return handleError(error, 'Error fetching match players')
   }
 }
 
@@ -239,194 +225,100 @@ export async function PUT(
   try {
     const matchId = params.id
     const body = await request.json()
+    const { playerAssignments } = MatchPlayerAssignmentsSchema.parse(body)
 
-    // Validate request body
-    const validationResult = MatchPlayerAssignmentsSchema.safeParse(body)
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid request body', details: validationResult.error },
-        { status: 400 }
-      )
+    // Get existing match players
+    const { data: existingMatchPlayers, error: existingMatchPlayersError } = await supabase
+      .from('MatchPlayer')
+      .select('id, playerId, isSubstitute')
+      .eq('matchId', matchId)
+
+    if (existingMatchPlayersError) {
+      throw existingMatchPlayersError
     }
 
-    const { playerAssignments } = validationResult.data
+    // Create a map of existing match players by playerId
+    const existingMatchPlayerMap = new Map(
+      existingMatchPlayers.map(player => [player.playerId, player])
+    )
 
     // Process each player assignment
     for (const assignment of playerAssignments) {
       const { originalPlayerId, substitutePlayerId, teamId } = assignment
-      console.log(`Processing substitution: Original player ${originalPlayerId} -> Substitute player ${substitutePlayerId} for team ${teamId}`)
 
-      // Verify players belong to the correct team
-      let originalPlayer;
-      let substitutePlayer;
-      
-      try {
-        // Try to use Supabase client if available
-        const { data: players, error } = await supabase
-          .from('Player')
-          .select('id, teamId, name, handicapIndex')
-          .eq('id', originalPlayerId)
+      // Check if the original player is already assigned to the match
+      const existingOriginalPlayer = existingMatchPlayerMap.get(originalPlayerId)
 
-        if (error) {
-          throw error
+      if (!existingOriginalPlayer) {
+        // If the original player is not already assigned, add them
+        const { error: addOriginalPlayerError } = await supabase
+          .from('MatchPlayer')
+          .insert({
+            id: uuidv4(),
+            matchId,
+            playerId: originalPlayerId,
+            isSubstitute: false,
+            originalPlayerId: originalPlayerId // Set originalPlayerId to the player's own ID
+          })
+
+        if (addOriginalPlayerError) {
+          throw addOriginalPlayerError
         }
+      } else {
+        // Update the original player's record
+        const { error: updateOriginalPlayerError } = await supabase
+          .from('MatchPlayer')
+          .update({
+            isSubstitute: false,
+            originalPlayerId: originalPlayerId // Set originalPlayerId to the player's own ID
+          })
+          .eq('id', existingOriginalPlayer.id)
 
-        originalPlayer = players[0];
-
-        const { data: substitutePlayers, error: substituteError } = await supabase
-          .from('Player')
-          .select('id, teamId, name, handicapIndex')
-          .eq('id', substitutePlayerId)
-
-        if (substituteError) {
-          throw substituteError
-        }
-
-        substitutePlayer = substitutePlayers[0];
-      } catch (error) {
-        console.log('Using mock data fallback for players');
-        // Fallback to direct access to mock data
-        if (typeof global !== 'undefined' && global.globalForPrisma) {
-          originalPlayer = global.globalForPrisma.mockPlayers.find(p => p.id === originalPlayerId);
-          substitutePlayer = global.globalForPrisma.mockPlayers.find(p => p.id === substitutePlayerId);
+        if (updateOriginalPlayerError) {
+          throw updateOriginalPlayerError
         }
       }
 
-      if (!originalPlayer || originalPlayer.teamId !== teamId) {
-        return NextResponse.json(
-          { error: `Original player ${originalPlayerId} not found or does not belong to team ${teamId}` },
-          { status: 400 }
-        )
-      }
+      // Check if the substitute player is already assigned to the match
+      const existingSubstitutePlayer = existingMatchPlayerMap.get(substitutePlayerId)
 
-      if (!substitutePlayer || substitutePlayer.teamId !== teamId) {
-        return NextResponse.json(
-          { error: `Substitute player ${substitutePlayerId} not found or does not belong to team ${teamId}` },
-          { status: 400 }
-        )
-      }
+      if (!existingSubstitutePlayer) {
+        // If the substitute player is not already assigned, add them
+        const { error: addSubstitutePlayerError } = await supabase
+          .from('MatchPlayer')
+          .insert({
+            id: uuidv4(),
+            matchId,
+            playerId: substitutePlayerId,
+            isSubstitute: true,
+            originalPlayerId: originalPlayerId // Set originalPlayerId to the original player's ID
+          })
 
-      // Find the match player entry for the original player
-      const { data: matchPlayerData, error: matchPlayerError } = await supabase
-        .from('MatchPlayer')
-        .select('id')
-        .eq('matchId', matchId)
-        .eq('playerId', originalPlayerId)
-        .single();
-
-      if (matchPlayerError) {
-        console.log(`Match player not found for player ${originalPlayerId} in match ${matchId}. Checking if this match exists...`);
-        
-        // Verify the match exists
-        const { data: matchData, error: matchError } = await supabase
-          .from('Match')
-          .select('id, status')
-          .eq('id', matchId)
-          .single();
-          
-        if (matchError) {
-          console.error('Match does not exist:', matchError);
-          return NextResponse.json(
-            { error: `Match ${matchId} does not exist`, details: String(matchError) },
-            { status: 404 }
-          );
+        if (addSubstitutePlayerError) {
+          throw addSubstitutePlayerError
         }
-        
-        // Match exists but player assignment doesn't - create it first
-        if (matchData && matchData.status === 'SCHEDULED') {
-          console.log(`Creating new match player record for player ${originalPlayerId} in match ${matchId}`);
-          
-          // Create a new match player record for the original player
-          const { data: newMatchPlayer, error: createError } = await supabase
-            .from('MatchPlayer')
-            .insert({
-              matchId,
-              playerId: originalPlayerId,
-              isSubstitute: false,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            })
-            .select('id')
-            .single();
-            
-          if (createError) {
-            console.error('Error creating match player:', createError);
-            return NextResponse.json(
-              { error: `Failed to create match player for ${originalPlayerId}`, details: String(createError) },
-              { status: 500 }
-            );
-          }
-          
-          // Now update this newly created record with the substitute
-          const { error: updateError } = await supabase
-            .from('MatchPlayer')
-            .update({
-              playerId: substitutePlayerId,
-              isSubstitute: true,
-              updatedAt: new Date().toISOString()
-            })
-            .eq('id', newMatchPlayer.id);
-            
-          if (updateError) {
-            console.error('Error updating new match player:', updateError);
-            return NextResponse.json(
-              { error: `Failed to update new match player with substitute ${substitutePlayerId}`, details: String(updateError) },
-              { status: 500 }
-            );
-          }
-          
-          console.log(`Successfully created and substituted player ${substitutePlayerId} for ${originalPlayerId} in match ${matchId}`);
-          continue; // Skip to the next assignment
-        } else {
-          // Match exists but is not in SCHEDULED status
-          return NextResponse.json(
-            { error: `Cannot substitute players for match ${matchId} with status ${matchData?.status}` },
-            { status: 400 }
-          );
+      } else {
+        // Update the substitute player's record
+        const { error: updateSubstitutePlayerError } = await supabase
+          .from('MatchPlayer')
+          .update({
+            isSubstitute: true,
+            originalPlayerId: originalPlayerId // Set originalPlayerId to the original player's ID
+          })
+          .eq('id', existingSubstitutePlayer.id)
+
+        if (updateSubstitutePlayerError) {
+          throw updateSubstitutePlayerError
         }
       }
-
-      // Update the match player with the substitute
-      const { error: updateError } = await supabase
-        .from('MatchPlayer')
-        .update({
-          playerId: substitutePlayerId,
-          isSubstitute: true,
-          updatedAt: new Date().toISOString()
-        })
-        .eq('id', matchPlayerData.id);
-
-      if (updateError) {
-        console.error('Error updating match player:', updateError);
-        return NextResponse.json(
-          { error: `Failed to update match player with substitute ${substitutePlayerId}`, details: String(updateError) },
-          { status: 500 }
-        );
-      }
-
-      console.log(`Substituted player ${substitutePlayerId} for ${originalPlayerId} in match ${matchId}`);
     }
 
     // Emit match updated event
     await emitMatchUpdated(matchId)
 
-    // Get team name for the response
-    const teamId = playerAssignments[0].teamId;
-    const { data: team } = await supabase
-      .from('Team')
-      .select('name')
-      .eq('id', teamId)
-      .single();
-    
-    const teamName = team ? team.name : (teamId === 'homeTeamId' ? 'Home Team' : 'Away Team');
-
-    return NextResponse.json({
-      success: true,
-      message: `${teamName} was updated with active players for this match`,
-      teamName: teamName
-    })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    return handleError(error, 'Error updating match players');
+    return handleError(error, 'Error updating player assignments')
   }
 }
 
@@ -436,47 +328,51 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const matchId = params.id
     const body = await request.json()
     const player = playerSchema.parse(body)
 
-    // Check if the player is already assigned to this match
-    const { data: existingPlayer, error: checkError } = await supabase
+    // Check if player is already assigned to the match
+    const { data: existingMatchPlayer, error: existingMatchPlayerError } = await supabase
       .from('MatchPlayer')
       .select('id')
-      .eq('matchId', params.id)
+      .eq('matchId', matchId)
       .eq('playerId', player.id)
-      .single();
+      .maybeSingle()
 
-    if (!checkError && existingPlayer) {
+    if (existingMatchPlayerError) {
+      throw existingMatchPlayerError
+    }
+
+    if (existingMatchPlayer) {
       return NextResponse.json(
         { error: 'Player is already assigned to this match' },
         { status: 400 }
-      );
+      )
     }
 
+    // Add player to the match
     const { data, error } = await supabase
       .from('MatchPlayer')
       .insert({
-        matchId: params.id,
+        id: uuidv4(),
+        matchId,
         playerId: player.id,
-        isSubstitute: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        isSubstitute: player.playerType === 'SUBSTITUTE',
+        originalPlayerId: player.id // Set originalPlayerId to the player's own ID initially
       })
       .select()
-      .single()
 
     if (error) {
-      console.error('Supabase error adding match player:', error);
       throw error
     }
 
     // Emit match updated event
-    await emitMatchUpdated(params.id);
+    await emitMatchUpdated(matchId)
 
     return NextResponse.json(data)
   } catch (error) {
-    return handleError(error, 'Error adding match player');
+    return handleError(error, 'Error adding player to match')
   }
 }
 
@@ -486,8 +382,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const playerId = searchParams.get('playerId')
+    const matchId = params.id
+    const url = new URL(request.url)
+    const playerId = url.searchParams.get('playerId')
 
     if (!playerId) {
       return NextResponse.json(
@@ -496,10 +393,11 @@ export async function DELETE(
       )
     }
 
+    // Remove player from the match
     const { error } = await supabase
       .from('MatchPlayer')
       .delete()
-      .eq('matchId', params.id)
+      .eq('matchId', matchId)
       .eq('playerId', playerId)
 
     if (error) {
@@ -507,10 +405,10 @@ export async function DELETE(
     }
 
     // Emit match updated event
-    await emitMatchUpdated(params.id);
+    await emitMatchUpdated(matchId)
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    return handleError(error, 'Error removing match player');
+    return handleError(error, 'Error removing player from match')
   }
 }

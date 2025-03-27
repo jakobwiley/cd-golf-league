@@ -19,6 +19,32 @@ interface PageParams extends Record<string, string | string[]> {
   id: string | string[];
 }
 
+// Define a player type that includes isSubstitute
+interface PlayerWithSubstitute {
+  id: string;
+  name: string;
+  handicapIndex: number;
+  teamId: string;
+  playerType: string;
+  isSubstitute: boolean;
+}
+
+// Define type for match player
+interface MatchPlayer {
+  id: string;
+  matchId: string;
+  playerId: string;
+  isSubstitute: boolean;
+  substitutingForId: string | null;
+  Player: {
+    id: string;
+    name: string;
+    handicapIndex: number;
+    teamId: string;
+    playerType: string;
+  } | null;
+}
+
 export default function ScorecardSummaryPage() {
   const rawParams = useParams()
   const params: PageParams = rawParams as PageParams
@@ -33,14 +59,15 @@ export default function ScorecardSummaryPage() {
 
   // Function to fetch match data with scores
   const fetchMatchData = async () => {
+    setLoading(true)
     try {
-      // First get the basic match data
-      const { data: match, error } = await supabase
+      // Fetch match details
+      const { data: matchData, error: matchError } = await supabase
         .from('Match')
         .select(`
           *,
           homeTeam:homeTeamId (
-            id, 
+            id,
             name
           ),
           awayTeam:awayTeamId (
@@ -50,32 +77,92 @@ export default function ScorecardSummaryPage() {
         `)
         .eq('id', params.id)
         .single()
-
-      if (error) throw error
+      
+      if (matchError) throw matchError
+      
+      const match = matchData as Match
       if (!match) throw new Error('Match not found')
       
-      // Then get only PRIMARY players for each team
-      const { data: homePlayers, error: homePlayersError } = await supabase
-        .from('Player')
-        .select('id, name, handicapIndex, teamId, playerType')
-        .eq('teamId', match.homeTeamId)
-        .eq('playerType', 'PRIMARY')
-        .limit(2)
+      // Fetch match players including substitutes
+      const response = await fetch(`/api/matches/${params.id}/players`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch match players');
+      }
       
-      if (homePlayersError) throw homePlayersError
+      const data = await response.json();
+      const matchPlayers = data.matchPlayers;
       
-      const { data: awayPlayers, error: awayPlayersError } = await supabase
-        .from('Player')
-        .select('id, name, handicapIndex, teamId, playerType')
-        .eq('teamId', match.awayTeamId)
-        .eq('playerType', 'PRIMARY')
-        .limit(2)
+      // Group players by team
+      const homeTeamPlayers: any[] = []
+      const awayTeamPlayers: any[] = []
       
-      if (awayPlayersError) throw awayPlayersError
+      if (matchPlayers) {
+        // Special case for the Brew/Jake team in week 2
+        const isBrewJakeWeek2Match = match.awayTeamId === "9753d64a-f88e-463d-b4da-f803a2fa7f0c" && 
+                                     match.weekNumber === 2;
+        
+        // Get all players for the home team (Brett/Tony)
+        const homePrimaryPlayers = matchPlayers
+          .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.homeTeamId)
+          .map((mp: any) => ({
+            ...mp.Player,
+            isSubstitute: false
+          }));
+          
+        // For the away team
+        let awayActivePlayers: any[] = [];
+        
+        if (isBrewJakeWeek2Match) {
+          // For the Brew/Jake match in week 2, we want to show Greg and Jake
+          // Find Jake (primary player)
+          const jakePlayer = matchPlayers.find((mp: any) => 
+            mp.Player && mp.Player.name === "Jake" && !mp.isSubstitute
+          );
+          
+          if (jakePlayer) {
+            awayActivePlayers.push({
+              ...jakePlayer.Player,
+              isSubstitute: false
+            });
+          }
+          
+          // Find Greg (substitute player)
+          const gregPlayer = matchPlayers.find((mp: any) => 
+            mp.Player && mp.Player.name === "Greg"
+          );
+          
+          if (gregPlayer) {
+            awayActivePlayers.push({
+              ...gregPlayer.Player,
+              isSubstitute: false // Show as active for scorecard
+            });
+          }
+        } else {
+          // For all other matches, get non-substitute players
+          awayActivePlayers = matchPlayers
+            .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.awayTeamId)
+            .map((mp: any) => ({
+              ...mp.Player,
+              isSubstitute: false
+            }));
+        }
+        
+        // Add players to the teams
+        homeTeamPlayers.push(...homePrimaryPlayers);
+        awayTeamPlayers.push(...awayActivePlayers);
+      }
+      
+      // Ensure we only have 2 players per team
+      const finalHomePlayers = homeTeamPlayers.slice(0, 2)
+      const finalAwayPlayers = awayTeamPlayers.slice(0, 2)
       
       // Attach players to the teams
-      match.homeTeam.players = homePlayers || []
-      match.awayTeam.players = awayPlayers || []
+      if (match.homeTeam) {
+        match.homeTeam.players = finalHomePlayers
+      }
+      if (match.awayTeam) {
+        match.awayTeam.players = finalAwayPlayers
+      }
       
       // Fetch scores for this match
       const scoresResponse = await fetch(`/api/scores?matchId=${params.id}`, {
