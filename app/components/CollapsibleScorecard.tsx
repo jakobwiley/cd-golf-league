@@ -221,7 +221,13 @@ export default function CollapsibleScorecard({ match }: Props) {
               return (
                 <tr key={player.id} className="border-b border-[#00df82]/5">
                   <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                    <div className="text-white font-orbitron" data-component-name="CollapsibleScorecard">{player.name}</div>
+                    <div className="text-white font-orbitron" data-component-name="CollapsibleScorecard">
+                      {player.name}
+                      {/* @ts-ignore - isSubstitute is added by our code */}
+                      {(player as any).isSubstitute && (
+                        <span className="ml-1 text-xs text-[#00df82] font-audiowide">(Sub)</span>
+                      )}
+                    </div>
                     <div className="text-xs text-[#00df82]/70 font-audiowide" data-component-name="CollapsibleScorecard">
                       <span>CHP: {courseHandicap}</span>
                     </div>
@@ -234,7 +240,9 @@ export default function CollapsibleScorecard({ match }: Props) {
                         <div className="relative">
                           {score ? (score.score !== undefined ? score.score : score.strokes) || '-' : '-'}
                           {strokesGiven > 0 && (
-                            <span className="absolute -top-1 -right-1 text-xs text-[#00df82]">•</span>
+                            <span className="absolute -top-1 -right-1 text-xs text-[#00df82]">
+                              {Array(strokesGiven).fill('•').join('')}
+                            </span>
                           )}
                         </div>
                       </td>
@@ -280,7 +288,13 @@ export default function CollapsibleScorecard({ match }: Props) {
               return (
                 <tr key={player.id} className="border-b border-[#00df82]/5">
                   <td className="p-2 text-left sticky left-0 bg-[#030f0f]/90 z-10">
-                    <div className="text-white font-orbitron" data-component-name="CollapsibleScorecard">{player.name}</div>
+                    <div className="text-white font-orbitron" data-component-name="CollapsibleScorecard">
+                      {player.name}
+                      {/* @ts-ignore - isSubstitute is added by our code */}
+                      {(player as any).isSubstitute && (
+                        <span className="ml-1 text-xs text-[#00df82] font-audiowide">(Sub)</span>
+                      )}
+                    </div>
                     <div className="text-xs text-[#00df82]/70 font-audiowide" data-component-name="CollapsibleScorecard">
                       <span>CHP: {courseHandicap}</span>
                     </div>
@@ -293,7 +307,9 @@ export default function CollapsibleScorecard({ match }: Props) {
                         <div className="relative">
                           {score ? (score.score !== undefined ? score.score : score.strokes) || '-' : '-'}
                           {strokesGiven > 0 && (
-                            <span className="absolute -top-1 -right-1 text-xs text-[#00df82]">•</span>
+                            <span className="absolute -top-1 -right-1 text-xs text-[#00df82]">
+                              {Array(strokesGiven).fill('•').join('')}
+                            </span>
                           )}
                         </div>
                       </td>

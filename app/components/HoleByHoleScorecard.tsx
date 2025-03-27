@@ -127,31 +127,31 @@ const getStrokesGivenForMatchup = (playerHandicapIndex: number, hole: number, al
   // Get the hole's handicap value (difficulty rating 1-9)
   const holeHandicapValue = holeHandicaps[hole as keyof typeof holeHandicaps];
   
-  // Use the USGA allocation method for multiple strokes
-  // First allocation: one stroke per hole starting from the hardest hole
+  // USGA allocation method for multiple strokes
   let strokesGiven = 0;
   
-  // First allocation (1-9 strokes)
-  if (holeHandicapValue <= handicapDifference) {
+  // First allocation: Check if player gets at least one stroke on this hole
+  // For handicap differences 1-9, strokes are given on holes with handicap <= difference
+  if (holeHandicapValue <= Math.min(handicapDifference, 9)) {
     strokesGiven += 1;
   }
   
-  // Second allocation (10-18 strokes)
+  // Second allocation: For handicap differences 10-18, additional strokes on hardest holes
   if (handicapDifference > 9 && holeHandicapValue <= (handicapDifference - 9)) {
     strokesGiven += 1;
   }
   
-  // Third allocation (19-27 strokes)
+  // Third allocation: For handicap differences 19-27
   if (handicapDifference > 18 && holeHandicapValue <= (handicapDifference - 18)) {
     strokesGiven += 1;
   }
   
-  // Fourth allocation (28-36 strokes)
+  // Fourth allocation: For handicap differences 28-36
   if (handicapDifference > 27 && holeHandicapValue <= (handicapDifference - 27)) {
     strokesGiven += 1;
   }
   
-  // Fifth allocation (37-45 strokes)
+  // Fifth allocation: For handicap differences 37-45
   if (handicapDifference > 36 && holeHandicapValue <= (handicapDifference - 36)) {
     strokesGiven += 1;
   }
@@ -1356,11 +1356,6 @@ export default function HoleByHoleScorecard({
                           className="bg-[#030f0f] border border-[#00df82]/30 text-white text-2xl md:text-4xl font-medium rounded-md md:py-4 py-2 md:px-5 px-3 md:w-24 w-16 md:h-20 h-16 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
                           placeholder="-"
                         />
-                        {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
-                          <span className="absolute -top-2 -right-2 md:-top-3 md:-right-3 text-[#00df82] text-xs md:text-sm font-bold">
-                            {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
-                          </span>
-                        )}
                       </div>
                     </div>
                     {playerScores[player.id]?.[activeHole - 1]?.score !== null && (
@@ -1408,11 +1403,6 @@ export default function HoleByHoleScorecard({
                           className="bg-[#030f0f] border border-[#00df82]/30 text-white text-2xl md:text-4xl font-medium rounded-md md:py-4 py-2 md:px-5 px-3 md:w-24 w-16 md:h-20 h-16 focus:outline-none focus:ring-1 focus:ring-[#00df82] focus:border-[#00df82] text-center"
                           placeholder="-"
                         />
-                        {getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers) > 0 && (
-                          <span className="absolute -top-2 -right-2 md:-top-3 md:-right-3 text-[#00df82] text-xs md:text-sm font-bold">
-                            {Array(getStrokesGivenForMatchup(player.handicapIndex, activeHole, allPlayers)).fill('*').join('')}
-                          </span>
-                        )}
                       </div>
                     </div>
                     {playerScores[player.id]?.[activeHole - 1]?.score !== null && (

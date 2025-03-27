@@ -8,8 +8,8 @@ const envPath = path.join(__dirname, '.env.local');
 // Required environment variables
 const requiredEnvVars = {
   NEXT_PUBLIC_SUPABASE_URL: 'https://gyvaalhcjrwozinpilsw.supabase.co',
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: '***REMOVED***',
-  SUPABASE_SERVICE_ROLE_KEY: '***REMOVED***'
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5dmFhbGhjanJ3b3ppbnBpbHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2OTE1NjAsImV4cCI6MjA1ODI2NzU2MH0.c5GF8A1ZVWH__KGUsBpXmOBT_8p0L98JzPCFpkYm4qo',
+  SUPABASE_SERVICE_ROLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5dmFhbGhjanJ3b3ppbnBpbHN3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MjY5MTU2MCwiZXhwIjoyMDU4MjY3NTYwfQ.ZdDpqhTjXfnH3cm2oH9QDHDBpg0CFfiYDvmLW2g9iaE'
 };
 
 // Check if .env.local exists
