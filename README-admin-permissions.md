@@ -57,6 +57,8 @@ To apply these permission fixes to the production environment, follow these step
 1. **Connect to Production Database**: Use the Supabase SQL Editor in the production project.
 
 2. **Run Permission Scripts**: Execute the following SQL scripts in order:
+   - `scripts/fix-match-permissions.sql`
+   - `scripts/fix-matchscore-permissions.sql`
    - `scripts/fix-team-permissions.sql`
    - `scripts/fix-player-permissions.sql`
    - `scripts/fix-matchplayer-permissions.sql`
