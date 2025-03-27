@@ -151,8 +151,30 @@ export default function LiveMatchesPage({ initialMatches = [], initialTeams = []
         console.log('Received players:', playersData);
         
         // Get players for each team
-        const homeTeamPlayers = playersData.filter((p: any) => p.teamId === matchData.homeTeamId);
-        const awayTeamPlayers = playersData.filter((p: any) => p.teamId === matchData.awayTeamId);
+        const homeTeamPlayers = playersData.players?.filter((p: any) => p.teamId === matchData.homeTeamId) || [];
+        const awayTeamPlayers = playersData.players?.filter((p: any) => p.teamId === matchData.awayTeamId) || [];
+        
+        // Check if the match is finalized
+        const isFinalized = ['completed', 'finalized'].includes(matchData.status?.toLowerCase());
+        
+        // Fetch match points data for finalized matches
+        let matchPointsData = null;
+        if (isFinalized) {
+          try {
+            console.log('Fetching match points for finalized match:', matchId);
+            const matchPointsResponse = await fetch(`/api/match-points?matchId=${matchId}`);
+            
+            if (matchPointsResponse.ok) {
+              const matchPointsResult = await matchPointsResponse.json();
+              matchPointsData = matchPointsResult.data || [];
+              console.log('Received match points data:', matchPointsData);
+            } else {
+              console.warn('Failed to fetch match points for finalized match:', matchId);
+            }
+          } catch (error) {
+            console.error('Error fetching match points:', error);
+          }
+        }
         
         // Combine match data with scores and players
         const fullMatchData = {
@@ -165,7 +187,8 @@ export default function LiveMatchesPage({ initialMatches = [], initialTeams = []
           awayTeam: {
             ...matchData.awayTeam,
             players: awayTeamPlayers
-          }
+          },
+          matchPointsData: matchPointsData
         };
         
         setMatchDetails(prev => ({
@@ -247,7 +270,7 @@ export default function LiveMatchesPage({ initialMatches = [], initialTeams = []
                       console.log('Detailed match data:', detailedMatch);
                       const { totalHomePoints, totalAwayPoints } = calculateHolePoints(detailedMatch);
                       console.log('Calculated points:', { totalHomePoints, totalAwayPoints });
-                      const isFinalized = detailedMatch.status?.toLowerCase() === 'completed';
+                      const isFinalized = ['completed', 'finalized'].includes(detailedMatch.status?.toLowerCase());
                       
                       return (
                         <div key={match.id} className="pt-4 first:pt-0">
