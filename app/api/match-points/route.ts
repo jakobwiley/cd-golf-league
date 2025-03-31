@@ -117,6 +117,31 @@ export async function POST(request: Request) {
     const teamId = matchData.homeTeamId
     console.log('Using teamId:', teamId)
 
+    // Add the winner point - award an extra point to the team with more points
+    let homePoints = validatedData.totalPoints.home;
+    let awayPoints = validatedData.totalPoints.away;
+    
+    // Calculate total points to check if we need to add a winner point
+    const totalPoints = homePoints + awayPoints;
+    
+    // For a 9-hole match, there should be 9 points available
+    // If the total is already 9 and there's a winner, add the winner point
+    if (totalPoints === 9) {
+      if (homePoints > awayPoints) {
+        console.log('Home team won - adding extra point');
+        homePoints += 1;
+      } else if (awayPoints > homePoints) {
+        console.log('Away team won - adding extra point');
+        awayPoints += 1;
+      } else {
+        console.log('Match tied - no extra point added');
+      }
+    } else if (totalPoints !== 10) {
+      console.log(`Warning: Unusual total points (${totalPoints}) - should be 9 or 10.`);
+    }
+    
+    console.log('Final points after winner bonus:', { home: homePoints, away: awayPoints });
+
     // First, save the total points
     console.log('Saving total match points...')
     const { data: existingTotalPoints, error: existingTotalPointsError } = await supabase
@@ -142,9 +167,9 @@ export async function POST(request: Request) {
       const { error: updateError } = await supabase
         .from('MatchPoints')
         .update({
-          homePoints: validatedData.totalPoints.home,
-          awayPoints: validatedData.totalPoints.away,
-          points: validatedData.totalPoints.home, // Use homePoints as the points value
+          homePoints: homePoints,
+          awayPoints: awayPoints,
+          points: homePoints, // Use homePoints as the points value
           updatedAt: new Date().toISOString()
         })
         .eq('id', existingTotalPoints.id)
@@ -168,9 +193,9 @@ export async function POST(request: Request) {
           matchId: validatedData.matchId,
           teamId: teamId, 
           hole: null, // null for total points
-          homePoints: validatedData.totalPoints.home,
-          awayPoints: validatedData.totalPoints.away,
-          points: validatedData.totalPoints.home, // Use homePoints as the points value
+          homePoints: homePoints,
+          awayPoints: awayPoints,
+          points: homePoints, // Use homePoints as the points value
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         })
