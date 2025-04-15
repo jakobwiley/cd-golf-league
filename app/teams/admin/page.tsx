@@ -79,65 +79,20 @@ export default async function TeamsAdminPage() {
       id: player.id,
       name: player.name,
       handicapIndex: player.handicapIndex,
-      playerType: player.playerType,
+      playerType: player.playerType || 'PRIMARY',
       teamId: player.teamId
     }))
   }))
 
   return (
-    <div className="min-h-screen bg-[#030f0f] relative overflow-hidden">
-      {/* Futuristic background elements */}
-      <div className="absolute inset-0 z-0">
-        {/* Gradient base */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/20 to-[#4CAF50]/10" />
-        
-        {/* Animated grid lines */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="h-full w-full bg-[url('/grid-pattern.svg')] bg-repeat bg-[length:50px_50px]" />
-        </div>
-        
-        {/* Glowing orbs */}
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#00df82]/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-[#4CAF50]/10 rounded-full blur-3xl" />
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Teams Admin</h1>
+        <Link href="/admin" className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+          Back to Admin
+        </Link>
       </div>
-
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="relative overflow-hidden rounded-3xl backdrop-blur-sm bg-gradient-to-r from-[#00df82]/30 to-[#4CAF50]/20 mb-8">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-transparent"></div>
-          <div className="relative px-8 py-6 flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-audiowide text-white mb-2">Teams Admin</h1>
-              <p className="text-white/90 font-orbitron tracking-wide">Manage your teams and players</p>
-            </div>
-            <Link href="/teams" className="group relative overflow-hidden px-6 py-3 bg-[#030f0f]/70 text-[#00df82] rounded-lg border border-[#00df82]/30 hover:border-[#00df82]/50 backdrop-blur-sm transition-all duration-300 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#00df82]/5 to-transparent"></div>
-              <div className="absolute -top-10 -right-10 w-20 h-20 bg-[#00df82]/10 rounded-full blur-3xl group-hover:bg-[#00df82]/20 transition-all duration-500"></div>
-              <span className="relative font-audiowide">View Teams</span>
-            </Link>
-          </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-1/4 -translate-y-1/4"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
-        </div>
-
-        <div className="container max-w-6xl py-6">
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold mb-4">Teams Admin</h1>
-              <Link
-                href="/teams/new"
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
-              >
-                Add Team
-              </Link>
-            </div>
-
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-xl transform translate-x-1/3 -translate-y-1/3"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-black/20 to-transparent rounded-full blur-xl transform -translate-x-1/4 translate-y-1/4"></div>
-
-            <TeamsList teams={teams} />
-          </div>
-        </div>
-      </div>
+      <TeamsList teams={teams} />
     </div>
   )
 }

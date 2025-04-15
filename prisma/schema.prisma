@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Team {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  players   Player[]
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+  matchPoints MatchPoints[]
+}
+
+model Player {
+  id            String   @id
+  name          String
+  teamId        String?
+  handicapIndex Float    @default(0)
+  handicap      Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  playerType    String   @default("PRIMARY")
+  team          Team?    @relation(fields: [teamId], references: [id])
+  matchScores   MatchScore[]
+  matchPlayers  MatchPlayer[]
+}
+
+model Match {
+  id           String   @id
+  date         DateTime
+  weekNumber   Int
+  homeTeamId   String
+  awayTeamId   String
+  startingHole Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  status       String   @default("SCHEDULED")
+  homeTeam     Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam     Team     @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  matchScores  MatchScore[]
+  matchPoints  MatchPoints[]
+  matchPlayers MatchPlayer[]
+}
+
+model MatchScore {
+  id        String   @id
+  matchId   String
+  playerId  String
+  hole      Int
+  score     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  match     Match    @relation(fields: [matchId], references: [id])
+  player    Player   @relation(fields: [playerId], references: [id])
+}
+
+model MatchPoints {
+  id         String   @id
+  matchId    String
+  teamId     String
+  points     Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  match      Match    @relation(fields: [matchId], references: [id])
+  team       Team     @relation(fields: [teamId], references: [id])
+}
+
+model MatchPlayer {
+  id        String   @id
+  matchId   String
+  playerId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  match     Match    @relation(fields: [matchId], references: [id])
+  player    Player   @relation(fields: [playerId], references: [id])
+} 

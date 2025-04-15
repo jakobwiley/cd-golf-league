@@ -32,3 +32,12 @@ export interface Score {
   strokes: number
   matchId: string
 }
+
+export interface MatchPlayer {
+  id: string
+  playerId: string
+  matchId: string
+  teamId: string
+  player?: Player
+  team?: Team
+}

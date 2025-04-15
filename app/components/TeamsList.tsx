@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Team, Player } from '../types'
 import { calculateCourseHandicap } from '../lib/handicap'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import Link from 'next/link'
 
 type TeamsListProps = {
   teams: Team[]
@@ -31,6 +32,7 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
   })
   const [error, setError] = useState('')
   const [expandedSubstitutes, setExpandedSubstitutes] = useState<Set<string>>(new Set())
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
 
   const handleEditTeam = async (teamId: string, newName: string) => {
     try {
@@ -252,6 +254,10 @@ export default function TeamsList({ teams: initialTeams }: TeamsListProps) {
 
   const getSubstitutePlayers = (players: Player[]) => {
     return players.filter(p => p.playerType === 'SUBSTITUTE')
+  }
+
+  const toggleTeam = (teamId: string) => {
+    setExpandedTeam(expandedTeam === teamId ? null : teamId)
   }
 
   return (

@@ -4,12 +4,27 @@ import { z } from 'zod';
 import { SocketEvents } from '../../../../../app/utils/websocketConnection';
 import { v4 as uuidv4 } from 'uuid';
 
+interface Team {
+  id: string;
+  name: string;
+}
+
 interface Player {
-  id: string
-  name: string
-  handicapIndex: number
-  teamId: string
-  playerType: string
+  id: string;
+  name: string;
+  handicapIndex: number;
+  teamId: string;
+  playerType: string;
+  Team: Team;
+}
+
+interface MatchPlayer {
+  id: string;
+  matchId: string;
+  playerId: string;
+  isSubstitute: boolean;
+  originalPlayerId: string;
+  Player: Player;
 }
 
 interface MatchPlayerData {
@@ -144,7 +159,10 @@ export async function GET(
       matchPlayersQuery.eq('isSubstitute', false)
     }
 
-    const { data: matchPlayers, error: matchPlayersError } = await matchPlayersQuery
+    const { data: matchPlayers, error: matchPlayersError } = await matchPlayersQuery as { 
+      data: MatchPlayer[] | null, 
+      error: any 
+    }
 
     if (matchPlayersError) {
       throw matchPlayersError
@@ -203,15 +221,13 @@ export async function GET(
       throw awayTeamPlayersError
     }
 
-    // Format the response
-    const response = {
+    // Format the response with existing match players
+    return NextResponse.json({
       match,
       matchPlayers,
-      homeTeamPlayers,
-      awayTeamPlayers
-    }
-
-    return NextResponse.json(response)
+      homeTeamPlayers: matchPlayers?.filter(mp => mp.Player?.teamId === match.homeTeamId) || [],
+      awayTeamPlayers: matchPlayers?.filter(mp => mp.Player?.teamId === match.awayTeamId) || []
+    })
   } catch (error) {
     return handleError(error, 'Error fetching match players')
   }

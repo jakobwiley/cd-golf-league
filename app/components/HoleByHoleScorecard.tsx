@@ -382,186 +382,75 @@ export default function HoleByHoleScorecard({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true)
-        
-        // Fetch match players including substitutes
+        setLoading(true);
         try {
           const matchPlayersResponse = await fetch(`/api/matches/${match.id}/players`);
-          if (matchPlayersResponse.ok) {
-            const matchPlayersData = await matchPlayersResponse.json();
-            
-            if (matchPlayersData.matchPlayers && matchPlayersData.matchPlayers.length > 0) {
-              // Process home team players - prioritize substitutes
-              const homeSubstitutes: Player[] = matchPlayersData.matchPlayers
-                .filter((mp: any) => mp.isSubstitute && mp.Player && mp.Player.teamId === match.homeTeamId)
-                .map((mp: any) => ({
-                  id: mp.Player.id,
-                  name: mp.Player.name,
-                  handicapIndex: mp.Player.handicapIndex,
-                  teamId: mp.Player.teamId,
-                  playerType: mp.Player.playerType,
-                  isSubstitute: true
-                }));
-                
-              const homePrimaryPlayers: Player[] = matchPlayersData.matchPlayers
-                .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.homeTeamId)
-                .map((mp: any) => ({
-                  id: mp.Player.id,
-                  name: mp.Player.name,
-                  handicapIndex: mp.Player.handicapIndex,
-                  teamId: mp.Player.teamId,
-                  playerType: mp.Player.playerType,
-                  isSubstitute: false
-                }));
-              
-              // Process away team players - prioritize substitutes
-              const awaySubstitutes: Player[] = matchPlayersData.matchPlayers
-                .filter((mp: any) => mp.isSubstitute && mp.Player && mp.Player.teamId === match.awayTeamId)
-                .map((mp: any) => ({
-                  id: mp.Player.id,
-                  name: mp.Player.name,
-                  handicapIndex: mp.Player.handicapIndex,
-                  teamId: mp.Player.teamId,
-                  playerType: mp.Player.playerType,
-                  isSubstitute: true
-                }));
-                
-              const awayPrimaryPlayers: Player[] = matchPlayersData.matchPlayers
-                .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.awayTeamId)
-                .map((mp: any) => ({
-                  id: mp.Player.id,
-                  name: mp.Player.name,
-                  handicapIndex: mp.Player.handicapIndex,
-                  teamId: mp.Player.teamId,
-                  playerType: mp.Player.playerType,
-                  isSubstitute: false
-                }));
-              
-              // Combine players, prioritizing substitutes
-              let finalHomePlayers: Player[] = [];
-              let finalAwayPlayers: Player[] = [];
-              
-              // For home team
-              if (homeSubstitutes.length > 0) {
-                // Add substitutes first
-                finalHomePlayers = [...homeSubstitutes];
-                
-                // Add remaining primary players up to a total of 2 players
-                if (finalHomePlayers.length < 2) {
-                  finalHomePlayers = [...finalHomePlayers, ...homePrimaryPlayers.slice(0, 2 - finalHomePlayers.length)];
-                }
-              } else {
-                // No substitutes, just add primary players
-                finalHomePlayers = [...homePrimaryPlayers.slice(0, 2)];
-              }
-              
-              // Special case for Brew/Jake team in week 2
-              const isBrewJakeWeek2Match = match.awayTeamId === "9753d64a-f88e-463d-b4da-f803a2fa7f0c" && 
-                                         match.weekNumber === 2;
-              
-              if (isBrewJakeWeek2Match) {
-                // For the Brew/Jake match in week 2, we want to show Jake and Greg
-                // Find Jake (primary player)
-                const jakePlayer = matchPlayersData.matchPlayers.find((mp: any) => 
-                  mp.Player && mp.Player.name === "Jake" && !mp.isSubstitute
-                );
-                
-                // Find Greg (substitute player)
-                const gregPlayer = matchPlayersData.matchPlayers.find((mp: any) => 
-                  mp.Player && mp.Player.name === "Greg"
-                );
-                
-                finalAwayPlayers = [];
-                
-                if (jakePlayer) {
-                  finalAwayPlayers.push({
-                    id: jakePlayer.Player.id,
-                    name: jakePlayer.Player.name,
-                    handicapIndex: jakePlayer.Player.handicapIndex,
-                    teamId: jakePlayer.Player.teamId,
-                    playerType: jakePlayer.Player.playerType,
-                    isSubstitute: false // Jake is not a substitute
-                  });
-                }
-                
-                if (gregPlayer) {
-                  finalAwayPlayers.push({
-                    id: gregPlayer.Player.id,
-                    name: gregPlayer.Player.name,
-                    handicapIndex: gregPlayer.Player.handicapIndex,
-                    teamId: gregPlayer.Player.teamId,
-                    playerType: gregPlayer.Player.playerType,
-                    isSubstitute: true // Greg is a substitute
-                  });
-                }
-              } else {
-                // For away team (normal case)
-                if (awaySubstitutes.length > 0) {
-                  // Add substitutes first
-                  finalAwayPlayers = [...awaySubstitutes];
-                  
-                  // Add remaining primary players up to a total of 2 players
-                  if (finalAwayPlayers.length < 2) {
-                    finalAwayPlayers = [...finalAwayPlayers, ...awayPrimaryPlayers.slice(0, 2 - finalAwayPlayers.length)];
-                  }
-                } else {
-                  // No substitutes, just add primary players
-                  finalAwayPlayers = [...awayPrimaryPlayers.slice(0, 2)];
-                }
-              }
-              
-              // Ensure we only have 2 players per team
-              finalHomePlayers = finalHomePlayers.slice(0, 2);
-              finalAwayPlayers = finalAwayPlayers.slice(0, 2);
-              
-              setHomeTeamPlayers(finalHomePlayers);
-              setAwayTeamPlayers(finalAwayPlayers);
-              setAllPlayers([...finalHomePlayers, ...finalAwayPlayers]);
-              
-              console.log('Home Team Players:', finalHomePlayers);
-              console.log('Away Team Players:', finalAwayPlayers);
-            } else if (match.homeTeam && match.homeTeam.players && match.awayTeam && match.awayTeam.players) {
-              // Use players from the match object if available
-              const homePlayers: Player[] = match.homeTeam.players
-                .slice(0, 2)
-                .map((player: any) => ({
-                  id: player.id,
-                  name: player.name,
-                  handicapIndex: player.handicapIndex,
-                  teamId: match.homeTeamId,
-                  playerType: player.playerType || 'PRIMARY',
-                  isSubstitute: player.isSubstitute || false
-                }));
-              
-              const awayPlayers: Player[] = match.awayTeam.players
-                .slice(0, 2)
-                .map((player: any) => ({
-                  id: player.id,
-                  name: player.name,
-                  handicapIndex: player.handicapIndex,
-                  teamId: match.awayTeamId,
-                  playerType: player.playerType || 'PRIMARY',
-                  isSubstitute: player.isSubstitute || false
-                }));
-              
-              setHomeTeamPlayers(homePlayers);
-              setAwayTeamPlayers(awayPlayers);
-              setAllPlayers([...homePlayers, ...awayPlayers]);
-            } else {
-              console.warn('No players found, using fallback data');
-              const homePlayers: Player[] = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2);
-              const awayPlayers: Player[] = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2);
-              
-              setHomeTeamPlayers(homePlayers);
-              setAwayTeamPlayers(awayPlayers);
-              setAllPlayers([...homePlayers, ...awayPlayers]);
-            }
-          } else {
-            throw new Error('Failed to fetch match players');
-          }
+          if (!matchPlayersResponse.ok) throw new Error('Failed to fetch match players');
+          const matchPlayersData = await matchPlayersResponse.json();
+          if (!matchPlayersData.matchPlayers || matchPlayersData.matchPlayers.length === 0) throw new Error('No match players found');
+          
+          // Process home team players - prioritize substitutes
+          const homeSubstitutes: Player[] = matchPlayersData.matchPlayers
+            .filter((mp: any) => mp.isSubstitute && mp.Player && mp.Player.teamId === match.homeTeamId)
+            .map((mp: any) => ({
+              id: mp.Player.id,
+              name: mp.Player.name,
+              handicapIndex: mp.Player.handicapIndex,
+              teamId: mp.Player.teamId,
+              playerType: mp.Player.playerType,
+              isSubstitute: true
+            }));
+          
+          const homePrimaryPlayers: Player[] = matchPlayersData.matchPlayers
+            .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.homeTeamId)
+            .map((mp: any) => ({
+              id: mp.Player.id,
+              name: mp.Player.name,
+              handicapIndex: mp.Player.handicapIndex,
+              teamId: mp.Player.teamId,
+              playerType: mp.Player.playerType,
+              isSubstitute: false
+            }));
+          
+          // Process away team players - prioritize substitutes
+          const awaySubstitutes: Player[] = matchPlayersData.matchPlayers
+            .filter((mp: any) => mp.isSubstitute && mp.Player && mp.Player.teamId === match.awayTeamId)
+            .map((mp: any) => ({
+              id: mp.Player.id,
+              name: mp.Player.name,
+              handicapIndex: mp.Player.handicapIndex,
+              teamId: mp.Player.teamId,
+              playerType: mp.Player.playerType,
+              isSubstitute: true
+            }));
+          
+          const awayPrimaryPlayers: Player[] = matchPlayersData.matchPlayers
+            .filter((mp: any) => !mp.isSubstitute && mp.Player && mp.Player.teamId === match.awayTeamId)
+            .map((mp: any) => ({
+              id: mp.Player.id,
+              name: mp.Player.name,
+              handicapIndex: mp.Player.handicapIndex,
+              teamId: mp.Player.teamId,
+              playerType: mp.Player.playerType,
+              isSubstitute: false
+            }));
+          
+          // Combine players, prioritizing substitutes
+          let finalHomePlayers: Player[] = homeSubstitutes.length > 0 ? [...homeSubstitutes] : [...homePrimaryPlayers.slice(0, 2)];
+          let finalAwayPlayers: Player[] = awaySubstitutes.length > 0 ? [...awaySubstitutes] : [...awayPrimaryPlayers.slice(0, 2)];
+          
+          // Ensure we only have 2 players per team
+          finalHomePlayers = finalHomePlayers.slice(0, 2);
+          finalAwayPlayers = finalAwayPlayers.slice(0, 2);
+          
+          setHomeTeamPlayers(finalHomePlayers);
+          setAwayTeamPlayers(finalAwayPlayers);
+          setAllPlayers([...finalHomePlayers, ...finalAwayPlayers]);
+          
+          console.log('Home Team Players:', finalHomePlayers);
+          console.log('Away Team Players:', finalAwayPlayers);
         } catch (error) {
           console.error('Error fetching match players:', error);
-          
           // Fallback to using players from the match object if available
           if (match.homeTeam && match.homeTeam.players && match.awayTeam && match.awayTeam.players) {
             const homePlayers: Player[] = match.homeTeam.players
@@ -590,7 +479,7 @@ export default function HoleByHoleScorecard({
             setAwayTeamPlayers(awayPlayers);
             setAllPlayers([...homePlayers, ...awayPlayers]);
           } else {
-            console.warn('No players found in match object, using fallback data');
+            console.warn('No players found, using fallback data');
             const homePlayers: Player[] = fallbackPlayerData.filter(player => player.teamId === match.homeTeamId).slice(0, 2);
             const awayPlayers: Player[] = fallbackPlayerData.filter(player => player.teamId === match.awayTeamId).slice(0, 2);
             
@@ -598,15 +487,15 @@ export default function HoleByHoleScorecard({
             setAwayTeamPlayers(awayPlayers);
             setAllPlayers([...homePlayers, ...awayPlayers]);
           }
+        } finally {
+          setLoading(false);
         }
       } catch (error) {
-        console.error('Error loading scores:', error);
-      } finally {
+        console.error('Error in fetchData:', error);
         setLoading(false);
       }
     };
 
-    // Load scores on initial mount
     fetchData();
   }, [match.id]);
 

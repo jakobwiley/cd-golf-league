@@ -36,7 +36,8 @@ export function getWebSocketUrl(): string {
   } else {
     // In production or preview, derive WebSocket URL from current host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/api/scores/ws`;
+    const host = window.location.host;
+    return `${protocol}//${host}/api/scores/ws`;
   }
 }
 
