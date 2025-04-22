@@ -30,7 +30,7 @@ BEGIN
     LOOP
       -- Count scores for this player
       SELECT COUNT(*) INTO scores_count
-      FROM "Score"
+      FROM "MatchScore"
       WHERE "matchId" = NEW.id AND "playerId" = player_id;
       
       -- If less than 9 scores, set flag to false
@@ -42,7 +42,7 @@ BEGIN
       -- Check if all holes 1-9 have scores
       FOR i IN 1..9 LOOP
         IF NOT EXISTS (
-          SELECT 1 FROM "Score" 
+          SELECT 1 FROM "MatchScore" 
           WHERE "matchId" = NEW.id 
           AND "playerId" = player_id 
           AND hole = i
