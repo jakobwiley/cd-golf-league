@@ -146,22 +146,55 @@ export default function MatchesPageClient() {
         const expectedWeeks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14];
         const missingWeeks = expectedWeeks.filter(week => !weeks.includes(week));
         
+        let usedMatches = scheduledMatches;
         if (missingWeeks.length > 0 || scheduledMatches.length < 50) {
           console.log('Missing weeks or not enough matches, using fallback data');
           setMatches(fallbackMatches);
+          usedMatches = fallbackMatches;
         } else {
           setMatches(scheduledMatches);
         }
+        // Auto-expand closest upcoming week logic
+        // Find the week with the soonest date >= today
+        const now = new Date();
+        // Group by week
+        const matchesByWeek: Record<number, Match[]> = {};
+        usedMatches.forEach(match => {
+          if (!matchesByWeek[match.weekNumber]) matchesByWeek[match.weekNumber] = [];
+          matchesByWeek[match.weekNumber].push(match);
+        });
+        // Find the earliest week with a match date >= today
+        let closestWeek: number | null = null;
+        let minDiff = Infinity;
+        Object.entries(matchesByWeek).forEach(([week, matches]) => {
+          // Find the earliest match date in this week
+          const earliest = matches.reduce((min, m) => {
+            const d = new Date(m.date).getTime();
+            return d < min ? d : min;
+          }, Infinity);
+          const diff = earliest - now.getTime();
+          if (diff >= 0 && diff < minDiff) {
+            minDiff = diff;
+            closestWeek = parseInt(week);
+          }
+        });
+        // If all matches are in the past, expand the last week
+        if (closestWeek === null) {
+          const allWeeks = Object.keys(matchesByWeek).map(Number);
+          closestWeek = Math.max(...allWeeks);
+        }
+        setExpandedWeeks([closestWeek]);
       } catch (error) {
         console.error('Error loading matches:', error);
         setError('Failed to load matches, using fallback data');
         // Use fallback data in case of error
         setMatches(fallbackMatches);
+        // Fallback: expand week 1
+        setExpandedWeeks([1]);
       } finally {
         setLoading(false);
       }
     }
-
     loadMatches()
   }, [])
 

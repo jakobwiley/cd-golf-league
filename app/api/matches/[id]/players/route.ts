@@ -241,6 +241,9 @@ export async function PUT(
     const body = await request.json()
     const { playerAssignments } = MatchPlayerAssignmentsSchema.parse(body)
 
+    console.log('Raw request body:', JSON.stringify(body));
+    console.log('Parsed playerAssignments:', JSON.stringify(playerAssignments));
+
     // Log every assignment and its originalPlayerId
     playerAssignments.forEach((a, i) => {
       console.log(`Assignment[${i}]:`, JSON.stringify(a));
@@ -251,7 +254,7 @@ export async function PUT(
     const invalidAssignments = playerAssignments.filter(a => typeof a.originalPlayerId !== 'string' || a.originalPlayerId.trim() === '');
     if (invalidAssignments.length > 0) {
       console.error('Invalid assignments missing originalPlayerId:', JSON.stringify(invalidAssignments, null, 2));
-      return NextResponse.json({ error: 'Some assignments missing valid originalPlayerId', invalidAssignments }, { status: 400 });
+      return NextResponse.json({ error: 'Some assignments missing valid originalPlayerId', invalidAssignments, rawBody: body, playerAssignments }, { status: 400 });
     }
 
     // Only process valid assignments
