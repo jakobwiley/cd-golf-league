@@ -296,6 +296,13 @@ export async function PUT(
       // Check if the substitute player is already assigned to the match
       const existingSubstitutePlayer = existingMatchPlayerMap.get(substitutePlayerId)
 
+      // Defensive: ensure originalPlayerId is never null or undefined
+      // If it is, skip this assignment and log an error
+      if (!originalPlayerId) {
+        console.error('Skipping substitute assignment: originalPlayerId is missing for substitutePlayerId', substitutePlayerId)
+        continue;
+      }
+
       if (!existingSubstitutePlayer) {
         // If the substitute player is not already assigned, add them
         const { error: addSubstitutePlayerError } = await supabase
