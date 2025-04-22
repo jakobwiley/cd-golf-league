@@ -135,6 +135,14 @@ export async function PATCH(
   }
 }
 
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  // Reuse PATCH logic for PUT requests
+  return PATCH(request, { params });
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
