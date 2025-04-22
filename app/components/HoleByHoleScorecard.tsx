@@ -205,6 +205,8 @@ export default function HoleByHoleScorecard({
   const [showFinalizeWarning, setShowFinalizeWarning] = useState(false);
   // WebSocket reference
   const wsRef = useRef<WebSocket | null>(null);
+  // Add loading state for scores
+  const [scoresLoading, setScoresLoading] = useState(true)
 
   const handleSummaryToggle = async () => {
     if (showSummary) {
@@ -609,6 +611,16 @@ export default function HoleByHoleScorecard({
     // Load scores on initial mount
     fetchData();
   }, [match.id]);
+
+  // Fetch scores on mount and after player/team changes
+  useEffect(() => {
+    const fetchScores = async () => {
+      setScoresLoading(true)
+      await fetchLatestScores()
+      setScoresLoading(false)
+    }
+    fetchScores()
+  }, [match.id, homeTeamPlayers.length, awayTeamPlayers.length])
 
   // Set up WebSocket connection for real-time score updates
   useEffect(() => {
@@ -1252,6 +1264,14 @@ export default function HoleByHoleScorecard({
     return (
       <div className="flex justify-center items-center p-8">
         <div className="animate-spin w-10 h-10 border-4 border-[#00df82] border-t-transparent rounded-full"></div>
+      </div>
+    )
+  }
+
+  if (scoresLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <span className="text-white text-lg animate-pulse">Loading scores...</span>
       </div>
     )
   }

@@ -13,3 +13,13 @@ Run `npm run secrets:scan`
 # Template literals in code
 \$\{key\}
 \(\[key, value\]\) => `\$\{key\}=\$\{value\}`
+# Allow Tailwind hex color classes
+#00df82
+#030f0f
+border-[#00df82]/5
+bg-[#030f0f]/30
+# Allow full Tailwind class string flagged by scanner
+className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-3 md:p-5 rounded-lg border border-[#00df82]/5"
+# Allow flagged div lines from HoleByHoleScorecard
+<div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-3 md:p-5 rounded-lg border border-[#00df82]/5">
+<div key={player.id} className="flex flex-col items-center justify-center bg-[#030f0f]/30 p-3 md:p-5 rounded-lg border border-[#00df82]/5">
