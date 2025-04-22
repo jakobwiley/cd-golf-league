@@ -241,6 +241,18 @@ export async function PUT(
     const body = await request.json()
     const { playerAssignments } = MatchPlayerAssignmentsSchema.parse(body)
 
+    // Log all assignments for debugging
+    console.log('Received playerAssignments:', JSON.stringify(playerAssignments, null, 2));
+
+    // Defensive: filter out assignments with invalid originalPlayerId
+    const validAssignments = playerAssignments.filter(a => typeof a.originalPlayerId === 'string' && a.originalPlayerId.trim() !== '');
+    if (validAssignments.length !== playerAssignments.length) {
+      console.error('Some assignments missing valid originalPlayerId:', JSON.stringify(playerAssignments, null, 2));
+    }
+    if (validAssignments.length === 0) {
+      return NextResponse.json({ error: 'No valid player assignments (missing originalPlayerId)' }, { status: 400 });
+    }
+
     // Get existing match players
     const { data: existingMatchPlayers, error: existingMatchPlayersError } = await supabase
       .from('MatchPlayer')
@@ -256,8 +268,8 @@ export async function PUT(
       existingMatchPlayers.map(player => [player.playerId, player])
     )
 
-    // Process each player assignment
-    for (const assignment of playerAssignments) {
+    // Process each valid player assignment
+    for (const assignment of validAssignments) {
       const { originalPlayerId, substitutePlayerId, teamId } = assignment
 
       // Check if the original player is already assigned to the match
