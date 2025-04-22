@@ -41,12 +41,26 @@ const MatchPlayerAssignmentsSchema = z.object({
 
 // Helper function to handle errors
 function handleError(error: any, message: string) {
-  console.error(`${message}:`, error);
+  // Log full error details for debugging
+  console.error('API ERROR:', {
+    message,
+    error,
+    errorString: String(error),
+    errorStack: error?.stack,
+    errorDetails: error?.details,
+    errorHint: error?.hint,
+    errorCode: error?.code,
+  });
   return NextResponse.json(
-    { 
-      error: message, 
+    {
+      error: message,
       details: String(error),
-      stack: error.stack
+      stack: error?.stack,
+      supabase: {
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+      }
     },
     { status: 500 }
   );
