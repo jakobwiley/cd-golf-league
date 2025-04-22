@@ -241,17 +241,21 @@ export async function PUT(
     const body = await request.json()
     const { playerAssignments } = MatchPlayerAssignmentsSchema.parse(body)
 
-    // Log all assignments for debugging
-    console.log('Received playerAssignments:', JSON.stringify(playerAssignments, null, 2));
+    // Log every assignment and its originalPlayerId
+    playerAssignments.forEach((a, i) => {
+      console.log(`Assignment[${i}]:`, JSON.stringify(a));
+      console.log(`Assignment[${i}] originalPlayerId:`, a.originalPlayerId);
+    });
 
-    // Defensive: filter out assignments with invalid originalPlayerId
+    // Find invalid assignments
+    const invalidAssignments = playerAssignments.filter(a => typeof a.originalPlayerId !== 'string' || a.originalPlayerId.trim() === '');
+    if (invalidAssignments.length > 0) {
+      console.error('Invalid assignments missing originalPlayerId:', JSON.stringify(invalidAssignments, null, 2));
+      return NextResponse.json({ error: 'Some assignments missing valid originalPlayerId', invalidAssignments }, { status: 400 });
+    }
+
+    // Only process valid assignments
     const validAssignments = playerAssignments.filter(a => typeof a.originalPlayerId === 'string' && a.originalPlayerId.trim() !== '');
-    if (validAssignments.length !== playerAssignments.length) {
-      console.error('Some assignments missing valid originalPlayerId:', JSON.stringify(playerAssignments, null, 2));
-    }
-    if (validAssignments.length === 0) {
-      return NextResponse.json({ error: 'No valid player assignments (missing originalPlayerId)' }, { status: 400 });
-    }
 
     // Get existing match players
     const { data: existingMatchPlayers, error: existingMatchPlayersError } = await supabase
